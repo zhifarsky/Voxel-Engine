@@ -123,7 +123,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -169,7 +169,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -205,17 +205,17 @@
   <ItemGroup>
     <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="glad\include\KHR\khrplatform.h" />
-    <ClInclude Include="src\Chunk.h" />
-    <ClInclude Include="src\DataStructures.h" />
-    <ClInclude Include="src\Directories.h" />
-    <ClInclude Include="src\Header.h" />
-    <ClInclude Include="src\Mesh.h" />
-    <ClInclude Include="src\Entity.h" />
-    <ClInclude Include="src\ResourceLoader.h" />
-    <ClInclude Include="src\Tools.h" />
-    <ClInclude Include="src\Typedefs.h" />
-    <ClInclude Include="src\ui.h" />
-    <ClInclude Include="src\World.h" />
+    <ClInclude Include="include\Chunk.h" />
+    <ClInclude Include="include\DataStructures.h" />
+    <ClInclude Include="include\Directories.h" />
+    <ClInclude Include="include\Header.h" />
+    <ClInclude Include="include\Mesh.h" />
+    <ClInclude Include="include\Entity.h" />
+    <ClInclude Include="include\ResourceLoader.h" />
+    <ClInclude Include="include\Tools.h" />
+    <ClInclude Include="include\Typedefs.h" />
+    <ClInclude Include="include\ui.h" />
+    <ClInclude Include="include\World.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TODO.md" />
