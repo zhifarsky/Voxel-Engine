@@ -5,9 +5,7 @@ layout (location = 1) in int instancePackedOffset;
 layout (location = 2) in int instanceFaceDirection;
 layout (location = 3) in int instanceTextureID;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 viewProjection;
 uniform mat4 lightSpaceMatrix;
 
 uniform ivec2 atlasSize;
@@ -85,9 +83,9 @@ void main() {
     ourUV = vec2(u,v);
 
     vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);
-    FragPos = vec3(model * vec4(vertexPos, 1.0));
+    FragPos = vertexPos;
 
     FragPosLightSpace = lightSpaceMatrix * vec4(FragPos, 1.0);
 
-	gl_Position = projection * view * model * vec4(vertexPos, 1.0);
+	gl_Position = viewProjection * vec4(vertexPos, 1.0);
 }

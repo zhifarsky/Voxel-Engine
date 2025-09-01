@@ -30,5 +30,10 @@
     <None Include="DevConsole.bat">
       <Filter>Исходные файлы</Filter>
     </None>
+    <None Include="res\shaders\sprite.frag" />
+    <None Include="res\shaders\flat.frag" />
+    <None Include="res\shaders\polyMesh.frag" />
+    <None Include="res\shaders\polyMesh.vert" />
+    <None Include="res\shaders\polyMeshDepthShader.vert" />
   </ItemGroup>
 </Project>

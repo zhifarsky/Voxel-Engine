@@ -5,7 +5,6 @@ layout (location = 1) in int instancePackedOffset;
 layout (location = 2) in int instanceFaceDirection;
 layout (location = 3) in int instanceTextureID;
 
-uniform mat4 model;
 uniform mat4 lightSpaceMatrix;
 
 uniform ivec2 chunkPos;
@@ -54,5 +53,5 @@ void main() {
 
     vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);
 
-	gl_Position = lightSpaceMatrix * model * vec4(vertexPos, 1.0);
+	gl_Position = lightSpaceMatrix * vec4(vertexPos, 1.0);
 }

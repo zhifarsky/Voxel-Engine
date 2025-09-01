@@ -1,6 +1,8 @@
 #pragma once
+#include <windows.h>
 #include "Typedefs.h"
 #include "Mesh.h"
+#include "DataStructures.h"
 
 // chunk sizes
 #define CHUNK_SX 16
@@ -31,80 +33,23 @@ struct Chunk {
 	Block* blocks;
 	BlockMesh mesh;
 	bool generated;
+
+	void generateMesh();
 };
 
-void meshChunk(Chunk& chunk);
+struct ChunkGenTask {
+	int posx;
+	int posz;
+	int index;
+};
+struct WorkingThread {
+	HANDLE handle;
+	int threadID;
+};
 
-#ifdef CHUNK_IMPL
-Block::Block() {}
+extern WorkQueue chunkGenQueue;
+extern ChunkGenTask chunkGenTasks[];
+extern WorkingThread* chunkGenThreads;
 
-Block::Block(BlockType t) {
-	this->type = t;
-}
-
-void meshChunk(Chunk& chunk) {
-	int layerStride = CHUNK_SX * CHUNK_SZ;
-	int stride = CHUNK_SX;
-	int faceCount = 0;
-
-	BlockFaceInstance* faces = chunk.mesh.faces;
-
-	memset(faces, 0, chunk.mesh.faceSize * sizeof(BlockFaceInstance));
-
-	int blockIndex = 0;
-	Block* blocks = chunk.blocks;
-	glm::vec3 color(1, 1, 1);
-	for (size_t y = 0; y < CHUNK_SY; y++) {
-		for (size_t z = 0; z < CHUNK_SZ; z++) {
-			for (size_t x = 0; x < CHUNK_SX; x++) {
-				BlockType blockType = blocks[blockIndex].type;
-				if (blockType != btAir) {
-					TextureID texID;
-					switch (blockType)
-					{
-					case btGround:	texID = tidGround;	break;
-					case btStone:	texID = tidStone;	break;
-					case btSnow:	texID = tidSnow;	break;
-					case btIronOre:	texID = tidIronOre;	break;
-					default:	texID = tidGround;	break;
-					}
-
-
-					// top
-					if (y == CHUNK_SY - 1 || blocks[blockIndex + layerStride].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID);
-					}
-
-					// bottom
-					if (y == 0 || blocks[blockIndex - layerStride].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYNeg, texID);
-					}
-
-					// front
-					if (z == 0 || blocks[blockIndex - stride].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceZPos, texID);
-					}
-
-					// back
-					if (z == CHUNK_SZ - 1 || blocks[blockIndex + stride].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceZNeg, texID);
-					}
-
-					// left
-					if (x == 0 || blocks[blockIndex - 1].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceXPos, texID);
-					}
-
-					// right
-					if (x == CHUNK_SX - 1 || blocks[blockIndex + 1].type == btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceXNeg, texID);
-					}
-				}
-				blockIndex++;
-			}
-		}
-	}
-
-	chunk.mesh.faceCount = faceCount;
-}
-#endif // CHUNK_IMPL
+DWORD chunkGenThreadProc(WorkingThread* args);
+void updateChunk(int chunkIndex, int posx, int posz);

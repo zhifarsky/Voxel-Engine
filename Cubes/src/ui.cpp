@@ -1,112 +1,168 @@
+#define STB_TRUETYPE_IMPLEMENTATION
 #include "ui.h"
+#include <unordered_map>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
-#include "ResourceLoader.h"
 #include "Mesh.h"
 #include "Directories.h"
+#include "Tools.h"
 
-static GLuint uiShader;
-static GLuint faceVAO;
+struct ElementState {
+	bool wasActive;
+};
 
+std::unordered_map<std::string, ElementState> elementsState;
+
+static Sprite face;
+
+Font* font;
+
+GLFWwindow* window;
 float originX = 0, originY = 0;
 float left, right, bottom, top;
 int displayW, displayH;
-
 glm::mat4 projection;
+AdvanceMode advanceMode;
+
+UiStyle uiStyle;
+bool marginEnabled;
+
+float uiTextInternal(const char* text, float posX, float posY);
+
+Font loadFont(const char* path, float fontSize) {
+	Font font = { 0 };
+
+	u32 fileSize = 0;
+	u8* fileBuffer = readEntireFile(path, &fileSize, FileType::binary);
+
+	u32 atlasWidth = 512, atlasHeight = 512;
+	u8* tempBitmap = (u8*)malloc(atlasWidth * atlasHeight);
+
+	u32 firstChar = ' ', lastChar = '~';
+	u32 charsCount = lastChar - firstChar + 1;
+
+	stbtt_bakedchar* charData = (stbtt_bakedchar*)malloc(charsCount * sizeof(stbtt_bakedchar));
+	
+	// render font to atlas
+	stbtt_BakeFontBitmap(fileBuffer, 0, fontSize, tempBitmap, atlasWidth, atlasHeight, firstChar, charsCount, charData);
+	// get font info
+	stbtt_InitFont(&font.fontInfo, fileBuffer, stbtt_GetFontOffsetForIndex(fileBuffer, 0));
+
+	u8* rgbaBitmap = (u8*)malloc(atlasWidth * atlasHeight * 4);
+	for (int i = 0; i < atlasWidth * atlasHeight; i++) {
+		rgbaBitmap[i * 4 + 0] = 255; // R
+		rgbaBitmap[i * 4 + 1] = 255; // G
+		rgbaBitmap[i * 4 + 2] = 255; // B
+		rgbaBitmap[i * 4 + 3] = tempBitmap[i]; // A
+	}
+
+	font.charData = (CharData*)charData;
+	font.firstChar = firstChar;
+	font.charsCount = charsCount;
+	font.size = fontSize;
+
+	font.atlas = Renderer::createTexture(
+		atlasWidth, atlasHeight, rgbaBitmap,
+		PixelFormat::RGBA, PixelFormat::RGBA,
+		TextureWrapping::ClampToEdge, TextureFiltering::Linear
+	);
+
+	//free(fileBuffer); // не освобождаем, так как используетс€ в stbtt_fontinfo
+	free(tempBitmap);
+	free(rgbaBitmap);
+
+	return font;
+}
 
 void uiInit() {
-	uiShader = BuildShader(SHADER_FOLDER "uiElement.vert", SHADER_FOLDER "uiElement.frag");
-
 	// TODO: запечь вершины в вершинный шейдер вместо создани€ их на CPU
+	//static Vertex faceVerts[] = {
+	//	Vertex(-0.5,-0.5,0, 0,0),
+	//	Vertex(0.5, -0.5,0, 1,0),
+	//	Vertex(0.5, 0.5,0, 1,1),
+	//	Vertex(-0.5,0.5,0, 0,1),
+	//};
 	static Vertex faceVerts[] = {
-		Vertex(-0.5,-0.5,0, 0,0),
-		Vertex(0.5, -0.5,0, 1,0),
-		Vertex(0.5, 0.5,0, 1,1),
-		Vertex(-0.5,0.5,0, 0,1),
+		Vertex(0,0,0, 0,0),
+		Vertex(1,0,0, 1,0),
+		Vertex(1,1,0, 1,1),
+		Vertex(0,1,0, 0,1),
 	};
 	static Triangle faceTris[] = {
 		Triangle(0,1,2),
 		Triangle(0,2,3)
 	};
 
-	GLuint VAO, VBO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
+	face = Renderer::createGeometry(faceVerts, 4, faceTris, 2);
 
-	// выбираем буфер как текущий
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	// style
+	{
+		uiStyle.padding = 10;
+		uiStyle.margin = 20; 
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(faceVerts), faceVerts, GL_STATIC_DRAW); // отправка вершин в пам€ть видеокарты
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faceTris), faceTris, GL_STATIC_DRAW); // загружаем индексы
+		uiStyle.buttonColor = { 0.5, 0.2, 0.2, 1 };
+		uiStyle.buttonHoveredColor = { 0.7, 0.2, 0.2, 1 };
+		uiStyle.buttonActiveColor = { 1, 0, 0, 1 };
 
-	// "объ€сн€ем" как необходимо прочитать массив с вершинами
-	GLint stride = sizeof(Vertex);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, pos)); // pos
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, uv)); // tex coord
+		uiStyle.sliderBarSize = { 300, 10 };
+		uiStyle.sliderBarColor = { 0.7, 0.7, 0.7, 1 };
 
-	faceVAO = VAO;
-	glBindVertexArray(0);
+		uiStyle.sliderKnobSize = { 20, 40 };
+		uiStyle.sliderKnobColor = { 1, 1, 1, 0.5 };
+		uiStyle.sliderKnobHoveredColor = { 1, 1, 1, 0.7 };
+		uiStyle.sliderKnobActiveColor = { 1, 1, 1, 1 };
+	}
 }
 
-void uiStart(GLFWwindow* window) {
+void uiStart(GLFWwindow* currentWindow, Font* defaultFont) {
+	font = defaultFont;
+
+	window = currentWindow;
 	glfwGetFramebufferSize(window, &displayW, &displayH);
 
 	originX = originY = 0;
 
+	advanceMode = AdvanceMode::Right;
+	marginEnabled = true;
+
 	projection = glm::mat4(1.0);
-	float aspect = (float)displayH / (float)displayW;
-	float centerX = (float)displayW / 2.0f;
-	float centerY = (float)displayH / 2.0f;
-	left = -centerX;
-	right = centerX;
-	bottom = -centerY;
-	top = centerY;
-	//projectionOrtho = glm::ortho(0.0f, (float)display_w, 0.0f, (float)display_h, -1.0f, 100.0f);
-	//projectionOrtho = glm::ortho(-1.0f, 1.0f, -1.0f * aspect, 1.0f * aspect, -1.0f, 1.0f);
-	projection = glm::ortho(-centerX, centerX, -centerY, centerY, -1.0f, 1.0f);
+	right = displayW;
+	top = displayH;
+	left = 0;
+	bottom = 0;
+	projection = glm::ortho(left, right, bottom, top, -1.0f, 1.0f);
 
 	// use ui shader
-	glUseProgram(uiShader);
-	glUniformMatrix4fv(glGetUniformLocation(uiShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+	Renderer::bindShader(uiShader);
+	Renderer::setUniformMatrix4(uiShader, "projection", glm::value_ptr(projection));
+	Renderer::switchDepthTest(false);
 }
 
-
-void uiDrawElement(GLuint texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	glm::mat4 model = glm::mat4(1.0f); // единична€ матрица (1 по диагонали)
-	model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
-	model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0, 0.0, 0.0));
-	model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0, 1.0, 0.0));
-	model = glm::rotate(model, glm::radians(rot.z+180), glm::vec3(0.0, 0.0, 1.0)); // +180 так как элемент отрисовывалс€ вверх ногами
-	model = glm::scale(model, scale);
-	glUniformMatrix4fv(glGetUniformLocation(uiShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-	glUniform2f(glGetUniformLocation(uiShader, "UVScale"), uvScale.x, uvScale.y);
-	glUniform2f(glGetUniformLocation(uiShader, "UVShift"), uvShift.x, uvShift.y);
-
-	glBindVertexArray(faceVAO);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(0);
+void uiEnd() {
+	Renderer::unbindShader();
+	Renderer::switchDepthTest(true);
 }
 
 void uiSetAnchor(uiAnchor anchor, float offset) {
 	switch (anchor) {
-	case uiLeftAnchor:
+	case uiAnchor::Center:
+		originX = (float)displayW / 2.0f;
+		originY = (float)displayH / 2.0f;
+		break;
+	case uiAnchor::Left:
+		originY = (float)displayH / 2.0f;
 		originX = left + offset;
 		break;
-	case uiRightAnchor:
+	case uiAnchor::Right:
+		originY = (float)displayH / 2.0f;
 		originX = right - offset;
 		break;
-	case uiTopAnchor:
+	case uiAnchor::Top:
+		originX = (float)displayW / 2.0f;
 		originY = top - offset;
 		break;
-	case uiBottomAnchor:
+	case uiAnchor::Bottom:
+		originX = (float)displayW / 2.0f;
 		originY = bottom + offset;
 		break;
 	}
@@ -121,3 +177,282 @@ void uiShiftOrigin(float offsetX, float offsetY) {
 	originX += offsetX;
 	originY += offsetY;
 }
+
+
+void uiSetAdvanceMode(AdvanceMode mode) {
+	advanceMode = mode;
+}
+
+void uiSetMargin(bool enabled) {
+	marginEnabled = enabled;
+}
+
+void uiAdvance(float offsetX, float offsetY) {
+	switch (advanceMode)
+	{
+	case AdvanceMode::Right:
+		originX += offsetX + uiStyle.margin * marginEnabled;
+		break;
+	case AdvanceMode::Left:
+		originX -= offsetX + uiStyle.margin * marginEnabled;
+		break;
+	case AdvanceMode::Up:
+		originY += offsetY + uiStyle.margin * marginEnabled;
+		break;
+	case AdvanceMode::Down:
+		originY -= offsetY + uiStyle.margin * marginEnabled;
+		break;
+	}
+}
+
+void uiUseFont(Font* newFont)
+{
+	font = newFont;
+}
+
+// NOTE: элементы отцентрованы при помощи translate. отстальные элементы не отцентрованы
+void uiDrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
+	Renderer::bindTexture(texture);
+
+	glm::mat4 model = glm::mat4(1.0f); // единична€ матрица (1 по диагонали)
+	model = glm::translate(model, glm::vec3(originX, originY, 0));
+	model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0, 0.0, 0.0));
+	model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0, 1.0, 0.0));
+	model = glm::rotate(model, glm::radians(rot.z+180), glm::vec3(0.0, 0.0, 1.0)); // +180 так как элемент отрисовывалс€ вверх ногами
+	model = glm::scale(model, scale);
+	model = glm::translate(model, glm::vec3(-.5, -.5, 0)); // отцентровывание
+	
+	Renderer::setUniformMatrix4(uiShader, "model", value_ptr(model));
+	Renderer::setUniformFloat2(uiShader, "UVScale", uvScale.x, uvScale.y);
+	Renderer::setUniformFloat2(uiShader, "UVShift", uvShift.x, uvShift.y);
+	Renderer::setUniformFloat(uiShader, "colorWeight", 0);
+
+	Renderer::drawGeometry(&face);
+
+	Renderer::unbindTexture();
+
+	uiAdvance(scale.x, scale.y);
+}
+
+bool uiButton(const char* text, glm::vec2 size) {
+	float textWidth = uiGetTextWidth(text);
+	
+	if (size.x * size.y == 0)
+		size = glm::vec2(textWidth + uiStyle.padding * 2, font->size + uiStyle.padding * 2);
+
+	ElementState state = {0};
+	if (elementsState.count(text))
+		state = elementsState[text];
+
+	double px, py;
+	glfwGetCursorPos(window, &px, &py);
+	py = displayH - py;
+	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool hovered = pointRectCollision(
+		px, py,
+		originX, originY, 
+		originX + size.x, 
+		originY + size.y);
+
+	bool res = hovered && clicked && !state.wasActive;
+	state.wasActive = hovered && clicked;
+	elementsState[text] = state;
+
+	glm::vec4 color = uiStyle.buttonColor;
+	if (hovered && clicked)
+		color = uiStyle.buttonActiveColor;
+	else if (hovered) 
+		color = uiStyle.buttonHoveredColor;
+
+	{
+		glm::mat4 model = glm::mat4(1.0f); // единична€ матрица (1 по диагонали)
+		model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
+		model = glm::scale(model, glm::vec3(size, 1));
+
+		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
+		Renderer::setUniformFloat4(uiShader, "color", color);
+		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+
+		Renderer::drawGeometry(&face);
+	}
+
+	uiTextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2 - font->size / 2);
+	uiAdvance(size.x, size.y);
+
+	return res;
+}
+
+bool uiSliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue) {
+	
+	float sliderRange = maxValue - minValue;
+	float normalizedValue = (*value - minValue) / sliderRange;
+
+	float barWidth = uiStyle.sliderBarSize.x;
+	float barHeight = uiStyle.sliderBarSize.y;
+	float knobWidth = uiStyle.sliderKnobSize.x;
+	float knobHeight = uiStyle.sliderKnobSize.y;
+	glm::vec2 knobPos(originX + barWidth * normalizedValue, originY);
+
+	double px, py;
+	glfwGetCursorPos(window, &px, &py);
+	py = displayH - py;
+	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool hovered = pointRectCollision(
+		px, py,
+		originX, knobPos.y - knobHeight / 2,
+		originX + barWidth, knobPos.y + knobHeight / 2
+	);
+
+	if (elementsState.count(name)) {
+		if (elementsState[name].wasActive)
+			hovered = true;
+	}
+
+	bool res = false;
+	if (hovered && clicked) {
+		res = true;
+		float newNormalizedValue = glm::clamp((px - originX) / barWidth, 0.0, 1.0);
+		float newValue = newNormalizedValue * sliderRange + minValue;
+		*value = newValue;
+
+		if (!elementsState.count(name)) {
+			elementsState[name] = {};
+		}
+		elementsState[name].wasActive = true;
+	}
+	else {
+		if (!elementsState.count(name)) {
+			elementsState[name] = {};
+		}
+		elementsState[name].wasActive = false;
+	}
+
+	{
+		uiTextInternal(text, originX, originY + knobHeight / 2 + uiStyle.padding);
+
+		glm::mat4 barModel = glm::mat4(1.0f);
+		barModel = glm::translate(barModel, glm::vec3(originX, originY - barHeight / 2, 0));
+		barModel = glm::scale(barModel, glm::vec3(barWidth, barHeight, 1));
+
+		glm::mat4 knobModel = glm::mat4(1.0f);
+		knobModel = glm::translate(knobModel, glm::vec3(knobPos.x - knobWidth / 2, originY - knobHeight / 2, 0));
+		knobModel = glm::scale(knobModel, glm::vec3(knobWidth, knobHeight, 1));
+
+		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+
+		Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderBarColor);
+		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(barModel));
+		Renderer::drawGeometry(&face);
+
+		if (hovered && clicked)
+			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobActiveColor);
+		else if (hovered)
+			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobHoveredColor);
+		else
+			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobColor);
+		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(knobModel));
+		Renderer::drawGeometry(&face);
+	}
+	uiAdvance(barWidth, knobHeight + font->size);
+	return res;
+}
+
+bool uiSliderFloat(const char* text, float* value, float minValue, float maxValue) {
+	char buf[128];
+	sprintf(buf, "%s %.1f", text, *value);
+	return uiSliderInternal(text, buf, value, minValue, maxValue);
+}
+
+bool uiSliderInt(const char* text, int* value, int minValue, int maxValue) {
+	char buf[128];
+	sprintf(buf, "%s %d", text, *value);
+	float v = *value;
+
+	bool res = uiSliderInternal(text, buf, &v, minValue, maxValue);
+	*value = v;
+	return res;
+}
+
+float uiGetTextWidth(const char* text) {
+	u32 len = strlen(text);
+	
+	float width = 0;
+
+	for (size_t i = 0; i < len; i++)
+	{
+		CharData charData = font->charData[text[i] - font->firstChar];
+
+		width += charData.xoff + charData.xadvance;
+
+		if (i > 0) {
+			int glyph1 = stbtt_FindGlyphIndex(&font->fontInfo, text[i - 1]);
+			int glyph2 = stbtt_FindGlyphIndex(&font->fontInfo, text[i]);
+
+			int kern = stbtt_GetGlyphKernAdvance(&font->fontInfo, glyph1, glyph2);
+			float kernPixels = (float)kern * stbtt_ScaleForPixelHeight(&font->fontInfo, font->size);
+
+			width += kernPixels;
+		}
+	}
+
+	return width;
+}
+
+float uiTextInternal(const char* text, float posX, float posY) {
+	u32 len = strlen(text);
+	
+	Renderer::bindTexture(&font->atlas);
+	Renderer::setUniformFloat(uiShader, "colorWeight", 0);
+	float x = posX;
+
+	for (size_t i = 0; i < len; i++)
+	{
+		char c = text[i];
+		CharData charData = font->charData[c - font->firstChar];
+
+		float cHeight = charData.y1 - charData.y0;
+		float cWidth = charData.x1 - charData.x0;
+		float cAspect = cWidth / cHeight;
+		float cHeightFactor = cHeight / font->size;
+		
+		float coordX = x + charData.xoff;
+		float coordY = posY - cHeight - charData.yoff;
+
+		// kerning
+		if (i > 0) {
+			int glyph1 = stbtt_FindGlyphIndex(&font->fontInfo, text[i - 1]);
+			int glyph2 = stbtt_FindGlyphIndex(&font->fontInfo, text[i]);
+
+			int kern = stbtt_GetGlyphKernAdvance(&font->fontInfo, glyph1, glyph2);
+			float kernPixels = (float)kern * stbtt_ScaleForPixelHeight(&font->fontInfo, font->size);
+
+			coordX += kernPixels;
+		}
+
+		glm::mat4 model = glm::mat4(1.0f); // единична€ матрица (1 по диагонали)
+		model = glm::translate(model, glm::vec3(coordX, coordY, 0));
+		model = glm::scale(model, glm::vec3(
+			cWidth, 
+			cHeight,
+			1));
+		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
+
+		Renderer::setUniformFloat2(uiShader, "UVShift", 
+			(float)charData.x0 / font->atlas.width,
+			(float)charData.y1 / font->atlas.height);
+		Renderer::setUniformFloat2(uiShader, "UVScale", 
+			(float)(charData.x1 - charData.x0) / font->atlas.width, 
+			-(float)(charData.y1 - charData.y0) / font->atlas.height);
+
+		Renderer::drawGeometry(&face);
+		
+		x += charData.xadvance;
+	}
+	return x - posX;
+}
+
+void uiText(const char* text) {
+	float width = uiTextInternal(text, originX, originY);
+	uiAdvance(width, font->size);
+}
+

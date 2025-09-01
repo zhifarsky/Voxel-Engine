@@ -3,15 +3,38 @@
 #include <intrin.h>
 #include "DataStructures.h"
 
-void MemoryArena::init(u32 capacity) {
-	memory = malloc(capacity);
-	this->capacity = capacity;
+constexpr u64 PAGE_SIZE = 4 * 1024;
+#define roundToMultiple(number, multiple) ((number + multiple - 1) / multiple) * multiple
+
+void Arena::alloc(u64 capacity, u64 reserveCapacity) {
+	this->capacity = roundToMultiple(capacity, PAGE_SIZE); // rounding to page size
+	this->size = 0;
+
+	mem = (u8*)VirtualAlloc(0, reserveCapacity, MEM_RESERVE, PAGE_READWRITE); // reserve large chunk of memory
+	VirtualAlloc(mem, this->capacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
 }
 
-void* MemoryArena::alloc(u32 allocSize) {
-	assert(this->size + allocSize <= capacity);
-	size += allocSize;
-	return (u8*)memory + size;
+void Arena::release() {
+	VirtualFree(mem, 0, MEM_RELEASE);
+	mem = 0;
+	size = capacity = 0;
+}
+
+void* Arena::push(u64 size) {
+	// if not enough capacity, commiting more memory
+	if (this->size + size > capacity) {
+		u64 newCapacity = roundToMultiple(this->size + size, PAGE_SIZE);
+		VirtualAlloc((u8*)mem + capacity, newCapacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
+		capacity = newCapacity;
+	}
+
+	void* res = mem + this->size;
+	this->size += size;
+	return res;
+}
+
+void Arena::clear() {
+	size = 0;
 }
 
 WorkQueue::WorkQueue(int maxSemaphore) {

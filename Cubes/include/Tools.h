@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include "Typedefs.h"
 
 #ifndef ArraySize(a)
 #define ArraySize(a) (sizeof(a) / sizeof(*a))
@@ -22,3 +23,23 @@ struct Timer {
 	void printMS(const char* msg = NULL);
 	void printS(const char* msg = NULL);
 };
+
+bool pointRectCollision(
+    float px, float py,
+    float bottomLeftX, float bottomLeftY,
+    float topRightX, float topRightY);
+
+bool rectRectCollision(
+    float aBottomLeftX, float aBottomLeftY,
+    float aTopRightX, float aTopRightY,
+    float bBottomLeftX, float bBottomLeftY,
+    float bTopRightX, float bTopRightY
+);
+
+enum class FileType {
+    binary,
+    text
+};
+
+// читает весь файл, выдел€€ под него пам€ть
+u8* readEntireFile(const char* path, u32* outBufferSize, FileType fileType);

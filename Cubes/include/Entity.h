@@ -15,10 +15,13 @@ enum EntityState : u8 {
 	entityStateCOUNT
 };
 
+typedef s32 EntityID;
+
 struct Entity {
 	glm::vec3 pos;
 	glm::vec3 rot = { 0,90,0 };
 	glm::vec3 speed = {0,0,0};
+	EntityID id;
 	EntityType type;
 	EntityState state;
 

@@ -100,8 +100,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -125,6 +126,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -146,8 +148,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -171,6 +174,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\other;$(SolutionDir)deps\glad\include;$(SolutionDir)deps\imgui;$(SolutionDir)deps\GLFWx64\include;$(SolutionDir)deps\soil\include;$(SolutionDir)deps\glm;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -192,12 +196,15 @@
     <ClCompile Include="..\deps\soil\src\image_helper.c" />
     <ClCompile Include="..\deps\soil\src\soil.c" />
     <ClCompile Include="..\deps\soil\src\stb_image_aug.c" />
+    <ClCompile Include="src\AssetManagement.cpp" />
+    <ClCompile Include="src\Chunk.cpp" />
     <ClCompile Include="src\Cubes.cpp" />
     <ClCompile Include="src\DataStructures.cpp" />
+    <ClCompile Include="src\Input.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Entity.cpp" />
-    <ClCompile Include="src\ResourceLoader.cpp" />
+    <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\Tools.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="src\World.cpp" />
@@ -209,9 +216,10 @@
     <ClInclude Include="include\DataStructures.h" />
     <ClInclude Include="include\Directories.h" />
     <ClInclude Include="include\Header.h" />
+    <ClInclude Include="include\Input.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Entity.h" />
-    <ClInclude Include="include\ResourceLoader.h" />
+    <ClInclude Include="include\Renderer.h" />
     <ClInclude Include="include\Tools.h" />
     <ClInclude Include="include\Typedefs.h" />
     <ClInclude Include="include\ui.h" />

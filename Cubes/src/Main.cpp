@@ -3,8 +3,6 @@
 #include <windows.h>
 #include <thread>
 
-#include "Header.h"
-
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -13,6 +11,10 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_stdlib.h>
 
+#include "Header.h"
+#include "Renderer.h"
+#include "Mesh.h"
+#include "ui.h"
 #pragma endregion
 
 void CubesMainGameLoop(GLFWwindow* window);
@@ -27,6 +29,11 @@ int CALLBACK WinMain(
 #pragma region GLFW
     if (!glfwInit())
         return -1;
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     window = glfwCreateWindow(1280, 720, "CUBES", NULL, NULL);
     if (!window)
     {
@@ -37,7 +44,9 @@ int CALLBACK WinMain(
     glfwSwapInterval(0); // disable vsync
 #pragma endregion
 
-    gladLoadGL();
+    //gladLoadGL();
+    //gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    Renderer::init((Renderer::LoadProc)glfwGetProcAddress);
 
 #pragma region Imgui
     const char* glsl_version = "#version 330";
@@ -50,8 +59,16 @@ int CALLBACK WinMain(
     ImGui::StyleColorsDark();
 #pragma endregion
 
+    // компил€ци€ шейдеров
+    initShaders();
+    uiInit();
+
     // MAIN LOOP
     CubesMainGameLoop(window);
+
+    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
 

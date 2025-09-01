@@ -25,6 +25,11 @@
     <None Include="res\shaders\block.vert" />
     <None Include="res\shaders\blockDepthShader.vert" />
     <None Include="res\shaders\depthShader.frag" />
+    <None Include="res\shaders\flat.frag" />
+    <None Include="res\shaders\polyMesh.frag" />
+    <None Include="res\shaders\polyMesh.vert" />
+    <None Include="res\shaders\polyMeshDepthShader.vert" />
+    <None Include="res\shaders\sprite.frag" />
     <None Include="res\shaders\sprite.vert" />
     <None Include="res\shaders\testCube.frag" />
     <None Include="res\shaders\testCube.vert" />
