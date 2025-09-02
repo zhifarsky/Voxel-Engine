@@ -15,25 +15,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\shaders\block.frag" />
-    <None Include="res\shaders\block.vert" />
-    <None Include="res\shaders\blockDepthShader.vert" />
-    <None Include="res\shaders\depthShader.frag" />
-    <None Include="res\shaders\sprite.vert" />
-    <None Include="res\shaders\testCube.frag" />
-    <None Include="res\shaders\testCube.vert" />
-    <None Include="res\shaders\uiElement.frag" />
-    <None Include="res\shaders\uiElement.vert" />
+    <None Include="res\shaders\sprite.glsl" />
+    <None Include="res\shaders\uiElement.glsl" />
     <None Include="CopyResources.bat">
       <Filter>Исходные файлы</Filter>
     </None>
     <None Include="DevConsole.bat">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="res\shaders\sprite.frag" />
-    <None Include="res\shaders\flat.frag" />
-    <None Include="res\shaders\polyMesh.frag" />
-    <None Include="res\shaders\polyMesh.vert" />
-    <None Include="res\shaders\polyMeshDepthShader.vert" />
+    <None Include="res\shaders\flat.glsl" />
+    <None Include="res\shaders\block.glsl" />
+    <None Include="res\shaders\blockShadow.glsl" />
+    <None Include="res\shaders\polyMesh.glsl" />
+    <None Include="res\shaders\polyMeshShadow.glsl" />
   </ItemGroup>
 </Project>

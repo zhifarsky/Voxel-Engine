@@ -25,17 +25,16 @@ Shader
 
 void initShaders() {
 	using namespace Renderer;
-
-	cubeInstancedShader = createShaderFromFile(SHADER_FOLDER "block.vert", SHADER_FOLDER "block.frag");
-	shadowShader = createShaderFromFile(SHADER_FOLDER "blockDepthShader.vert", SHADER_FOLDER "depthShader.frag");
+	cubeInstancedShader = createShaderFromFile(SHADER_FOLDER "block.glsl");
+	shadowShader = createShaderFromFile(SHADER_FOLDER "blockShadow.glsl");
 	
-	polyMeshShader = createShaderFromFile(SHADER_FOLDER "polyMesh.vert", SHADER_FOLDER "polyMesh.frag");
-	polyMeshShadowShader = createShaderFromFile(SHADER_FOLDER "polyMeshDepthShader.vert", SHADER_FOLDER "depthShader.frag");
+	polyMeshShader = createShaderFromFile(SHADER_FOLDER "polyMesh.glsl");
+	polyMeshShadowShader = createShaderFromFile(SHADER_FOLDER "polyMeshShadow.glsl");
 	
-	flatShader = createShaderFromFile(SHADER_FOLDER "polyMesh.vert", SHADER_FOLDER "flat.frag");
-	spriteShader = createShaderFromFile(SHADER_FOLDER "sprite.vert", SHADER_FOLDER "sprite.frag");
+	flatShader = createShaderFromFile(SHADER_FOLDER "flat.glsl");
+	spriteShader = createShaderFromFile(SHADER_FOLDER "sprite.glsl");
 
-	uiShader = createShaderFromFile(SHADER_FOLDER "uiElement.vert", SHADER_FOLDER "uiElement.frag");
+	uiShader = createShaderFromFile(SHADER_FOLDER "uiElement.glsl");
 }
 
 void rebuildShaders() {
@@ -49,7 +48,7 @@ void rebuildShaders() {
 	}
 
 	initShaders();
-	dbgprint("Shaders reubild done!\n");
+	dbgprint("Shaders rebuild done!\n");
 }
 
 #pragma region Block

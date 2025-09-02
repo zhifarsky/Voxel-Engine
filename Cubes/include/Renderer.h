@@ -134,6 +134,7 @@ namespace Renderer {
 
 	Shader createShader(const char* vertexSource, const char* fragmentSource);
 	Shader createShaderFromFile(const char* vertexShaderFilename, const char* fragmentShaderFilename);
+	Shader createShaderFromFile(const char* fileName);
 	void deleteShader(Shader shader);	
 	void bindShader(Shader shader);
 	void unbindShader();

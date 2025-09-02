@@ -4,7 +4,11 @@
 #include "Renderer.h"
 #include "Tools.h"
 
+const char* VertexShaderIdentifier = "#type vertex";
+const char* FragmentShaderIdentifier = "#type fragment";
+
 using namespace Renderer;
+
 
 const GLenum PixelFormatTable[] = {
 	GL_RGB, GL_RGBA, GL_RED, GL_DEPTH_COMPONENT
@@ -82,6 +86,33 @@ namespace Renderer {
 		free(fragmentSource);
 
 		return shaderProgram;
+	}
+
+	Shader Renderer::createShaderFromFile(const char* fileName)
+	{
+		u32 vFileSize = 0, fFileSize = 0;
+		char* source = (char*)readEntireFile(fileName, &vFileSize, FileType::text);
+		if (!source) {
+			FatalError("Error on loading shaders from disk");
+		}
+
+		char* vertexSource = strstr(source, VertexShaderIdentifier);
+		char* fragmentSource = strstr(source, FragmentShaderIdentifier);
+
+		if (!vertexSource || !fragmentSource)
+			FatalError("Shaders not found in file");
+
+		char* divider = std::max(vertexSource, fragmentSource) - 1;
+		*divider = '\0';
+
+		vertexSource += strlen(VertexShaderIdentifier);
+		fragmentSource += strlen(FragmentShaderIdentifier);
+
+		Shader shader = Renderer::createShader(vertexSource, fragmentSource);
+
+		free(source);
+
+		return shader;
 	}
 
 	void deleteShader(Shader shader) {
