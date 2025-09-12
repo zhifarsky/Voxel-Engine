@@ -35,7 +35,6 @@ matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
 float near_plane = 1.0f, far_plane = 500.0f;
-float projDim = 64.0f;
 float shadowLightDist = 100;
 
 Player player;
@@ -138,10 +137,7 @@ float lastFrame = 0;
 
 int display_w, display_h;
 
-bool wireframe_cb = false;
-bool debugView_cb = false;
-
-float sunSpeed = 0.2;
+float sunSpeed = 0.05;
 glm::vec3 sunDir(0, 0, 0);
 glm::vec3 moonDir(0, 0, 0);
 float isDay = true;
@@ -213,8 +209,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	}
 
 	// загрузка шрифтов
-	Assets.regularFont = loadFont("C:\\Windows\\Fonts\\Roboto-Medium.ttf", 30);
-	Assets.bigFont = loadFont("C:\\Windows\\Fonts\\Roboto-Black.ttf", 60);
+	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 30);
+	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 60);
 
 	//for (size_t i = 0; i < chunksCount; i++)
 	//{
@@ -671,6 +667,8 @@ void RenderGame(GLFWwindow* window) {
 		{
 			//glCullFace(GL_FRONT);
 
+			//float projDim = (float)Assets.depthMap.width / 16.0f;
+			float projDim = (float)Assets.depthMap.width / 16.0f / 4;
 			glm::mat4 lightProjection = glm::ortho(-projDim, projDim, -projDim, projDim, near_plane, far_plane);
 			glm::mat4 lightView = glm::lookAt(
 				shadowLightDist * directLightDir + player.camera.pos * glm::vec3(1, 0, 1),
@@ -968,7 +966,6 @@ static void drawDebugGui(bool* wireframe_cb, bool* debugView_cb, float* fov_slid
 	ImGui::InputFloat2("Chunk pos", (float*)&currentChunkPos);
 	ImGui::InputFloat3("Camera front", (float*)&player.camera.front);
 	ImGui::Separator();
-	ImGui::SliderFloat("Shadow dimensions", &projDim, 0.1, 100);
 	ImGui::SliderFloat("Shadow near plane", &near_plane, 0.1, 1000);
 	ImGui::SliderFloat("Shadow far plane", &far_plane, 0.1, 1000);
 	ImGui::SliderFloat("Shadow light dist", &shadowLightDist, 0, 50);
