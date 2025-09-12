@@ -23,29 +23,38 @@ Shader
 	uiShader = NULL;
 
 
+Shader recompileShader(Shader shader, const char* fileName) {
+	Shader newShader = Renderer::createShaderFromFile(fileName);
+	if (newShader) {
+		Renderer::deleteShader(shader);
+		return newShader;
+	}
+	else return shader;
+}
+
 void initShaders() {
 	using namespace Renderer;
-	cubeInstancedShader = createShaderFromFile(SHADER_FOLDER "block.glsl");
-	shadowShader = createShaderFromFile(SHADER_FOLDER "blockShadow.glsl");
+	cubeInstancedShader = recompileShader(cubeInstancedShader, SHADER_FOLDER "block.glsl");
+	shadowShader = recompileShader(shadowShader, SHADER_FOLDER "blockShadow.glsl");
 	
-	polyMeshShader = createShaderFromFile(SHADER_FOLDER "polyMesh.glsl");
-	polyMeshShadowShader = createShaderFromFile(SHADER_FOLDER "polyMeshShadow.glsl");
+	polyMeshShader = recompileShader(polyMeshShader, SHADER_FOLDER "polyMesh.glsl");
+	polyMeshShadowShader = recompileShader(polyMeshShadowShader, SHADER_FOLDER "polyMeshShadow.glsl");
 	
-	flatShader = createShaderFromFile(SHADER_FOLDER "flat.glsl");
-	spriteShader = createShaderFromFile(SHADER_FOLDER "sprite.glsl");
+	flatShader = recompileShader(flatShader, SHADER_FOLDER "flat.glsl");
+	spriteShader = recompileShader(spriteShader, SHADER_FOLDER "sprite.glsl");
 
-	uiShader = createShaderFromFile(SHADER_FOLDER "uiElement.glsl");
+	uiShader = recompileShader(uiShader, SHADER_FOLDER "uiElement.glsl");
 }
 
 void rebuildShaders() {
 	dbgprint("Rebuilding shaders...\n");
-	for (Shader shader : {
-		cubeInstancedShader, shadowShader,
-			polyMeshShader, polyMeshShadowShader,
-			flatShader, spriteShader, uiShader})
-	{
-		Renderer::deleteShader(shader);
-	}
+	//for (Shader shader : {
+	//	cubeInstancedShader, shadowShader,
+	//		polyMeshShader, polyMeshShadowShader,
+	//		flatShader, spriteShader, uiShader})
+	//{
+	//	
+	//}
 
 	initShaders();
 	dbgprint("Shaders rebuild done!\n");

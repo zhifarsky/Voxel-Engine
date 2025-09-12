@@ -1,11 +1,17 @@
 #pragma once
 #include <chrono>
+#include <windows.h>
 #include "Typedefs.h"
 
-#ifndef ArraySize(a)
-#define ArraySize(a) (sizeof(a) / sizeof(*a))
-#endif // !ArraySize(a)
+#ifdef _DEBUG
+    #ifdef _MSC_VER
+        #define DEBUG_BREAK if (IsDebuggerPresent()) { __debugbreak(); } 
+    #endif
+#else
+    #define DEBUG_BREAK ;
+#endif
 
+#define ArraySize(a) (sizeof(a) / sizeof(*a))
 
 void FatalError(const char* msg, int exitCode = 1);
 
@@ -23,6 +29,18 @@ struct Timer {
 	void printMS(const char* msg = NULL);
 	void printS(const char* msg = NULL);
 };
+
+//#define DIR_WATCHER_BUF_SIZE 1024
+//
+//struct DirectoryWatcher {
+//    HANDLE dirHandle;
+//    OVERLAPPED overlapped;
+//    BYTE buffer[DIR_WATCHER_BUF_SIZE];
+//    DWORD bytesReturned;
+//    void create(const wchar_t* directoryPath);
+//    void startWatching();
+//    void release();
+//};
 
 bool pointRectCollision(
     float px, float py,

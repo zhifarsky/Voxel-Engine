@@ -47,6 +47,8 @@ static float lastX = 400, lastY = 300; // позиция курсора
 static float yaw = 0, pitch = 0;
 static bool cursorMode = false; // TRUE для взаимодействия с UI, FALSE для перемещения камеры
 
+static bool vsyncOn = false;
+
 static DynamicArray<Entity> entities;
 
 // mouse input
@@ -135,6 +137,9 @@ float deltaTime = 0;
 float lastFrame = 0;
 
 int display_w, display_h;
+
+bool wireframe_cb = false;
+bool debugView_cb = false;
 
 float sunSpeed = 0.2;
 glm::vec3 sunDir(0, 0, 0);
@@ -297,6 +302,9 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		Assets.depthMapFBO = Renderer::createDepthMapFrameBuffer(&Assets.depthMap);
 	}
 
+	// TEST GEO LOAD
+	Renderer::createGeometryFromFile(MESH_FOLDER "Pyramid.obj");
+
 	// MAIN GAME LOOP
 	while (!glfwWindowShouldClose(window)) {
 		currentFrame = glfwGetTime();
@@ -416,6 +424,10 @@ void RenderPauseMenu(GLFWwindow* window) {
 	} break;
 	case PauseMenuState::SettingsMenu: {
 		uiSetAnchor(uiAnchor::Center, 0);
+		uiShiftOrigin(0, 200);
+		
+		uiSliderFloat("FOV", &player.camera.FOV, 40, 120);
+
 		if (uiSliderInt("Render distance", &renderDistanceSlider, 4, 16)) {
 			if (renderDistance != renderDistanceSlider) {
 				// TDOO: изменение дистанции прорисовки
@@ -424,6 +436,21 @@ void RenderPauseMenu(GLFWwindow* window) {
 				gameWorld.initChunks(СhunksCount);
 			}
 		}
+
+		if (uiButton("Switch wireframe mode"))
+			wireframe_cb = !wireframe_cb;
+
+		if (uiButton("Switch debug view"))
+			debugView_cb = !debugView_cb;
+		
+		if (uiButton("Switch vsync")) {
+			if (vsyncOn)
+				glfwSwapInterval(1);
+			else
+				glfwSwapInterval(0);
+			vsyncOn = !vsyncOn;
+		}
+
 		if (uiButton("Back")) {
 			menuState = PauseMenuState::MainMenu;
 		}
@@ -438,8 +465,6 @@ void RenderPauseMenu(GLFWwindow* window) {
 void RenderGame(GLFWwindow* window) {
 	// GUI
 	//float rotation_slider[3] = { 0, 0, 0 }, trans_slider[3] = { 0 };
-	static bool wireframe_cb = false;
-	static bool debugView_cb = false;
 	//int chunksUpdated = 0;
 	
 	//int lastChunkPosX = INT_MAX, lastChunkPosZ = INT_MAX;
@@ -956,7 +981,7 @@ static void drawDebugGui(bool* wireframe_cb, bool* debugView_cb, float* fov_slid
 	 
 
 
-	static bool vsyncOn = false;
+
 	if (vsyncOn) ImGui::Text("VSync ON");
 	else ImGui::Text("VSync OFF");
 

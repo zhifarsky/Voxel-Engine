@@ -169,6 +169,7 @@ namespace Renderer {
 	void unbindTexture(int textureSlot = 0);
 
 	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount);
+	Geometry createGeometryFromFile(const char* fileName);
 	void deleteGeometry(Geometry* geo);
 	void drawGeometry(Geometry* geo);
 	void drawBlockMesh(BlockMesh* geo);

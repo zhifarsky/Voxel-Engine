@@ -4,8 +4,8 @@
 #include "Renderer.h"
 #include "Tools.h"
 
-const char* VertexShaderIdentifier = "#type vertex";
-const char* FragmentShaderIdentifier = "#type fragment";
+const char* VertexShaderToken = "#type vertex";
+const char* FragmentShaderToken = "#type fragment";
 
 using namespace Renderer;
 
@@ -26,8 +26,6 @@ const GLenum TextureFilteringTable[] = {
 
 
 namespace Renderer {
-	static void readShaderProgramErrors(GLuint shaderProgram);
-	
 	bool init(LoadProc loadProc) {
 		int res = gladLoadGLLoader((GLADloadproc)loadProc);
 
@@ -49,22 +47,65 @@ namespace Renderer {
 		glViewport(x, y, width, height);
 	}
 
+	bool checkShaderCompileErrors(Shader shader) {
+		GLint isCompiled = 0;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
+		if (isCompiled == GL_FALSE) {
+			GLint maxLength = 0;
+			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+			char* buf = (char*)malloc(maxLength * sizeof(GLchar));
+			glGetShaderInfoLog(shader, maxLength, &maxLength, buf);
+			dbgprint("[SHADER ERROR] %s\n", buf);
+			//DEBUG_BREAK;
+			free(buf);
+			return false;
+		}
+		return true;
+	}
+	bool checkShaderLinkErrors(Shader shader) {
+		GLint isLInked = 0;
+		glGetProgramiv(shader, GL_LINK_STATUS, &isLInked);
+		if (isLInked == GL_FALSE) {
+			GLint maxLength = 0;
+			glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+			char* buf = (char*)malloc(maxLength * sizeof(GLchar));
+			glGetProgramInfoLog(shader, maxLength, &maxLength, buf);
+			dbgprint("[SHADER ERROR] %s\n", buf);
+			//DEBUG_BREAK;
+			free(buf);
+			return false;
+		}
+		return true;
+	}
+
 	Shader createShader(const char* vertexSource, const char* fragmentSource) {
 		GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
 		glShaderSource(vShader, 1, &vertexSource, NULL);
 		glCompileShader(vShader);
-		//readShaderProgramErrors(vShader);
+		if (!checkShaderCompileErrors(vShader)) {
+			glDeleteShader(vShader);
+			return 0; // TODO: возвращать дебаг-шейдер
+		}
 
 		GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(fShader, 1, &fragmentSource, NULL);
 		glCompileShader(fShader);
-		//readShaderProgramErrors(fShader);
+		if (!checkShaderCompileErrors(fShader)) {
+			glDeleteShader(vShader);
+			glDeleteShader(fShader);
+			return 0; // TODO: возвращать дебаг-шейдер
+		}
 
 		GLuint shaderProgram = glCreateProgram();
 		glAttachShader(shaderProgram, vShader);
 		glAttachShader(shaderProgram, fShader);
 		glLinkProgram(shaderProgram);
-		//readShaderProgramErrors(shaderProgram);
+		if (!checkShaderLinkErrors(shaderProgram)) {
+			glDeleteShader(vShader);
+			glDeleteShader(fShader);
+			glDeleteProgram(shaderProgram);
+			return 0; // TODO: возвращать дебаг-шейдер
+		}
 
 		glDeleteShader(vShader);
 		glDeleteShader(fShader);
@@ -96,17 +137,17 @@ namespace Renderer {
 			FatalError("Error on loading shaders from disk");
 		}
 
-		char* vertexSource = strstr(source, VertexShaderIdentifier);
-		char* fragmentSource = strstr(source, FragmentShaderIdentifier);
+		char* vertexSource = strstr(source, VertexShaderToken);
+		char* fragmentSource = strstr(source, FragmentShaderToken);
 
 		if (!vertexSource || !fragmentSource)
-			FatalError("Shaders not found in file");
+			FatalError("Unknown shader format");
 
-		char* divider = std::max(vertexSource, fragmentSource) - 1;
-		*divider = '\0';
+		char* split = std::max(vertexSource, fragmentSource) - 1;
+		*split = '\0';
 
-		vertexSource += strlen(VertexShaderIdentifier);
-		fragmentSource += strlen(FragmentShaderIdentifier);
+		vertexSource += strlen(VertexShaderToken);
+		fragmentSource += strlen(FragmentShaderToken);
 
 		Shader shader = Renderer::createShader(vertexSource, fragmentSource);
 
@@ -290,6 +331,62 @@ namespace Renderer {
 		return geo;
 	}
 
+	// create geo from .obj
+	Geometry createGeometryFromFile(const char* fileName) {
+		u32 fileSize;
+		char* buffer = (char*)readEntireFile(fileName, &fileSize, FileType::text);
+		
+		glm::vec3* vertices = (glm::vec3*)malloc(sizeof(glm::vec3) * 256);
+		int vCount = 0;
+
+		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * 256);
+		int uvCount = 0;
+
+
+		char* c = buffer;
+		while (true) {
+			c = strstr(c, "v ");
+			if (!c) 
+				break;
+
+			c += 2;
+			vertices[vCount].x = atof(c);
+
+			c = strstr(c, " ");
+			c++;
+			vertices[vCount].y = atof(c);
+
+			c = strstr(c, " ");
+			c++;
+			vertices[vCount].z = atof(c);
+
+			vCount++;
+		}
+
+		c = buffer;
+		int i = 0;
+		while (true) {
+			c = strstr(c, "vt ");
+			if (!c)
+				break;
+
+			c += 2;
+			uvs[uvCount].x = atof(c);
+
+			c = strstr(c, " ");
+			c++;
+			uvs[uvCount].y = atof(c);
+
+			i++;
+		}
+
+		free(buffer);
+		free(vertices);
+		free(uvs);
+		
+		return Geometry();
+	}
+
 	// удаляет только ресурсы с GPU
 	void deleteGeometry(Geometry* geo) {
 		glDeleteBuffers(1, &geo->VBO);
@@ -323,21 +420,6 @@ namespace Renderer {
 			glEnable(GL_DEPTH_TEST);
 		else
 			glDisable(GL_DEPTH_TEST);
-	}
-
-	static void readShaderProgramErrors(GLuint shaderProgram) {
-		int  success;
-		char infoLog[1024];
-		glGetProgramiv(shaderProgram, GL_COMPILE_STATUS, &success);
-		if (!success)
-		{
-			glGetProgramInfoLog(shaderProgram, 1024, NULL, infoLog);
-			//std::cout << "ERROR::SHADER::PROGRAM::COMPILATION_FAILED\n" << infoLog << std::endl;
-			OutputDebugStringA("ERROR::SHADER_PROGRAM::COMPILATION_FAILED\n");
-			OutputDebugStringA(infoLog);
-			OutputDebugStringA("\n");
-			FatalError(infoLog);
-		}
 	}
 }
 
