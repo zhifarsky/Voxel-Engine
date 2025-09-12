@@ -208,8 +208,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	}
 
 	// загрузка шрифтов
-	Assets.regularFont = loadFont("C:\\Windows\\Fonts\\Roboto-Medium.ttf", 30);
-	Assets.bigFont = loadFont("C:\\Windows\\Fonts\\Roboto-Black.ttf", 60);
+	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 30);
+	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 60);
 
 	//for (size_t i = 0; i < chunksCount; i++)
 	//{
