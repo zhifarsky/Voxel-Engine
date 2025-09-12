@@ -302,7 +302,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	}
 
 	// TEST GEO LOAD
-	Renderer::createGeometryFromFile(MESH_FOLDER "Pyramid.obj");
+	Renderer::createGeometryFromFile(MESH_FOLDER "Pyramid.mesh");
 
 	// MAIN GAME LOOP
 	while (!glfwWindowShouldClose(window)) {

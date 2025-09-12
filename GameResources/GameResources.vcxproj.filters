@@ -29,4 +29,7 @@
     <None Include="res\shaders\polyMesh.glsl" />
     <None Include="res\shaders\polyMeshShadow.glsl" />
   </ItemGroup>
+  <ItemGroup>
+    <Object Include="res\meshes\Pyramid.mesh" />
+  </ItemGroup>
 </Project>

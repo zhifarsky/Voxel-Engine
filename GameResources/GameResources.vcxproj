@@ -29,6 +29,9 @@
     <None Include="res\shaders\sprite.glsl" />
     <None Include="res\shaders\uiElement.glsl" />
   </ItemGroup>
+  <ItemGroup>
+    <Object Include="res\meshes\Pyramid.mesh" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
