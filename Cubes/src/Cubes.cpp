@@ -137,6 +137,9 @@ float lastFrame = 0;
 
 int display_w, display_h;
 
+bool debugView_cb = false;
+bool wireframe_cb = false;
+
 float sunSpeed = 0.05;
 glm::vec3 sunDir(0, 0, 0);
 glm::vec3 moonDir(0, 0, 0);
@@ -291,7 +294,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	// shadow framebuffer
 	{
 		Assets.depthMap = Renderer::createTexture(
-			2048, 2048, NULL,
+			4096, 4096, NULL,
 			PixelFormat::DepthMap, PixelFormat::DepthMap,
 			TextureWrapping::ClampToBorder, TextureFiltering::Nearest);
 
