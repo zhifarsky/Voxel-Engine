@@ -30,18 +30,6 @@
     <ClCompile Include="src\Main.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="..\deps\soil\src\image_dxt.c">
-      <Filter>deps\soil</Filter>
-    </ClCompile>
-    <ClCompile Include="..\deps\soil\src\image_helper.c">
-      <Filter>deps\soil</Filter>
-    </ClCompile>
-    <ClCompile Include="..\deps\soil\src\soil.c">
-      <Filter>deps\soil</Filter>
-    </ClCompile>
-    <ClCompile Include="..\deps\soil\src\stb_image_aug.c">
-      <Filter>deps\soil</Filter>
-    </ClCompile>
     <ClCompile Include="..\deps\glad\src\glad.c">
       <Filter>deps\glad</Filter>
     </ClCompile>

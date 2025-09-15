@@ -192,10 +192,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\deps\glad\src\glad.c" />
-    <ClCompile Include="..\deps\soil\src\image_dxt.c" />
-    <ClCompile Include="..\deps\soil\src\image_helper.c" />
-    <ClCompile Include="..\deps\soil\src\soil.c" />
-    <ClCompile Include="..\deps\soil\src\stb_image_aug.c" />
     <ClCompile Include="src\AssetManagement.cpp" />
     <ClCompile Include="src\Chunk.cpp" />
     <ClCompile Include="src\Cubes.cpp" />

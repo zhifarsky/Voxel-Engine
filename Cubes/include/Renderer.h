@@ -116,8 +116,6 @@ struct BlockMesh {
 	u32 VAO, VBO, instanceVBO, EBO;
 
 	bool needUpdate;
-
-	BlockMesh();
 };
 
 

@@ -1,6 +1,7 @@
+#define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <Windows.h>
-#include <SOIL/SOIL.h>
+#include <stb_image.h>
 #include "Renderer.h"
 #include "Tools.h"
 
@@ -267,20 +268,20 @@ namespace Renderer {
 		int forceChannels;
 		switch (pixelFormat) {
 		case PixelFormat::RGBA:
-			forceChannels = SOIL_LOAD_RGBA; break;
+			forceChannels = 4; 
+			break;
 		default:
 			FatalError("Unknown texture type");
 		}
 
-		s32 width, height;
-		u8* image = SOIL_load_image(path, &width, &height, 0, forceChannels);
-
+		s32 width, height, channels;
+		u8* image = stbi_load(path, &width, &height, &channels, forceChannels);
 		if (!image) {
 			FatalError("Error on loading texture from disk");
 		}
 
 		Texture tex = Renderer::createTexture(width, height, image, pixelFormat, pixelFormat, wrapping, filtering);
-		SOIL_free_image_data(image);
+		stbi_image_free(image);
 		return tex;
 	}
 
@@ -331,60 +332,86 @@ namespace Renderer {
 		return geo;
 	}
 
-	// create geo from .obj
+	/* работает только с .obj форматом
+	работает только с триангулированными мешами */
 	Geometry createGeometryFromFile(const char* fileName) {
-		u32 fileSize;
-		char* buffer = (char*)readEntireFile(fileName, &fileSize, FileType::text);
+		struct Face {
+			int vertex[4];
+			int uv[4];
+			int vertexCount;
+		};
 		
-		glm::vec3* vertices = (glm::vec3*)malloc(sizeof(glm::vec3) * 256);
-		int vCount = 0;
+		FILE* file = fopen(fileName, "rt");
+		if (!file)
+			FatalError("Error on opening file");
+		
+		Geometry geo;
 
-		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * 256);
-		int uvCount = 0;
+		int vCount = 0, uvCount = 0, faceCount = 0;
 
-
-		char* c = buffer;
-		while (true) {
-			c = strstr(c, "v ");
-			if (!c) 
-				break;
-
-			c += 2;
-			vertices[vCount].x = atof(c);
-
-			c = strstr(c, " ");
-			c++;
-			vertices[vCount].y = atof(c);
-
-			c = strstr(c, " ");
-			c++;
-			vertices[vCount].z = atof(c);
-
-			vCount++;
+		char line[256];
+		while (fgets(line, 256, file)) {
+			if (line[0] == 'v') {
+				if (line[1] == ' ')
+					vCount++;
+				else if (line[1] == 't')
+					uvCount++;
+			}
+			else if (line[0] == 'f') {
+				faceCount++;
+			}
 		}
 
-		c = buffer;
-		int i = 0;
-		while (true) {
-			c = strstr(c, "vt ");
-			if (!c)
-				break;
+		glm::vec3* positions = (glm::vec3*)malloc(sizeof(glm::vec3) * vCount);
+		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * uvCount);
+		Face* faces = (Face*)malloc(sizeof(Face) * faceCount);
 
-			c += 2;
-			uvs[uvCount].x = atof(c);
+		rewind(file);
 
-			c = strstr(c, " ");
-			c++;
-			uvs[uvCount].y = atof(c);
+		int vIndex = 0, vtIndex = 0, fIndex = 0;
 
-			i++;
+		while (fgets(line, 256, file)) {
+			strncmp(line, "v ", 2);
+			if (line[0] == 'v') {
+				if (line[1] == ' ') {
+					sscanf(line + 2, "%f %f %f", &positions[vIndex].x, &positions[vIndex].y, &positions[vIndex].z);
+					vIndex++;
+				}
+				else if (line[1] == 't') {
+					sscanf(line + 3, "%f %f", &uvs[vtIndex].x, &uvs[vtIndex].y);
+					vtIndex++;
+				}
+			}
+			else if (line[0] == 'f') {
+				sscanf(line + 2, "%d/%d %d/%d %d/%d",
+					&faces[fIndex].vertex[0], &faces[fIndex].uv[0],
+					&faces[fIndex].vertex[1], &faces[fIndex].uv[1],
+					&faces[fIndex].vertex[2], &faces[fIndex].uv[2]);
+				fIndex++;
+			}
 		}
 
-		free(buffer);
-		free(vertices);
+		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
+		vIndex = 0;
+		Vertex* vertices = (Vertex*)malloc(sizeof(Vertex) * faceCount * 3);
+		Triangle* tris = (Triangle*)malloc(sizeof(Triangle) * faceCount);
+		for (int i = 0; i < faceCount; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				vertices[vIndex].pos = positions[faces[i].vertex[j] - 1];
+				vertices[vIndex].uv = uvs[faces[i].uv[j] - 1];
+				tris[i].indices[j] = vIndex;
+				vIndex++;
+			}
+		}
+		
 		free(uvs);
-		
-		return Geometry();
+		free(faces);
+		free(positions);
+		fclose(file);
+
+		return createGeometry(vertices, faceCount * 3, tris, faceCount);;
 	}
 
 	// удаляет только ресурсы с GPU
@@ -446,8 +473,7 @@ Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 color, glm
 	this->normal = normal;
 }
 
-Triangle::Triangle() {
-}
+Triangle::Triangle() { }
 Triangle::Triangle(int a, int b, int c) {
 	indices[0] = a;
 	indices[1] = b;
@@ -458,11 +484,4 @@ BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureI
 	this->pos = pos;
 	this->face = face;
 	this->textureID = textureID;
-}
-
-BlockMesh::BlockMesh() {
-	faces = 0;
-	faceCount = faceSize = 0;
-	VAO = VBO = 0;
-
 }

@@ -3,7 +3,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 //#include <glad/glad.h>
-#include <SOIL/SOIL.h>
+//#include <SOIL/SOIL.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
@@ -26,8 +26,6 @@
 #include "Input.h"
 #include "Renderer.h"
 #pragma endregion
-
-
 
 #define rotateXYZ(matrix, x, y, z)\
 matrix = glm::rotate(matrix, glm::radians(x), glm::vec3(1.0, 0.0, 0.0));\
@@ -131,9 +129,7 @@ struct UVOffset {
 	}
 };
 
-float currentFrame;
-float deltaTime = 0;
-float lastFrame = 0;
+float g_time = 0, g_deltaTime = 0, g_prevTime = 0;
 
 int display_w, display_h;
 
@@ -159,8 +155,8 @@ static float texUSize;
 static float texVSize;
 
 struct {
-	Texture testTexture, textureAtlas, uiAtlas;
-	Geometry defaultBox;
+	Texture testTexture, textureAtlas, uiAtlas, entityTexture;
+	Geometry defaultBox, entityMesh;
 	Sprite sunSprite, moonSprite;
 	FrameBuffer depthMapFBO;
 	Texture depthMap;
@@ -210,6 +206,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 			tileOrigin.x += tileSize.x;
 		}
 	}
+
+	Assets.entityTexture = Renderer::createTextureFromFile(TEX_FOLDER "zombie_temp.png", PixelFormat::RGBA);
 
 	// загрузка шрифтов
 	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 30);
@@ -267,6 +265,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		};
 
 		Assets.defaultBox = Renderer::createGeometry(vertices, 8, triangles, 12);
+		Assets.entityMesh = Renderer::createGeometryFromFile(MESH_FOLDER "zombie.mesh");
 
 		createSprite(Assets.sunSprite, 1, 1, blocksUV[texSun].offset, texUSize, texVSize);
 		createSprite(Assets.moonSprite, 1, 1, blocksUV[texMoon].offset, texUSize, texVSize);
@@ -301,14 +300,11 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		Assets.depthMapFBO = Renderer::createDepthMapFrameBuffer(&Assets.depthMap);
 	}
 
-	// TEST GEO LOAD
-	Renderer::createGeometryFromFile(MESH_FOLDER "Pyramid.mesh");
-
 	// MAIN GAME LOOP
 	while (!glfwWindowShouldClose(window)) {
-		currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
+		g_time = glfwGetTime();
+		g_deltaTime = g_time - g_prevTime;
+		g_prevTime = g_time;
 
 		glfwGetFramebufferSize(window, &display_w, &display_h);
 		Renderer::setViewportDimensions(display_w, display_h);
@@ -472,7 +468,7 @@ void RenderGame(GLFWwindow* window) {
 
 	{
 		// update player
-		float cameraSpeedAdj = player.speed * deltaTime; // делаем скорость камеры независимой от FPS
+		float cameraSpeedAdj = player.speed * g_deltaTime; // делаем скорость камеры независимой от FPS
 		if (ButtonHeldDown(newInput->forward))
 			player.camera.pos += cameraSpeedAdj * player.camera.front;
 		if (ButtonHeldDown(newInput->backwards))
@@ -484,8 +480,8 @@ void RenderGame(GLFWwindow* window) {
 
 		// обновление направления солнца
 #if 1
-		sunDir.x = cos(currentFrame * sunSpeed);
-		sunDir.y = sin(currentFrame * sunSpeed);
+		sunDir.x = cos((g_time + 10) * sunSpeed) ;
+		sunDir.y = sin((g_time + 10) * sunSpeed) ;
 		sunDir.z = 0;
 #endif
 		moonDir = -sunDir;
@@ -610,12 +606,12 @@ void RenderGame(GLFWwindow* window) {
 				continue;
 
 			// gravity
-			entity.pos.y -= 5 * deltaTime;
-			entity.pos += entity.speed * deltaTime;
+			entity.pos.y -= 5 * g_deltaTime;
+			entity.pos += entity.speed * g_deltaTime;
 			entity.speed *= 0.1;
 			Block* belowBlock;
 			do {
-				belowBlock = gameWorld.peekBlockFromPos(glm::vec3(entity.pos.x, entity.pos.y - 1, entity.pos.z));
+				belowBlock = gameWorld.peekBlockFromPos(glm::vec3(entity.pos.x, entity.pos.y, entity.pos.z));
 				if (belowBlock && belowBlock->type != btAir)
 					entity.pos.y = (int)entity.pos.y + 1;
 				else
@@ -633,7 +629,13 @@ void RenderGame(GLFWwindow* window) {
 			case entityStateChasing:
 				glm::vec3 toPlayer = (player.camera.pos - entity.pos) * glm::vec3(1,0,1);
 				if (glm::length(toPlayer) > 0) {
-					entities.items[i].pos += glm::normalize(toPlayer) * 3.0f * deltaTime;
+					entities.items[i].pos += glm::normalize(toPlayer) * 3.0f * g_deltaTime;
+
+					glm::vec3 dir = glm::normalize(toPlayer);
+					float yaw = atan2f(dir.x, dir.z);
+					float pitch = asinf(-dir.y);
+					
+					entities.items[i].rot = glm::degrees(glm::vec3(pitch, yaw, 0.0f));
 				}
 				break;
 			case entityStateIdle:
@@ -719,7 +721,7 @@ void RenderGame(GLFWwindow* window) {
 				Renderer::setUniformMatrix4(polyMeshShadowShader, "model", glm::value_ptr(model));
 
 				// TODO: биндить нужный меш в зависимости от типа entity
-				Renderer::drawGeometry(&Assets.defaultBox);
+				Renderer::drawGeometry(&Assets.entityMesh);
 			}
 
 			Renderer::unbindFrameBuffer();
@@ -731,17 +733,6 @@ void RenderGame(GLFWwindow* window) {
 
 		if (wireframe_cb) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-		// TEST
-		//polyMeshUseShader(projection, view, lightSpaceMatrix);
-		//for (size_t i = 0; i < ArraySize(testObjects); i++)
-		//{
-		//	TestPolyObject* o = &testObjects[i];
-		//	polyMeshApplyTransform(o->pos, o->rot, o->scale);
-		//	polyMeshDraw(*o->mesh, testTexture, depthMap, sunDir, sunColor, ambientColor);
-
-		//}
-		// TEST
 
 		// draw sun and moon
 		glDepthMask(GL_FALSE); // render on background
@@ -816,7 +807,7 @@ void RenderGame(GLFWwindow* window) {
 		// draw entities
 		{
 			Renderer::bindShader(polyMeshShader);
-			Renderer::bindTexture(&Assets.textureAtlas, 0);
+			Renderer::bindTexture(&Assets.entityTexture, 0);
 			Renderer::bindTexture(&Assets.depthMap, 1);
 
 			for (size_t i = 0; i < entities.count; i++)
@@ -825,14 +816,14 @@ void RenderGame(GLFWwindow* window) {
 				glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
 				model = glm::translate(model, e->pos);
 				rotateXYZ(model, e->rot.x, e->rot.y, e->rot.z);
-				model = glm::scale(model, {1,2,1});
+				model = glm::scale(model, {1,1,1});
 				Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
 
-				Renderer::drawGeometry(&Assets.defaultBox);
+				Renderer::drawGeometry(&Assets.entityMesh);
 			}
 			Renderer::unbindShader();
 		}
-		
+
 		// draw debug geometry
 		useFlatShader(projection, view);
 		// chunk borders
@@ -855,7 +846,7 @@ void RenderGame(GLFWwindow* window) {
 #define GRAVITY 0
 #if GRAVITY
 		// gravity, ground collision
-		player.camera.pos.y -= 20 * deltaTime;
+		player.camera.pos.y -= 20 * g_deltaTime;
 		Block* belowBlock;
 		do {
 			belowBlock = gameWorld.peekBlockFromPos(glm::vec3(player.camera.pos.x - chunk.posx, player.camera.pos.y - 2, player.camera.pos.z - chunk.posz));
@@ -891,9 +882,9 @@ void RenderGame(GLFWwindow* window) {
 			uiSetAnchor(uiAnchor::Left, 10);
 			uiSetAdvanceMode(AdvanceMode::Down);
 			char buf[128];
-			sprintf(buf, "FPS: %d", (int)(1.0f / deltaTime));
+			sprintf(buf, "FPS: %d", (int)(1.0f / g_deltaTime));
 			uiText(buf);
-			sprintf(buf, "Frametime: %.3f", deltaTime);
+			sprintf(buf, "Frametime: %.3f", g_deltaTime);
 			uiText(buf);
 		}
 
