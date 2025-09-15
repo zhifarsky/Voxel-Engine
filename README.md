@@ -4,9 +4,10 @@ https://github.com/user-attachments/assets/7a1d5989-f1e8-410c-96ed-fb052af249e9
 ## О проекте
 - Оптимизированные по памяти генерация и рендеринг чанков
 - Изменение мира (добавление и удаление блоков игроком)
-- Асинхронная генерация мира на самописном Thread Pool
+- Асинхронная генерация мира на Thread Pool
 - Поддержка текстурных атласов
 - Рендеринг теней и освещение
+- Рендеринг текста
 - Отладочный интерфейс на ImGui
 ## Использованные библиотеки
 - FastNoiseLite
@@ -14,7 +15,7 @@ https://github.com/user-attachments/assets/7a1d5989-f1e8-410c-96ed-fb052af249e9
 - ImGui
 - GLFW
 - GLAD
-- SOIL
+- stb_image, stb_truetype
 - GLM
 ## Сборка
 1. Собрать GameResources.vcxproj
