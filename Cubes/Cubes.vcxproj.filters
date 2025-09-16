@@ -16,12 +16,6 @@
     <Filter Include="deps">
       <UniqueIdentifier>{3e3046c2-0a3f-4138-bd8f-84e454b55ecc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="deps\soil">
-      <UniqueIdentifier>{34358658-5181-411c-b63b-29e87af2dab1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="deps\imgui">
-      <UniqueIdentifier>{a6bd8f4f-4de1-4f95-b590-303d3381270a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="deps\glad">
       <UniqueIdentifier>{4d48e742-0da9-40bb-aeed-8c5dd3f34c2c}</UniqueIdentifier>
     </Filter>

@@ -377,11 +377,7 @@ void RenderMainMenu(GLFWwindow* window) {
 	if (uiButton("Start game", glm::vec2(0.0, 0.0))) {
 		gameWorld.gameState = gsInGame;
 	}
-	static float sliderValue = 3;
-	uiSliderFloat("Gigaslider", &sliderValue, 0, 10);
-	static int sliderValue1 = 3;
-	uiSliderInt("Gigaslider1", &sliderValue1, 0, 10);
-
+	
 	const char* caption = "Main menu";
 	uiSetAnchor(uiAnchor::Top, 100);
 	uiUseFont(&Assets.bigFont);
