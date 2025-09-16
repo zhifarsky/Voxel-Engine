@@ -1,4 +1,4 @@
-# Minecraft-like игра
+# Воксельный движок
 ## Демонстрация
 https://github.com/user-attachments/assets/7a1d5989-f1e8-410c-96ed-fb052af249e9
 ## О проекте
