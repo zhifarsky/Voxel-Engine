@@ -18,6 +18,5 @@ https://github.com/user-attachments/assets/7a1d5989-f1e8-410c-96ed-fb052af249e9
 - stb_image, stb_truetype
 - GLM
 ## Сборка
-1. Собрать GameResources.vcxproj
-2. Собрать ImGui.vcxproj
-3. Собрать Cubes.vcxproj
+1. Выбрать "Cubes" как запускаемый проект
+2. Собрать решение и запустить
