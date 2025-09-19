@@ -102,22 +102,11 @@ struct BlockFaceInstance {
 	u16 pos;
 	TextureID textureID;
 	BlockFace face;
+	u8 sizeX, sizeZ;
 
-	BlockFaceInstance(int pos, BlockFace face, TextureID textureID);
+	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeX = 1, u8 sizeZ = 1);
 };
 #pragma pack(pop)
-
-struct BlockMesh {
-	BlockFaceInstance* faces;
-
-	u32 faceCount;
-	u32 faceSize;
-
-	u32 VAO, VBO, instanceVBO, EBO;
-
-	bool needUpdate;
-};
-
 
 namespace Renderer {
 	typedef void* (*LoadProc)(const char* name);
@@ -170,7 +159,7 @@ namespace Renderer {
 	Geometry createGeometryFromFile(const char* fileName);
 	void deleteGeometry(Geometry* geo);
 	void drawGeometry(Geometry* geo);
-	void drawBlockMesh(BlockMesh* geo);
+	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount);
 
 	void switchDepthTest(bool enabled);
 }

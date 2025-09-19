@@ -1,6 +1,6 @@
 #type vertex
 #version 330 core
-// TDOO: оптимизировать https://youtu.be/vtqCWvmnGTs?t=2276
+// TDOO: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ https://youtu.be/vtqCWvmnGTs?t=2276
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 3) in vec3 aNormal;
@@ -19,7 +19,7 @@ uniform mat4 lightSpaceMatrix;
 void main()
 {
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
-	ourNormal = aNormal;
+	ourNormal = mat3(transpose(inverse(model))) * aNormal;
 	FragPos = vec3(model * vec4(aPos, 1.0));
 	TexCoord = vec2(aTexCoord.x, aTexCoord.y);
 
@@ -64,7 +64,8 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 
 void main()
 {
-	vec3 norm = normalize(ourNormal);
+	// vec3 norm = normalize(ourNormal);
+	vec3 norm = ourNormal;
 	vec3 lightDir = normalize(sunDir);
 	float diff = max(dot(norm, lightDir), 0.0);
 	vec3 diffuse = diff * sunColor;

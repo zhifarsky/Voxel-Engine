@@ -144,7 +144,7 @@ namespace Renderer {
 		if (!vertexSource || !fragmentSource)
 			FatalError("Unknown shader format");
 
-		char* split = std::max(vertexSource, fragmentSource) - 1;
+		char* split = std::max(vertexSource, fragmentSource) - 2;
 		*split = '\0';
 
 		vertexSource += strlen(VertexShaderToken);
@@ -333,11 +333,13 @@ namespace Renderer {
 	}
 
 	/* работает только с .obj форматом
-	работает только с триангулированными мешами */
+	работает только с триангулированными мешами 
+	TODO: загрузка нормалей */
 	Geometry createGeometryFromFile(const char* fileName) {
 		struct Face {
 			int vertex[4];
 			int uv[4];
+			int normal[4];
 			int vertexCount;
 		};
 		
@@ -347,7 +349,7 @@ namespace Renderer {
 		
 		Geometry geo;
 
-		int vCount = 0, uvCount = 0, faceCount = 0;
+		int vCount = 0, uvCount = 0, faceCount = 0, normalCount = 0;
 
 		char line[256];
 		while (fgets(line, 256, file)) {
@@ -356,6 +358,8 @@ namespace Renderer {
 					vCount++;
 				else if (line[1] == 't')
 					uvCount++;
+				else if (line[1] == 'n')
+					normalCount++;
 			}
 			else if (line[0] == 'f') {
 				faceCount++;
@@ -364,43 +368,60 @@ namespace Renderer {
 
 		glm::vec3* positions = (glm::vec3*)malloc(sizeof(glm::vec3) * vCount);
 		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * uvCount);
+		glm::vec3* normals = (glm::vec3*)malloc(sizeof(glm::vec3) * normalCount);
 		Face* faces = (Face*)malloc(sizeof(Face) * faceCount);
 
 		rewind(file);
 
-		int vIndex = 0, vtIndex = 0, fIndex = 0;
+		int vIndex = 0, vtIndex = 0, fIndex = 0, nIndex = 0;
 
 		while (fgets(line, 256, file)) {
-			strncmp(line, "v ", 2);
+			//strncmp(line, "v ", 2);
 			if (line[0] == 'v') {
 				if (line[1] == ' ') {
-					sscanf(line + 2, "%f %f %f", &positions[vIndex].x, &positions[vIndex].y, &positions[vIndex].z);
+					sscanf(line, "v %f %f %f", &positions[vIndex].x, &positions[vIndex].y, &positions[vIndex].z);
 					vIndex++;
 				}
 				else if (line[1] == 't') {
-					sscanf(line + 3, "%f %f", &uvs[vtIndex].x, &uvs[vtIndex].y);
+					sscanf(line, "vt %f %f", &uvs[vtIndex].x, &uvs[vtIndex].y);
 					vtIndex++;
 				}
+				else if (line[1] == 'n') {
+					sscanf(line, "vn %f %f %f", &normals[nIndex].x, &normals[nIndex].y, &normals[nIndex].z);
+					nIndex++;
+				}
 			}
+			// TODO: вариант парсинга, если есть нормали
 			else if (line[0] == 'f') {
-				sscanf(line + 2, "%d/%d %d/%d %d/%d",
-					&faces[fIndex].vertex[0], &faces[fIndex].uv[0],
-					&faces[fIndex].vertex[1], &faces[fIndex].uv[1],
-					&faces[fIndex].vertex[2], &faces[fIndex].uv[2]);
+				int v, vt, n;
+				int elements = sscanf(line, "f %d/%d/%d", &v, &vt, &n);
+				if (elements == 2) {
+					sscanf(line, "f %d/%d %d/%d %d/%d",
+						&faces[fIndex].vertex[0], &faces[fIndex].uv[0],
+						&faces[fIndex].vertex[1], &faces[fIndex].uv[1],
+						&faces[fIndex].vertex[2], &faces[fIndex].uv[2]);
+				}
+				else if (elements == 3) {
+					sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
+						&faces[fIndex].vertex[0], &faces[fIndex].uv[0], &faces[fIndex].normal[0],
+						&faces[fIndex].vertex[1], &faces[fIndex].uv[1], &faces[fIndex].normal[1],
+						&faces[fIndex].vertex[2], &faces[fIndex].uv[2], &faces[fIndex].normal[2]);
+				}
 				fIndex++;
 			}
 		}
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)malloc(sizeof(Vertex) * faceCount * 3);
-		Triangle* tris = (Triangle*)malloc(sizeof(Triangle) * faceCount);
+		Vertex* vertices = (Vertex*)calloc(sizeof(Vertex), faceCount * 3);
+		Triangle* tris = (Triangle*)calloc(sizeof(Triangle), faceCount);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)
 			{
 				vertices[vIndex].pos = positions[faces[i].vertex[j] - 1];
 				vertices[vIndex].uv = uvs[faces[i].uv[j] - 1];
+				vertices[vIndex].normal = normals[faces[i].normal[j] - 1];
 				tris[i].indices[j] = vIndex;
 				vIndex++;
 			}
@@ -409,6 +430,7 @@ namespace Renderer {
 		free(uvs);
 		free(faces);
 		free(positions);
+		free(normals);
 		fclose(file);
 
 		return createGeometry(vertices, faceCount * 3, tris, faceCount);;
@@ -435,9 +457,9 @@ namespace Renderer {
 		glBindVertexArray(0);
 	}
 
-	void drawBlockMesh(BlockMesh* geo) {
-		glBindVertexArray(geo->VAO);
-		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, geo->faceCount);
+	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount) {
+		glBindVertexArray(VAO);
+		glDrawElementsInstanced(GL_TRIANGLES, elementsCount, GL_UNSIGNED_INT, 0, instancesCount);
 		glBindVertexArray(0);
 	}
 
@@ -480,8 +502,10 @@ Triangle::Triangle(int a, int b, int c) {
 	indices[2] = c;
 }
 
-BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureID) {
+BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeX, u8 sizeZ) {
 	this->pos = pos;
 	this->face = face;
 	this->textureID = textureID;
+	this->sizeX = sizeX;
+	this->sizeZ = sizeZ;
 }

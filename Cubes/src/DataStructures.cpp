@@ -37,15 +37,21 @@ void Arena::clear() {
 	size = 0;
 }
 
-WorkQueue::WorkQueue(int maxSemaphore) {
-	this->semaphore = CreateSemaphore(0, 0, maxSemaphore, 0);
-	this->taskCompletionCount = 0;
-	this->taskCount = 0;
-	this->nextTask = 0;
+//WorkQueue::WorkQueue(int maxSemaphore) {
+//	this->semaphore = CreateSemaphore(0, 0, maxSemaphore, 0);
+//	this->taskCompletionCount = 0;
+//	this->taskCount = 0;
+//	this->nextTask = 0;
+//}
+
+WorkQueue WorkQueue::Create(u32 maxSemaphore)
+{
+	WorkQueue queue = {0};
+	queue.semaphore = CreateSemaphore(0, 0, maxSemaphore, 0);
+	return queue;
 }
 
 void WorkQueue::addTask() {
-	// TODO: барьеры?
 	_WriteBarrier();
 	_mm_sfence();
 	taskCount++;
@@ -63,7 +69,6 @@ QueueTaskItem WorkQueue::getNextTask() {
 	if (nextTask < taskCount) {
 		res.taskIndex = InterlockedIncrement((LONG volatile*)&nextTask) - 1;
 		res.valid = true;
-		// TODO: барьеры?
 		_ReadBarrier();
 	}
 

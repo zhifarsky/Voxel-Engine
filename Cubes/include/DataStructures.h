@@ -2,6 +2,54 @@
 #include <windows.h>
 #include "Typedefs.h"
 
+template<typename T>
+struct Array {
+	T* items;
+	u32 count, capacity;
+
+	T& operator[](u32 i) {
+		return items[i];
+	}
+
+	void alloc(u32 capacity) {
+		count = 0;
+		this->capacity = capacity;
+		items = (T*)calloc(sizeof(T), capacity);
+	}
+
+	void release() {
+		free(items);
+		items = NULL;
+		count = capacity = 0;
+	}
+
+	void append(T value) {
+		if (count < capacity)
+			items[count++] = value;
+	}
+
+	void insert(T value, u32 pos) {
+		if (count < capacity) {
+			for (s32 i = count; i > pos; i--)
+				items[i] = items[i - 1];
+			items[pos] = value;
+			count++;
+		}
+	}
+
+	void remove(u32 pos) {
+		if (pos < count) {
+			for (size_t i = pos; i < count - 1; i++)
+				items[i] = items[i + 1];
+			count--;
+		}
+	}
+
+	void clear() {
+		count = 0;
+	}
+};
+
 template<typename Type>
 struct DynamicArray {
 	Type* items;
@@ -48,7 +96,8 @@ struct WorkQueue {
 	int volatile taskCompletionCount;
 	HANDLE semaphore;
 
-	WorkQueue(int maxSemaphore);
+	//WorkQueue(int maxSemaphore);
+	static WorkQueue Create(u32 maxSemaphore);
 
 	void addTask(); // добавить задачу
 	void clearTasks();
@@ -59,4 +108,9 @@ struct WorkQueue {
 	void waitAndClear(); // ожидание выполнения всех задач
 	bool workStillInProgress();
 
+};
+
+struct WorkingThread {
+	HANDLE handle;
+	int threadID;
 };

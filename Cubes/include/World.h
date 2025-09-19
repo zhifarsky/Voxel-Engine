@@ -4,17 +4,13 @@
 #include "Entity.h"
 #include "Mesh.h"
 #include "DataStructures.h"
-#include "Chunk.h"
+#include "ChunkManager.h"
 
 struct GameWorld;
-extern GameWorld gameWorld;
-
-extern int renderDistance;
-#define ÑhunksSide (renderDistance * 2 + 1)
-#define ÑhunksCount (ÑhunksSide * ÑhunksSide)
+extern GameWorld g_gameWorld;
 
 enum GameState {
-	gsMainMenu, gsExitMenu, gsInGame,
+	gsMainMenu, gsExitMenu, gsInGame, gsDebug,
 	gsCount
 };
 
@@ -38,9 +34,6 @@ struct Player {
 struct GameWorld {
 	u32 seed;
 	
-	Chunk* chunks;
-	u32 chunksCount;
-	
 	DynamicArray<Entity> entities;
 	u32 entitiesCount;
 
@@ -51,13 +44,5 @@ struct GameWorld {
 
 	GameState gameState;
 
-	void init(u32 seed, u32 chunksCount);
-	void initChunks(int chunksCount);
-	void reallocChunks(u32 chunksCount);
-	float perlinNoise(glm::vec2 pos, int seedShift = 0);
-	float perlinNoise(glm::vec3 pos, int seedShift = 0);
-	void generateChunk(int index, int posx, int posz);
-	Block* peekBlockFromPos(glm::vec3 pos, int* outChunkIndex = NULL);
-	Block* peekBlockFromRay(glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist, glm::vec3* outBlockPos = NULL);
-	bool placeBlock(BlockType type, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
+	void init(u32 seed, u32 renderDistance);
 };

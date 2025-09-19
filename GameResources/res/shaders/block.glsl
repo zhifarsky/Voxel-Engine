@@ -5,6 +5,8 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in int instancePackedOffset;
 layout (location = 2) in int instanceFaceDirection;
 layout (location = 3) in int instanceTextureID;
+layout (location = 4) in int instanceSizeX; // TODO: X и Z в ivec2 или упаковать в int
+layout (location = 5) in int instanceSizeZ;
 
 uniform mat4 viewProjection;
 uniform mat4 lightSpaceMatrix;
@@ -17,6 +19,8 @@ out vec3 ourNormal;
 out vec2 ourUV;
 out vec3 FragPos;
 out vec4 FragPosLightSpace;
+out vec2 texScale;
+out vec2 texOffset;
 
 const vec2 uvs[4] = vec2[4](
     vec2(0.0,  0.0),
@@ -32,6 +36,10 @@ void main() {
     vec3 pos = aPos;
     
     int texSize = 16;
+
+
+    pos.x *= float(instanceSizeX);
+    pos.z *= float(instanceSizeZ);
 
     // y+
     if (instanceFaceDirection == 0) {
@@ -78,9 +86,16 @@ void main() {
     // todo: вычислить uv из instanceTextureID и atlasSize
     //float u = uvs[gl_VertexID].x / float(atlasSize.x) + float((instanceTextureID * texSize) % atlasSize.x) / float(atlasSize.x);
     //float v = uvs[gl_VertexID].y / float(atlasSize.x) + float(instanceTextureID * texSize / atlasSize.x * texSize) / float(atlasSize.y);
+    
+    
+
     float uvSize = (float(atlasSize) / float(texSize));
-    float u = uvs[gl_VertexID].x / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: доделать (сейчас максимум один ряд текстур)
-    float v = uvs[gl_VertexID].y / uvSize;
+    texScale.x = 1.0f / uvSize;
+    texScale.y = 1.0f / uvSize;
+    texOffset.x = (1.0 / uvSize) * float(instanceTextureID);
+    texOffset.y = uvSize;
+    float u = uvs[gl_VertexID].x * instanceSizeZ / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: доделать (сейчас максимум один ряд текстур)
+    float v = uvs[gl_VertexID].y * instanceSizeX / uvSize;
     ourUV = vec2(u,v);
 
     vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);
@@ -101,6 +116,8 @@ in vec3 ourNormal;
 in vec2 ourUV;
 in vec3 FragPos;
 in vec4 FragPosLightSpace;
+in vec2 texScale;
+in vec2 texOffset;
 
 uniform sampler2D texture1;
 uniform sampler2D shadowMap;
@@ -158,7 +175,10 @@ float ShadowCalculationSmooth(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir
 }  
 
 void main() {
-	vec4 texColor = texture(texture1, ourUV);
+    vec2 uv = vec2(texOffset.x + mod(ourUV.x, texScale.x), texOffset.y + mod(ourUV.y, texScale.y));
+    //vec2 uv = ourUV;
+    vec4 texColor = texture(texture1, uv);
+	//vec4 texColor = texture(texture1, ourUV);
 
 	vec3 norm = normalize(ourNormal);
 	vec3 lightDir = normalize(sunDir);
@@ -170,4 +190,5 @@ void main() {
 
 	vec3 result = (ambientColor + diffuse * (1.0 - shadow)) * vec3(texColor.r, texColor.g, texColor.b);
 	FragColor = vec4(result, 1.0);
+    // FragColor = vec4(uv, 0.0, 1.0);
 }

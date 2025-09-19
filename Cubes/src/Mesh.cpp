@@ -6,13 +6,6 @@
 #include "Directories.h"
 #include "Tools.h"
 
-
-//static Shader
-//	cubeInstancedShader = NULL,
-//	polyMeshShader = NULL,
-//	flatShader = NULL, 
-//	spriteShader = NULL;
-
 Shader
 	cubeInstancedShader = NULL,
 	shadowShader = NULL,
@@ -21,7 +14,6 @@ Shader
 	flatShader = NULL, 
 	spriteShader = NULL,
 	uiShader = NULL;
-
 
 Shader recompileShader(Shader shader, const char* fileName) {
 	Shader newShader = Renderer::createShaderFromFile(fileName);
@@ -59,79 +51,6 @@ void rebuildShaders() {
 	initShaders();
 	dbgprint("Shaders rebuild done!\n");
 }
-
-#pragma region Block
-void setupBlockMesh(BlockMesh& mesh, bool onlyAllocBuffer, bool staticMesh) {
-	const glm::vec3 faceVerts[] = {
-	glm::vec3(0,0,0),
-	glm::vec3(1,0,0),
-	glm::vec3(1,0,1),
-	glm::vec3(0,0,1),
-	};
-
-	const int faceIndices[] = {
-		0, 1, 2, 2, 3, 0
-	};
-
-	GLuint VAO, VBO, instanceVBO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &instanceVBO);
-	glGenBuffers(1, &EBO);
-
-	mesh.VAO = VAO;
-	mesh.VBO = VBO;
-	mesh.EBO = EBO;
-	mesh.instanceVBO = instanceVBO;
-
-	int bufferMode;
-	if (staticMesh) bufferMode = GL_STATIC_DRAW;
-	else			bufferMode = GL_DYNAMIC_DRAW;
-
-	// выбираем буфер как текущий
-	glBindVertexArray(VAO);
-
-	// instanced face
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(faceVerts), faceVerts, GL_STATIC_DRAW); // отправка вершин в память видеокарты
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faceIndices), faceIndices, GL_STATIC_DRAW); // загружаем индексы
-
-	// "объясняем" как необходимо прочитать массив с вершинами
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pos
-	glEnableVertexAttribArray(0);
-
-
-	// instances
-	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(BlockFaceInstance) * mesh.faceSize, mesh.faces, GL_STATIC_DRAW);
-
-	// pos
-	glEnableVertexAttribArray(1);
-	glVertexAttribIPointer(1, 1, GL_UNSIGNED_SHORT, sizeof(BlockFaceInstance), (void*)offsetof(BlockFaceInstance, pos));
-	glVertexAttribDivisor(1, 1); // первая переменная - location атрибута в шейдере
-	// face direction
-	glEnableVertexAttribArray(2);
-	glVertexAttribIPointer(2, 1, GL_BYTE, sizeof(BlockFaceInstance), (void*)offsetof(BlockFaceInstance, face));
-	glVertexAttribDivisor(2, 1); // первая переменная - location атрибута в шейдере
-	// texture id
-	glEnableVertexAttribArray(3);
-	glVertexAttribIPointer(3, 1, GL_UNSIGNED_SHORT, sizeof(BlockFaceInstance), (void*)offsetof(BlockFaceInstance, textureID));
-	glVertexAttribDivisor(3, 1); // первая переменная - location атрибута в шейдере
-
-	glBindVertexArray(0);
-}
-
-// обновить геометрию в ГПУ
-void updateBlockMesh(BlockMesh& mesh) {
-	glBindBuffer(GL_ARRAY_BUFFER, mesh.instanceVBO);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(BlockFaceInstance) * mesh.faceSize, mesh.faces);
-	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	mesh.needUpdate = false;
-}
-#pragma endregion
 
 #pragma region Sprite
 void setupSprite(Sprite& sprite) {

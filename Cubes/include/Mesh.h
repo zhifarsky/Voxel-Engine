@@ -14,11 +14,7 @@ extern Shader
 void initShaders();
 void rebuildShaders();
 
-void setupBlockMesh(BlockMesh& mesh, bool onlyAllocBuffer = false, bool staticMesh = true);
-void updateBlockMesh(BlockMesh& mesh);
-
-
-
+// SPRITE
 void setupSprite(Sprite& sprite);
 void createSprite(Sprite& sprite, float scaleX, float scaleY, glm::vec2& uv, float sizeU, float sizeV);
 void useSpriteShader(glm::mat4 projection, glm::mat4 view);
