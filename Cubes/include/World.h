@@ -28,7 +28,8 @@ struct Camera {
 
 struct Player {
 	Camera camera;
-	float speed = 20;
+	glm::vec3 speedVector;
+	float maxSpeed;
 };
 
 struct GameWorld {

@@ -5,10 +5,9 @@
 #include "World.h"
 #include "FastNoiseLite.h"
 #include "ChunkManager.h"
+#include "Tools.h"
 
 GameWorld g_gameWorld;
-
-FastNoiseLite noise;
 
 glm::mat4 getProjection(float FOV, int displayW, int displayH) {
 	return glm::perspective(glm::radians(FOV), (float)displayW / (float)displayH, 0.1f, 1000.0f);
@@ -30,13 +29,11 @@ void Camera::update(float yaw, float pitch) {
 void GameWorld::init(u32 seed, u32 renderDistance) {
 	this->seed = seed;
 
-	ChunkManagerCreate(16);
+	ChunkManagerCreate(GetThreadsCount());
 	ChunkManagerAllocChunks(&g_chunkManager, renderDistance);
 
 	inventory.clear();
 	this->inventory.append(BlockType::btGround);
 	this->inventory.append(BlockType::btStone);
 	this->inventory.append(BlockType::btSnow);
-
-	noise = FastNoiseLite(seed);
 }

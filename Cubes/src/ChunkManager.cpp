@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <glm.hpp>
 #include "ChunkManager.h"
+#include "Tools.h"
 
 ChunkManager g_chunkManager;
 
@@ -85,35 +86,33 @@ static void updateBlockMesh(BlockMesh* mesh) {
 	mesh->needUpdate = false;
 }
 
-static FastNoiseLite noise;
+//static FastNoiseLite noise; // TODO: должно быть по 1 на поток?
 
 float PerlinNoise(int seed, float x, float y, float z) {
-	noise.SetSeed(seed);
+	FastNoiseLite noise(seed);
 	noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
 	return noise.GetNoise(x, y, z);
 }
 
 float PerlinNoise(int seed, float x, float y) {
-	noise.SetSeed(seed);
+	FastNoiseLite noise(seed);
 	noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
 	return noise.GetNoise(x, y);
 }
 
 float PerlinNoise(int seed, glm::vec3 pos) {
-	noise.SetSeed(seed);
+	FastNoiseLite noise(seed);
 	noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
 	return noise.GetNoise(pos.x, pos.y, pos.z);
 }
 
 float PerlinNoise(int seed, glm::vec2 pos) {
-	noise.SetSeed(seed);
+	FastNoiseLite noise(seed);
 	noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
 	return noise.GetNoise(pos.x, pos.y);
 }
 
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
-	chunk->generated = false;
-
 	chunk->posx = posx;
 	chunk->posz = posz;
 
@@ -246,33 +245,19 @@ void ChunkGenerateMesh(Chunk* chunk) {
 	chunk->mesh.needUpdate = true;
 }
  
-static DWORD chunkGenThreadProc(WorkingThread* args) {
-	for (;;) {
-		QueueTaskItem queueItem = g_chunkManager.workQueue.getNextTask();
-		if (queueItem.valid) {
-			ChunkGenTask* task = &g_chunkManager.chunkGenTasks[queueItem.taskIndex];
-
-			//g_gameWorld.generateChunk(task->index, task->posx, task->posz);
-			//g_gameWorld.chunks[task->index].generateMesh();
-			//g_gameWorld.chunks[task->index].mesh.needUpdate = true; // необходимо отправить новый меш на ГПУ в основоном потоке
-
-			g_chunkManager.workQueue.setTaskCompleted();
-		}
-		else
-			WaitForSingleObject(g_chunkManager.workQueue.semaphore, INFINITE);
-	}
-
-	return 0;
-}
+DWORD chunkGenThreadProc(WorkingThread* args);
 
 void ChunkManagerCreate(u32 threadsCount) {
-	g_chunkManager.workQueue = WorkQueue::Create(GetChunksCount(MAX_RENDER_DISTANCE));
-	g_chunkManager.threads.alloc(threadsCount);
 	g_chunkManager.seed = 0;
-	for (size_t i = 0; i < threadsCount; i++)
+	g_chunkManager.workQueue = WorkQueue::Create(GetChunksCount(MAX_RENDER_DISTANCE));
+	g_chunkManager.chunkGenTasks = (ChunkGenTask*)calloc(GetChunksCount(MAX_RENDER_DISTANCE), sizeof(ChunkGenTask));
+	g_chunkManager.threads.alloc(threadsCount);
+	for (size_t i = 0; i < threadsCount; i++) 
 	{
-		g_chunkManager.threads[i].threadID = i;
-		g_chunkManager.threads[i].handle = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)chunkGenThreadProc, &g_chunkManager.threads[i], 0, 0);
+		WorkingThread thread;
+		thread.threadID = i;
+		thread.handle = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)chunkGenThreadProc, &g_chunkManager.threads[i], 0, 0);
+		g_chunkManager.threads.append(thread);
 	}
 }
 
@@ -287,15 +272,56 @@ void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
 	}
 }
 
+void ChunkManagerReleaseChunks(ChunkManager* manager) {
+	free(manager->chunks);
+	manager->chunks = NULL;
+	manager->chunksCount = 0;
+}
+
+// singlethreaded
+//void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ) {
+//	ChunkGenerateBlocks(&manager->chunks[index], posX, posZ, manager->seed);
+//	ChunkGenerateMesh(&manager->chunks[index]);
+//	//updateBlockMesh(&manager->chunks[index].mesh);
+//}
+
+// multithreaded
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ) {
-	ChunkGenerateBlocks(&manager->chunks[index], posX, posZ, manager->seed);
-	ChunkGenerateMesh(&manager->chunks[index]);
-	updateBlockMesh(&manager->chunks[index].mesh);
+	manager->chunks[index].generated = true; // чтобы несколько потоков не генерировали один и тот же чанк
+	manager->chunks[index].posx = posX;
+	manager->chunks[index].posz = posZ;
+	
+	ChunkGenTask* task = &manager->chunkGenTasks[manager->workQueue.taskCount];
+	task->index = index;
+	manager->workQueue.addTask();
+}
+
+DWORD chunkGenThreadProc(WorkingThread* args) {
+	for (;;) {
+		QueueTaskItem queueItem = g_chunkManager.workQueue.getNextTask();
+		if (queueItem.valid) {
+			ChunkGenTask* task = &g_chunkManager.chunkGenTasks[queueItem.taskIndex];
+			
+			Chunk* chunk = &g_chunkManager.chunks[task->index];
+
+			ChunkGenerateBlocks(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
+			ChunkGenerateMesh(chunk);
+
+			g_chunkManager.workQueue.setTaskCompleted();
+		}
+		else
+			WaitForSingleObject(g_chunkManager.workQueue.semaphore, INFINITE);
+	}
+
+	return 0;
 }
 
 // TODO: многопоточность
 void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ) {
-	//manager->workQueue.clearTasks();
+	static bool printed = false;
+	printed = false;
+	
+	manager->workQueue.clearTasks();
 
 	int centerPosX = (int)(playerPosX / CHUNK_SX) * CHUNK_SX;
 	int centerPosZ = (int)(playerPosZ / CHUNK_SZ) * CHUNK_SZ;
@@ -341,6 +367,17 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 				continue;
 
 			ChunkManagerBuildChunk(manager, chunkToReplaceIndex, chunkPosX, chunkPosZ);
+		}
+	}
+
+	manager->workQueue.waitAndClear();
+
+	// обновляем чанки на ГПУ
+	for (size_t i = 0; i < manager->chunksCount; i++)
+	{
+		Chunk* chunk = &manager->chunks[i];
+		if (chunk->generated && chunk->mesh.needUpdate) {
+			updateBlockMesh(&chunk->mesh);
 		}
 	}
 }

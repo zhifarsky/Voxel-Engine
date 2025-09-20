@@ -194,3 +194,9 @@ u8* readEntireFile(const char* path, u32* outBufferSize, FileType fileType) {
 	*outBufferSize = fileSize;
 	return fileBuffer;
 }
+
+int GetThreadsCount() {
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	return sysInfo.dwNumberOfProcessors;
+}

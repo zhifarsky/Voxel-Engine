@@ -6,7 +6,8 @@
 #define CHUNK_SZ 16
 #define CHUNK_SY 24
 #define CHUNK_SIZE (CHUNK_SX * CHUNK_SZ * CHUNK_SY)
-#define MAX_RENDER_DISTANCE 16
+#define MIN_RENDER_DISTANCE 1
+#define MAX_RENDER_DISTANCE 24
 #define GetChunksSideCount(renderDistance) (renderDistance * 2 + 1)
 #define GetChunksCount(renderDistance) (GetChunksSideCount(renderDistance) * GetChunksSideCount(renderDistance))
 #define GetRenderDistance(chunksCount) (((int)sqrt(chunksCount) - 1) / 2)
@@ -48,14 +49,14 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed);
 void ChunkGenerateMesh(Chunk* chunk);
 
 struct ChunkGenTask {
-	int posx;
-	int posz;
+	//int posx;
+	//int posz;
 	int index;
 };
 
 struct ChunkManager {
 	Chunk* chunks;
-	Array<ChunkGenTask> chunkGenTasks;
+	ChunkGenTask* chunkGenTasks;
 	Array<WorkingThread> threads;
 	WorkQueue workQueue;
 	int chunksCount;
@@ -64,6 +65,7 @@ struct ChunkManager {
 
 void ChunkManagerCreate(u32 threadsCount);
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
+void ChunkManagerReleaseChunks(ChunkManager* manager);
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ);
 void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);

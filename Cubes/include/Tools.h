@@ -61,3 +61,4 @@ enum class FileType {
 
 // читает весь файл, выдел€€ под него пам€ть
 u8* readEntireFile(const char* path, u32* outBufferSize, FileType fileType);
+int GetThreadsCount();

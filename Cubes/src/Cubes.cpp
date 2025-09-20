@@ -175,7 +175,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	player.camera.pos = glm::vec3(8, 30, 8);
 	player.camera.front = glm::vec3(0, 0, -1);
 	player.camera.up = glm::vec3(0, 1, 0);
-	player.speed = 20;
+	player.maxSpeed = 25;
 
 
 	// загрузка текстур
@@ -211,32 +211,6 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	// загрузка шрифтов
 	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 30);
 	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 60);
-
-	//for (size_t i = 0; i < chunksCount; i++)
-	//{
-	//	g_gameWorld.chunks[i].blocks = new Block[CHUNK_SX * CHUNK_SY * CHUNK_SZ]; // TODO: аллокация в арене
-	//	g_gameWorld.chunks[i].mesh.faceSize = CHUNK_SIZE * 6;
-	//	g_gameWorld.chunks[i].mesh.faces = (BlockFaceInstance*)calloc(g_gameWorld.chunks[i].mesh.faceSize, sizeof(BlockFaceInstance)); // 6 сторон по 4 вершины
-	//	setupBlockMesh(g_gameWorld.chunks[i].mesh, false, true);
-	//}
-	//// генерация начальных чанков
-	//{
-	//	int chunkNum = 0;
-	//	for (int z = -renderDistance; z <= renderDistance; z++) {
-	//		for (int x = -renderDistance; x <= renderDistance; x++) {
-	//			updateChunk(chunkNum, x * CHUNK_SX, z * CHUNK_SZ);
-	//			chunkNum++;
-	//		}
-	//	}
-	//	chunkGenQueue.waitAndClear();
-
-	//	for (size_t i = 0; i < chunksCount; i++) {
-	//		if (g_gameWorld.chunks[i].mesh.needUpdate) {
-	//			updateBlockMesh(g_gameWorld.chunks[i].mesh);
-	//			//g_gameWorld.chunks[i].ready = true;
-	//		}
-	//	}
-	//}
 
 	{
 		Vertex* vertices = new Vertex[8]{
@@ -391,7 +365,6 @@ void RenderPauseMenu(GLFWwindow* window) {
 		SettingsMenu
 	};
 	static PauseMenuState menuState = PauseMenuState::MainMenu;
-	//static int renderDistanceSlider = renderDistance;
 
 	Renderer::clear(0.6, 0.6, 0.6);
 
@@ -418,14 +391,13 @@ void RenderPauseMenu(GLFWwindow* window) {
 
 		uiSliderFloat("FOV", &player.camera.FOV, 40, 120);
 
-		//if (uiSliderInt("Render distance", &renderDistanceSlider, 4, 16)) {
-		//	if (renderDistance != renderDistanceSlider) {
-		//		// TDOO: изменение дистанции прорисовки
-		//		renderDistance = renderDistanceSlider;
-		//		//g_gameWorld.init(g_gameWorld.seed, СhunksCount); // TDOO: заменить .init(), нам нужно только изменить дистанцию прорисовки
-		//		g_gameWorld.initChunks(СhunksCount);
-		//	}
-		//}
+		int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
+		if (uiSliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE)) {
+			if (GetRenderDistance(g_chunkManager.chunksCount) != renderDistanceSlider) {
+				ChunkManagerReleaseChunks(&g_chunkManager);
+				ChunkManagerAllocChunks(&g_chunkManager, renderDistanceSlider);
+			}
+		}
 
 		if (uiButton("Switch wireframe mode"))
 			wireframe_cb = !wireframe_cb;
@@ -455,15 +427,22 @@ void RenderPauseMenu(GLFWwindow* window) {
 void RenderGame(GLFWwindow* window) {
 	{
 		// update player
-		float cameraSpeedAdj = player.speed * g_deltaTime; // делаем скорость камеры независимой от FPS
+		float cameraSpeedAdj = player.maxSpeed * g_deltaTime; // делаем скорость камеры независимой от FPS
 		if (ButtonHeldDown(newInput->forward))
-			player.camera.pos += cameraSpeedAdj * player.camera.front;
+			player.speedVector += cameraSpeedAdj * player.camera.front;
+			//player.camera.pos += cameraSpeedAdj * player.camera.front;
 		if (ButtonHeldDown(newInput->backwards))
-			player.camera.pos -= cameraSpeedAdj * player.camera.front;
+			player.speedVector -= cameraSpeedAdj * player.camera.front;
+			//player.camera.pos -= cameraSpeedAdj * player.camera.front;
 		if (ButtonHeldDown(newInput->left))
-			player.camera.pos -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+			player.speedVector -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;;
+			//player.camera.pos -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
 		if (ButtonHeldDown(newInput->right))
-			player.camera.pos += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+			player.speedVector += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+			//player.camera.pos += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+
+		player.camera.pos += player.speedVector;
+		player.speedVector *= 0.8; // TODO: deltatime
 
 		// обновление направления солнца
 #if 1
@@ -579,7 +558,7 @@ void RenderGame(GLFWwindow* window) {
 	}
 #pragma endregion
 
-	// rendering shadow maps
+	// draw shadow maps
 	glm::mat4 lightSpaceMatrix;
 	{
 		//glCullFace(GL_FRONT);
@@ -699,12 +678,12 @@ void RenderGame(GLFWwindow* window) {
 
 		for (size_t c = 0; c < g_chunkManager.chunksCount; c++)
 		{
-			Chunk& chunk = g_chunkManager.chunks[c];
-			if (chunk.generated && !chunk.mesh.needUpdate) {
-				Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk.posx, chunk.posz);
+			Chunk* chunk = &g_chunkManager.chunks[c];
+			if (chunk->generated && !chunk->mesh.needUpdate) {
+				Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk->posx, chunk->posz);
 				Renderer::setUniformInt2(cubeInstancedShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
 
-				Renderer::drawInstancedGeo(chunk.mesh.VAO, 6, chunk.mesh.faceCount);
+				Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 			}
 		}
 
@@ -787,6 +766,10 @@ void RenderGame(GLFWwindow* window) {
 		sprintf(buf, "FPS: %d", (int)(1.0f / g_deltaTime));
 		uiText(buf);
 		sprintf(buf, "Frametime: %.3f", g_deltaTime);
+		uiText(buf);
+		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
+		uiText(buf);
+		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
 		uiText(buf);
 	}
 
