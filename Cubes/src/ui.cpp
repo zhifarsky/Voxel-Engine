@@ -202,6 +202,8 @@ void uiAdvance(float offsetX, float offsetY) {
 	case AdvanceMode::Down:
 		originY -= offsetY + uiStyle.margin * marginEnabled;
 		break;
+	case AdvanceMode::None:
+		break;
 	}
 }
 

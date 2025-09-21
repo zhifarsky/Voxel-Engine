@@ -43,7 +43,7 @@ enum class uiAnchor {
 };
 
 enum class AdvanceMode {
-	Right, Left, Up, Down
+	Right, Left, Up, Down, None
 };
 
 void uiSetAnchor(uiAnchor anchor, float offset);

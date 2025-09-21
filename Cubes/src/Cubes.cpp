@@ -77,6 +77,15 @@ static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
 }
 
+static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	if (yoffset > 0) {
+		InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
+	}
+	else if (yoffset < 0) {
+		InventorySelectItem(&player.inventory, player.inventory.selectedIndex - 1);
+	}
+}
+
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
 	//if (cursorMode == true) {
 	//	ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
@@ -100,15 +109,14 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 	}
 
 	// переключение между ячейками инвентаря
-	else if (
-		key >= GLFW_KEY_1 &&
-		key < GLFW_KEY_1 + g_gameWorld.inventory.count &&
-		action == GLFW_PRESS) {
-		g_gameWorld.inventoryIndex = key - GLFW_KEY_1;
+	else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9 && action == GLFW_PRESS) 
+	{
+		InventorySelectItem(&player.inventory, key - GLFW_KEY_1);
 	}
 }
 
 enum uiElemType : u16 {
+	uiInventorySelectCell,
 	uiInventoryCell,
 	uiHeart,
 	uiCross,
@@ -175,7 +183,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	player.camera.pos = glm::vec3(8, 30, 8);
 	player.camera.front = glm::vec3(0, 0, -1);
 	player.camera.up = glm::vec3(0, 1, 0);
-	player.maxSpeed = 25;
+	player.maxSpeed = 15;
+	player.inventory = InventoryCreate();
 
 
 	// загрузка текстур
@@ -199,7 +208,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		glm::vec2 tileSize(16.0f / (float)Assets.uiAtlas.width, 16.0f / (float)Assets.uiAtlas.height);
 		glm::vec2 tileOrigin(0, 0);
 
-		for (uiElemType elemType : {uiInventoryCell, uiHeart, uiCross, uiGroundBlock, uiStoneBlock, uiSnowBlock})
+		for (uiElemType elemType : {uiInventorySelectCell, uiInventoryCell, uiHeart, uiCross, uiGroundBlock, uiStoneBlock, uiSnowBlock})
 		{
 			uiUV[elemType] = UVOffset(tileOrigin, tileSize);
 			tileOrigin.x += tileSize.x;
@@ -248,6 +257,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	{
@@ -444,6 +454,20 @@ void RenderGame(GLFWwindow* window) {
 		player.camera.pos += player.speedVector;
 		player.speedVector *= 0.8; // TODO: deltatime
 
+		// collect dropped items
+		float collectRadius = 3;
+		for (size_t i = 0; i < g_gameWorld.droppedItems.count; i++)
+		{
+			Item* item = &g_gameWorld.droppedItems.items[i];
+			if (item->count < 1)
+				continue;
+
+			if (glm::distance(player.camera.pos, item->pos) < collectRadius) {
+				InventoryAddItem(&player.inventory, item->type, item->count);
+				item->count = 0; 
+			}
+		}
+
 		// обновление направления солнца
 #if 1
 		sunDir.x = cos((g_time + 10) * sunSpeed);
@@ -482,10 +506,21 @@ void RenderGame(GLFWwindow* window) {
 
 	// destroying / building blocks
 	if (newInput->placeBlock.halfTransitionsCount) {
-		ChunkManagerPlaceBlock(&g_chunkManager, g_gameWorld.inventory[g_gameWorld.inventoryIndex], player.camera.pos, player.camera.front, 128);
+		InventoryCell *cell = &player.inventory.cells[player.inventory.selectedIndex];
+		if (cell->itemsCount > 0) {
+			ChunkManagerPlaceBlock(&g_chunkManager, cell->itemType, player.camera.pos, player.camera.front, 128);
+			InventoryDropItem(&player.inventory, player.inventory.selectedIndex, 1);
+		}
 	}
 	else if (newInput->attack.halfTransitionsCount) {
-		ChunkManagerPlaceBlock(&g_chunkManager, BlockType::btAir, player.camera.pos, player.camera.front, 128);
+		PlaceBlockResult res = ChunkManagerPlaceBlock(&g_chunkManager, BlockType::btAir, player.camera.pos, player.camera.front, 128);
+		if (res.success) {
+			Item drop = {};
+			drop.type = res.typePrev;
+			drop.pos = { res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5 };
+			drop.count = 1;
+			g_gameWorld.droppedItems.append(drop);
+		}
 	}
 
 	// update entities
@@ -709,6 +744,36 @@ void RenderGame(GLFWwindow* window) {
 			Renderer::drawGeometry(&Assets.entityMesh);
 		}
 		Renderer::unbindShader();
+		Renderer::unbindTexture(0);
+		Renderer::unbindTexture(1);
+	}
+
+	// draw dropped items
+	{
+		Renderer::bindShader(polyMeshShader);
+		Renderer::bindTexture(&Assets.testTexture, 0);
+		Renderer::bindTexture(&Assets.depthMap, 1);
+
+		for (size_t i = 0; i < g_gameWorld.droppedItems.count; i++)
+		{
+			Item* item = &g_gameWorld.droppedItems.items[i];
+			if (item->count < 1)
+				continue;
+
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, {0.0f, sin(g_time) * 0.3, 0.0f});
+			model = glm::translate(model, item->pos);
+			rotateXYZ(model, 0.0f, g_time * 30, 0.0f);
+			model = glm::scale(model, { 0.3, 0.3, 0.3 });
+			model = glm::translate(model, {-0.5, -0.5, -0.5}); // center
+			Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
+
+			Renderer::drawGeometry(&Assets.defaultBox);
+		}
+
+		Renderer::unbindShader();
+		Renderer::unbindTexture(0);
+		Renderer::unbindTexture(1);
 	}
 
 	// draw debug geometry
@@ -771,20 +836,23 @@ void RenderGame(GLFWwindow* window) {
 		uiText(buf);
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
 		uiText(buf);
+		sprintf(buf, "%d dropped items", g_gameWorld.droppedItems.count);
+		uiText(buf);
 	}
 
-	int cellsCount = 8;
+	int cellsCount = INVENTORY_MAX_SIZE;
 	float cellWidth = 70;
 	float inventoryWidth = (cellsCount - 1) * cellWidth;
 	uiSetAnchor(uiAnchor::Bottom, 50);
-	uiSetAdvanceMode(AdvanceMode::Right);
+	uiSetAdvanceMode(AdvanceMode::None);
 	uiShiftOrigin(-inventoryWidth / 2, 0);
 	uiSetMargin(false);
-	for (size_t i = 0; i < g_gameWorld.inventory.count; i++)
+	for (size_t i = 0; i < player.inventory.cellsCount; i++)
 	{
-		uiElemType uiElemType;
+		uiElemType uiElemType = uiStoneBlock;
+		InventoryCell* cell = &player.inventory.cells[i];
 
-		switch (g_gameWorld.inventory[i])
+		switch (cell->itemType)
 		{
 		case BlockType::btGround:	uiElemType = uiGroundBlock; break;
 		case BlockType::btStone:	uiElemType = uiStoneBlock;	break;
@@ -794,14 +862,30 @@ void RenderGame(GLFWwindow* window) {
 		}
 
 		uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiElemType].scale, uiUV[uiElemType].offset);
+
+		uiShiftOrigin(-Assets.regularFont.size / 2, 0);
+		char buf[64];
+		sprintf(buf, "%d", cell->itemsCount);
+		uiText(buf);
+		uiShiftOrigin(Assets.regularFont.size / 2, 0);
+		
+		uiShiftOrigin(cellWidth, 0);
 	}
 
+	uiSetAdvanceMode(AdvanceMode::Right);
 	uiSetAnchor(uiAnchor::Bottom, 50);
 	uiShiftOrigin(-inventoryWidth / 2, 0);
 	for (size_t i = 0; i < cellsCount; i++)
 	{
-		uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiInventoryCell].scale, uiUV[uiInventoryCell].offset); // inventory
+		uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), 
+			uiUV[uiInventoryCell].scale, uiUV[uiInventoryCell].offset); // inventory
 	}
+
+	uiSetAnchor(uiAnchor::Bottom, 50);
+	uiShiftOrigin(-inventoryWidth / 2, 0);
+	uiShiftOrigin(cellWidth* player.inventory.selectedIndex, 0);
+	uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), 
+		uiUV[uiInventorySelectCell].scale, uiUV[uiInventorySelectCell].offset);
 
 	int heartsCount = 8;
 	float heartWidth = 35;

@@ -441,16 +441,25 @@ Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm
 	return NULL;
 }
 
-bool ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+	PlaceBlockResult res = {};
 	int chunkIndex = -1;
-	Block* block = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist, NULL, &chunkIndex);
+	glm::ivec3 blockPos;
+	Block* block = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist, &blockPos, &chunkIndex);
 	if (block) {
+		res.typePrev = block->type;
+		res.typeNew = blockType;
+		res.pos = blockPos;
+		res.success = true;
+
 		block->type = blockType;
 		Chunk* chunk = &manager->chunks[chunkIndex];
 		ChunkGenerateMesh(chunk);
 		updateBlockMesh(&chunk->mesh);
 
-		return true;
+		return res;
 	}
-	return false;
+
+	res.success = false;
+	return res;
 }

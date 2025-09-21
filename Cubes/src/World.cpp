@@ -26,14 +26,60 @@ void Camera::update(float yaw, float pitch) {
 	front = glm::normalize(direction);
 }
 
-void GameWorld::init(u32 seed, u32 renderDistance) {
-	this->seed = seed;
+Inventory InventoryCreate() {
+	Inventory inventory = { 0 };
+	return inventory;
+}
 
+void InventoryAddItem(Inventory* inventory, BlockType type, int count)
+{
+	for (size_t i = 0; i < inventory->cellsCount; i++)
+	{
+		if (inventory->cells[i].itemType == type) {
+			inventory->cells[i].itemsCount += count;
+			return;
+		}
+	}
+
+	if (inventory->cellsCount == INVENTORY_MAX_SIZE)
+		return;
+
+	InventoryCell* cell = &inventory->cells[inventory->cellsCount];
+	cell->itemType = type;
+	cell->itemsCount = count;
+	inventory->cellsCount++;
+}
+
+void InventoryDropItem(Inventory* inventory, int index, int count) {
+	if (index < 0 || index >= inventory->cellsCount)
+		return;
+
+
+	InventoryCell* cell = &inventory->cells[index];
+	cell->itemsCount -= count;
+
+	if (cell->itemsCount <= 0) {
+		for (size_t i = index; i < inventory->cellsCount - 1; i++)
+		{
+			inventory->cells[i] = inventory->cells[i + 1];
+		}
+		inventory->cellsCount--;
+	}
+}
+
+void InventorySelectItem(Inventory* inventory, int index) {
+	if (index < 0 || index >= inventory->cellsCount)
+		return;
+
+	inventory->selectedIndex = index;
+}
+
+void GameWorld::init(u32 seed, u32 renderDistance) {
 	ChunkManagerCreate(GetThreadsCount());
 	ChunkManagerAllocChunks(&g_chunkManager, renderDistance);
 
-	inventory.clear();
-	this->inventory.append(BlockType::btGround);
-	this->inventory.append(BlockType::btStone);
-	this->inventory.append(BlockType::btSnow);
+	//inventory.clear();
+	//this->inventory.append(BlockType::btGround);
+	//this->inventory.append(BlockType::btStone);
+	//this->inventory.append(BlockType::btSnow);
 }

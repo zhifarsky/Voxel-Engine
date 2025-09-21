@@ -63,6 +63,13 @@ struct ChunkManager {
 	int seed;
 };
 
+struct PlaceBlockResult {
+	glm::ivec3 pos;
+	BlockType typePrev;
+	BlockType typeNew;
+	bool success;
+};
+
 void ChunkManagerCreate(u32 threadsCount);
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
 void ChunkManagerReleaseChunks(ChunkManager* manager);
@@ -70,4 +77,4 @@ void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ
 void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);
 Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist, glm::ivec3* outBlockPos, int* outChunkIndex = NULL);
-bool ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
+PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
