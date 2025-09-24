@@ -77,6 +77,8 @@ static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
 }
 
+
+
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	if (yoffset > 0) {
 		InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
@@ -137,6 +139,8 @@ struct UVOffset {
 	}
 };
 
+Renderer::MSAAFactor g_MSAAFactor = Renderer::MSAAFactor::X4;
+
 float g_time = 0, g_deltaTime = 0, g_prevTime = 0;
 
 int display_w, display_h;
@@ -163,12 +167,42 @@ static float texVSize;
 
 struct {
 	Texture testTexture, textureAtlas, uiAtlas, entityTexture;
-	Geometry defaultBox, entityMesh;
+	Geometry screenQuad, defaultBox, entityMesh;
 	Sprite sunSprite, moonSprite;
-	FrameBuffer depthMapFBO;
-	Texture depthMap;
+	FrameBuffer_new depthMapFBO;
+	// рендерим в screenFBO с MSAA, копируем результат в intermediateFBO и делаем постобработку
+	FrameBuffer_new screenFBO, intermediateFBO; 
+	//Texture depthMap;
 	Font bigFont, regularFont;
 } Assets;
+
+void GetFramebufferSize(GLFWwindow* window, int* width, int* height) {
+	int w, h;
+	glfwGetFramebufferSize(window, &w, &h);
+	*width = std::max(1, w);
+	*height = std::max(1, h);
+}
+
+void InitFramebuffers(int width, int height, Renderer::MSAAFactor MSAAFactor) {
+	if ((width * height) == 0)
+		return;
+
+	Renderer::releaseFrameBuffer(&Assets.screenFBO);
+	Renderer::releaseFrameBuffer(&Assets.intermediateFBO);
+
+	Renderer::createMSAAFrameBuffer(&Assets.screenFBO, width, height, MSAAFactor);
+	Renderer::createColorFrameBuffer(&Assets.intermediateFBO, width, height);
+	Renderer::setViewportDimensions(width, height);
+}
+
+void InitShadowMapBuffer(u32 size) {
+	Renderer::releaseFrameBuffer(&Assets.depthMapFBO);
+	Renderer::createDepthMapFrameBuffer(&Assets.depthMapFBO, size);
+}
+
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+	InitFramebuffers(width, height, g_MSAAFactor);
+}
 
 void RenderMainMenu(GLFWwindow* window);
 void RenderPauseMenu(GLFWwindow* window);
@@ -222,7 +256,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 60);
 
 	{
-		Vertex* vertices = new Vertex[8]{
+		static Vertex vertices[] = {
 			Vertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
 			Vertex(1.0f, 0.0f, 0.0f, 1.0f, 0.0f),
 			Vertex(1.0f, 1.0f, 0.0f, 1.0f, 1.0f),
@@ -237,7 +271,7 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		{
 			vertices[i].normal = { 0,1,0 };
 		}
-		Triangle* triangles = new Triangle[12]{
+		static Triangle triangles[] = {
 			Triangle(0, 2, 1), Triangle(0, 3, 2),
 			Triangle(4, 5, 7), Triangle(5, 6, 7),
 			Triangle(0, 4, 3), Triangle(4, 7, 3),
@@ -253,7 +287,52 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		createSprite(Assets.moonSprite, 1, 1, blocksUV[(int)BlockType::texMoon].offset, texUSize, texVSize);
 	}
 
+	{
 
+		static Vertex vertices[] = {
+			Vertex(-1,-1, 0, 0,0),
+			Vertex( 1,-1, 0, 1,0),
+			Vertex( 1, 1, 0, 1,1),
+			Vertex(-1, 1, 0, 0,1),
+		};
+		static Triangle triangles[] = {
+			Triangle(0,1,2),
+			Triangle(0,2,3)
+		};
+
+		Assets.screenQuad = Renderer::createGeometry(vertices, 4, triangles, 2);
+
+		//GLuint VAO, VBO, EBO;
+		//glGenVertexArrays(1, &VAO);
+		//glGenBuffers(1, &VBO);
+		//glGenBuffers(1, &EBO);
+
+		//glBindVertexArray(VAO);
+		//glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+
+		//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
+
+		//GLint stride = sizeof(Vertex);
+		//glEnableVertexAttribArray(0);
+		//glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, pos)); // pos
+		//glEnableVertexAttribArray(1);
+		//glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, uv)); // tex coord
+
+		//glBindVertexArray(0);
+
+		//screenQuad.vertices = vertices;
+		//screenQuad.triangles = triangles;
+		//screenQuad.vertexCount = 4;
+		//screenQuad.triangleCount = 2;
+		//screenQuad.VAO = VAO;
+		//screenQuad.VBO = VBO;
+		//screenQuad.EBO = EBO;
+	}
+
+
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -273,15 +352,15 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		entities.append(entity);
 	}
 
-	// shadow framebuffer
 	{
-		Assets.depthMap = Renderer::createTexture(
-			4096, 4096, NULL,
-			PixelFormat::DepthMap, PixelFormat::DepthMap,
-			TextureWrapping::ClampToBorder, TextureFiltering::Nearest);
+		// shadow framebuffer
+		//Renderer::createDepthMapFrameBuffer(&Assets.depthMapFBO, 4096);
+		InitShadowMapBuffer(4096);
 
-		Assets.depthMapFBO = Renderer::createDepthMapFrameBuffer(&Assets.depthMap);
-	}
+		// screen framebuffer
+		GetFramebufferSize(window, &display_w, &display_h);
+		InitFramebuffers(display_w, display_h, g_MSAAFactor);
+	} 
 
 	// MAIN GAME LOOP
 	while (!glfwWindowShouldClose(window)) {
@@ -289,8 +368,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		g_deltaTime = g_time - g_prevTime;
 		g_prevTime = g_time;
 
-		glfwGetFramebufferSize(window, &display_w, &display_h);
-		Renderer::setViewportDimensions(display_w, display_h);
+		GetFramebufferSize(window, &display_w, &display_h);
+		//Renderer::setViewportDimensions(display_w, display_h);
 
 		// input processing
 		{
@@ -354,19 +433,19 @@ void CubesMainGameLoop(GLFWwindow* window) {
 void RenderMainMenu(GLFWwindow* window) {
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	uiStart(window, &Assets.regularFont);
-	uiSetAnchor(uiAnchor::Center, 0);
-	uiSetAdvanceMode(AdvanceMode::Down);
-	if (uiButton("Start game", glm::vec2(0.0, 0.0))) {
+	UI::Start(window, &Assets.regularFont);
+	UI::SetAnchor(uiAnchor::Center, 0);
+	UI::SetAdvanceMode(AdvanceMode::Down);
+	if (UI::Button("Start game", glm::vec2(0.0, 0.0))) {
 		g_gameWorld.gameState = gsInGame;
 	}
 
 	const char* caption = "Main menu";
-	uiSetAnchor(uiAnchor::Top, 100);
-	uiUseFont(&Assets.bigFont);
-	uiShiftOrigin(-uiGetTextWidth(caption) / 2, 0);
-	uiText(caption);
-	uiEnd();
+	UI::SetAnchor(uiAnchor::Top, 100);
+	UI::UseFont(&Assets.bigFont);
+	UI::ShiftOrigin(-UI::GetTextWidth(caption) / 2, 0);
+	UI::Text(caption);
+	UI::End();
 }
 
 void RenderPauseMenu(GLFWwindow* window) {
@@ -378,44 +457,55 @@ void RenderPauseMenu(GLFWwindow* window) {
 
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	uiStart(window, &Assets.regularFont);
-	uiSetAdvanceMode(AdvanceMode::Down);
+	UI::Start(window, &Assets.regularFont);
+	UI::SetAdvanceMode(AdvanceMode::Down);
 
 	switch (menuState)
 	{
 	case PauseMenuState::MainMenu: {
-		uiSetAnchor(uiAnchor::Center, 0);
-		if (uiButton("Return", glm::vec2(0.0, 0.0))) {
+		UI::SetAnchor(uiAnchor::Center, 0);
+		if (UI::Button("Return", glm::vec2(0.0, 0.0))) {
 			g_gameWorld.gameState = gsInGame;
 		}
-		if (uiButton("Settings")) {
+		if (UI::Button("Settings")) {
 			menuState = PauseMenuState::SettingsMenu;
 		}
-		if (uiButton("Exit")) {
+		if (UI::Button("Exit")) {
 			glfwSetWindowShouldClose(window, true);
 		}
 	} break;
 	case PauseMenuState::SettingsMenu: {
-		uiSetAnchor(uiAnchor::Center, 0);
-		uiShiftOrigin(0, 200);
+		UI::SetAnchor(uiAnchor::Center, 0);
+		UI::ShiftOrigin(0, 200);
 
-		uiSliderFloat("FOV", &player.camera.FOV, 40, 120);
+		UI::SliderFloat("FOV", &player.camera.FOV, 40, 120);
 
 		int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
-		if (uiSliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE)) {
+		if (UI::SliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE)) {
 			if (GetRenderDistance(g_chunkManager.chunksCount) != renderDistanceSlider) {
 				ChunkManagerReleaseChunks(&g_chunkManager);
 				ChunkManagerAllocChunks(&g_chunkManager, renderDistanceSlider);
 			}
 		}
 
-		if (uiButton("Switch wireframe mode"))
+		static int shadowQuality = 12;
+		if (UI::SliderInt("Shadow quality", &shadowQuality, 10, 14)) {
+			InitShadowMapBuffer(pow(2, shadowQuality));
+		}
+
+		static int MSAAFactorSlider = sqrt((int)g_MSAAFactor);
+		if (UI::SliderInt("Anti Aliasing quality", &MSAAFactorSlider, 0, 4)) {
+			g_MSAAFactor = (Renderer::MSAAFactor)pow(2, MSAAFactorSlider);
+			InitFramebuffers(display_w, display_h, g_MSAAFactor);
+		}
+
+		if (UI::Button("Switch wireframe mode"))
 			wireframe_cb = !wireframe_cb;
 
-		if (uiButton("Switch debug view"))
+		if (UI::Button("Switch debug view"))
 			debugView_cb = !debugView_cb;
 
-		if (uiButton("Switch vsync")) {
+		if (UI::Button("Switch vsync")) {
 			if (vsyncOn)
 				glfwSwapInterval(1);
 			else
@@ -423,7 +513,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 			vsyncOn = !vsyncOn;
 		}
 
-		if (uiButton("Back")) {
+		if (UI::Button("Back")) {
 			menuState = PauseMenuState::MainMenu;
 		}
 	} break;
@@ -431,7 +521,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 		break;
 	}
 
-	uiEnd();
+	UI::End();
 }
 
 void RenderGame(GLFWwindow* window) {
@@ -599,7 +689,8 @@ void RenderGame(GLFWwindow* window) {
 		//glCullFace(GL_FRONT);
 
 		//float projDim = (float)Assets.depthMap.width / 16.0f;
-		float projDim = (float)Assets.depthMap.width / 16.0f / 4;
+		//float projDim = (float)Assets.depthMapFBO.textures[0].width / 16.0f / 4;
+		float projDim = 128;
 		glm::mat4 lightProjection = glm::ortho(-projDim, projDim, -projDim, projDim, near_plane, far_plane);
 		glm::mat4 lightView = glm::lookAt(
 			shadowLightDist * directLightDir + player.camera.pos * glm::vec3(1, 0, 1),
@@ -608,7 +699,7 @@ void RenderGame(GLFWwindow* window) {
 
 		lightSpaceMatrix = lightProjection * lightView;
 
-		Renderer::setViewportDimensions(Assets.depthMap.width, Assets.depthMap.height);
+		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
 		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
 		//glClear(GL_DEPTH_BUFFER_BIT);
 		Renderer::clear(0, 0, 0);
@@ -650,9 +741,11 @@ void RenderGame(GLFWwindow* window) {
 
 		Renderer::unbindFrameBuffer();
 		//glCullFace(GL_BACK);
-		Renderer::setViewportDimensions(display_w, display_h);
+		//Renderer::setViewportDimensions(display_w, display_h);
 	}
 
+	Renderer::bindFrameBuffer(&Assets.screenFBO);
+	Renderer::setViewportDimensions(display_w, display_h);
 	Renderer::clear(ambientLightColor.r, ambientLightColor.g, ambientLightColor.b, 1.0);
 
 	if (wireframe_cb) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -709,7 +802,7 @@ void RenderGame(GLFWwindow* window) {
 	{
 		Renderer::bindShader(cubeInstancedShader);
 		Renderer::bindTexture(&Assets.textureAtlas, 0);
-		Renderer::bindTexture(&Assets.depthMap, 1);
+		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
 
 		for (size_t c = 0; c < g_chunkManager.chunksCount; c++)
 		{
@@ -730,7 +823,7 @@ void RenderGame(GLFWwindow* window) {
 	{
 		Renderer::bindShader(polyMeshShader);
 		Renderer::bindTexture(&Assets.entityTexture, 0);
-		Renderer::bindTexture(&Assets.depthMap, 1);
+		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
 
 		for (size_t i = 0; i < entities.count; i++)
 		{
@@ -752,7 +845,7 @@ void RenderGame(GLFWwindow* window) {
 	{
 		Renderer::bindShader(polyMeshShader);
 		Renderer::bindTexture(&Assets.testTexture, 0);
-		Renderer::bindTexture(&Assets.depthMap, 1);
+		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
 
 		for (size_t i = 0; i < g_gameWorld.droppedItems.count; i++)
 		{
@@ -815,38 +908,59 @@ void RenderGame(GLFWwindow* window) {
 	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 1.5));
 	drawFlat(&Assets.defaultBox, glm::vec3(0, 0, 1));
 
-	// draw ui
-	uiStart(window, &Assets.regularFont);
-	uiSetAnchor(uiAnchor::Center, 0);
-	uiDrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset); // cursor
+	// TEST
+	{
+		// post processing & draw to default buffer
+		// TDOO: fix
+		{
+			Renderer::switchDepthTest(false);
+			Renderer::bindShader(screenShader);
 
-	//uiSetAnchor(uiTopAnchor, 360/2);
-	//uiDrawElement(depthMap, { 0,0,0 }, { 360,360,1 }, { 1,1 }, { 0,0 }); // depthmap (shadow)
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, Assets.screenFBO.ID);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Assets.intermediateFBO.ID);
+			glBlitFramebuffer(0, 0, display_w, display_h, 0, 0, display_w, display_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			Renderer::bindTexture(&Assets.intermediateFBO.textures[0]);
+			Renderer::drawGeometry(&Assets.screenQuad); // TEST
+			Renderer::unbindTexture();
+
+			Renderer::unbindShader();
+			Renderer::switchDepthTest(true);
+		}
+	}
+
+	// draw ui
+	UI::Start(window, &Assets.regularFont);
+	UI::SetAnchor(uiAnchor::Center, 0);
+	UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset); // cursor
+
+	//SetAnchor(uiTopAnchor, 360/2);
+	//DrawElement(depthMap, { 0,0,0 }, { 360,360,1 }, { 1,1 }, { 0,0 }); // depthmap (shadow)
 
 	// debug info
 	{
-		uiSetAnchor(uiAnchor::Left, 10);
-		uiSetAdvanceMode(AdvanceMode::Down);
+		UI::SetAnchor(uiAnchor::Left, 10);
+		UI::SetAdvanceMode(AdvanceMode::Down);
 		char buf[128];
 		sprintf(buf, "FPS: %d", (int)(1.0f / g_deltaTime));
-		uiText(buf);
+		UI::Text(buf);
 		sprintf(buf, "Frametime: %.3f", g_deltaTime);
-		uiText(buf);
+		UI::Text(buf);
 		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
-		uiText(buf);
+		UI::Text(buf);
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
-		uiText(buf);
+		UI::Text(buf);
 		sprintf(buf, "%d dropped items", g_gameWorld.droppedItems.count);
-		uiText(buf);
+		UI::Text(buf);
 	}
 
 	int cellsCount = INVENTORY_MAX_SIZE;
 	float cellWidth = 70;
 	float inventoryWidth = (cellsCount - 1) * cellWidth;
-	uiSetAnchor(uiAnchor::Bottom, 50);
-	uiSetAdvanceMode(AdvanceMode::None);
-	uiShiftOrigin(-inventoryWidth / 2, 0);
-	uiSetMargin(false);
+	UI::SetAnchor(uiAnchor::Bottom, 50);
+	UI::SetAdvanceMode(AdvanceMode::None);
+	UI::ShiftOrigin(-inventoryWidth / 2, 0);
+	UI::SetMargin(false);
 	for (size_t i = 0; i < player.inventory.cellsCount; i++)
 	{
 		uiElemType uiElemType = uiStoneBlock;
@@ -861,42 +975,42 @@ void RenderGame(GLFWwindow* window) {
 			break;
 		}
 
-		uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiElemType].scale, uiUV[uiElemType].offset);
+		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiElemType].scale, uiUV[uiElemType].offset);
 
-		uiShiftOrigin(-Assets.regularFont.size / 2, 0);
+		UI::ShiftOrigin(-Assets.regularFont.size / 2, 0);
 		char buf[64];
 		sprintf(buf, "%d", cell->itemsCount);
-		uiText(buf);
-		uiShiftOrigin(Assets.regularFont.size / 2, 0);
+		UI::Text(buf);
+		UI::ShiftOrigin(Assets.regularFont.size / 2, 0);
 		
-		uiShiftOrigin(cellWidth, 0);
+		UI::ShiftOrigin(cellWidth, 0);
 	}
 
-	uiSetAdvanceMode(AdvanceMode::Right);
-	uiSetAnchor(uiAnchor::Bottom, 50);
-	uiShiftOrigin(-inventoryWidth / 2, 0);
+	UI::SetAdvanceMode(AdvanceMode::Right);
+	UI::SetAnchor(uiAnchor::Bottom, 50);
+	UI::ShiftOrigin(-inventoryWidth / 2, 0);
 	for (size_t i = 0; i < cellsCount; i++)
 	{
-		uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), 
+		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1),
 			uiUV[uiInventoryCell].scale, uiUV[uiInventoryCell].offset); // inventory
 	}
 
-	uiSetAnchor(uiAnchor::Bottom, 50);
-	uiShiftOrigin(-inventoryWidth / 2, 0);
-	uiShiftOrigin(cellWidth* player.inventory.selectedIndex, 0);
-	uiDrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), 
+	UI::SetAnchor(uiAnchor::Bottom, 50);
+	UI::ShiftOrigin(-inventoryWidth / 2, 0);
+	UI::ShiftOrigin(cellWidth* player.inventory.selectedIndex, 0);
+	UI::DrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), 
 		uiUV[uiInventorySelectCell].scale, uiUV[uiInventorySelectCell].offset);
 
 	int heartsCount = 8;
 	float heartWidth = 35;
 	float heartsWidth = (heartsCount - 1) * heartWidth;
-	uiSetAnchor(uiAnchor::Bottom, 110);
-	uiShiftOrigin(-heartsWidth / 2, 0);
+	UI::SetAnchor(uiAnchor::Bottom, 110);
+	UI::ShiftOrigin(-heartsWidth / 2, 0);
 	for (size_t i = 0; i < heartsCount; i++)
 	{
-		uiDrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(heartWidth, heartWidth, 1), uiUV[uiHeart].scale, uiUV[uiHeart].offset); // health bar
+		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(heartWidth, heartWidth, 1), uiUV[uiHeart].scale, uiUV[uiHeart].offset); // health bar
 	}
-	uiEnd();
+	UI::End();
 #pragma endregion
 
 }

@@ -2,6 +2,8 @@
 #include <glm.hpp>
 #include "Typedefs.h"
 
+#define FRAMEBUFFER_MAX_TEXTURES 1
+
 enum class PixelFormat {
 	RGB, RGBA, Grayscale, DepthMap,
 	COUNT
@@ -18,13 +20,17 @@ enum class TextureFiltering {
 	COUNT
 };
 
-typedef u32 Shader;
-typedef u32 FrameBuffer;
-
 struct Texture {
 	u32 ID;
 	PixelFormat pixelformat;
 	u32 width, height;
+};
+
+typedef u32 Shader;
+
+struct FrameBuffer_new {
+	Texture textures[FRAMEBUFFER_MAX_TEXTURES];
+	u32 ID, RBO;
 };
 
 #pragma pack(push, 1)
@@ -110,6 +116,8 @@ struct BlockFaceInstance {
 
 namespace Renderer {
 	typedef void* (*LoadProc)(const char* name);
+	enum class MSAAFactor { NONE = 1, X2 = 2, X4 = 4, X8 = 8, X16 = 16 };
+
 
 	//bool init(void* (*loadProc)(const char* name));
 	// возвращает true, если успешно
@@ -135,8 +143,13 @@ namespace Renderer {
 	void setUniformFloat4(Shader shader, const char* name, float x, float y, float z, float w);
 	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v);
 
-	FrameBuffer createDepthMapFrameBuffer(Texture* depthMap);
-	void bindFrameBuffer(FrameBuffer* frameBuffer);
+	void createMSAAFrameBuffer(FrameBuffer_new* frameBuffer, u32 width, u32 height, MSAAFactor samplesCount);
+	void createColorFrameBuffer(FrameBuffer_new* frameBuffer, u32 width, u32 height);
+	void createDepthMapFrameBuffer(FrameBuffer_new* frameBuffer, u32 size);
+	
+	void releaseFrameBuffer(FrameBuffer_new* frameBuffer);
+
+	void bindFrameBuffer(FrameBuffer_new* frameBuffer);
 	void unbindFrameBuffer();
 
 	Texture createTexture(

@@ -7,6 +7,8 @@
 #include "Directories.h"
 #include "Tools.h"
 
+using namespace UI;
+
 struct ElementState {
 	bool wasActive;
 };
@@ -27,7 +29,7 @@ AdvanceMode advanceMode;
 UiStyle uiStyle;
 bool marginEnabled;
 
-float uiTextInternal(const char* text, float posX, float posY);
+
 
 Font loadFont(const char* path, float fontSize) {
 	Font font = { 0 };
@@ -74,7 +76,10 @@ Font loadFont(const char* path, float fontSize) {
 	return font;
 }
 
-void uiInit() {
+namespace UI {
+	float TextInternal(const char* text, float posX, float posY);
+
+void Init() {
 	// TODO: запечь вершины в вершинный шейдер вместо создания их на CPU
 	//static Vertex faceVerts[] = {
 	//	Vertex(-0.5,-0.5,0, 0,0),
@@ -114,7 +119,7 @@ void uiInit() {
 	}
 }
 
-void uiStart(GLFWwindow* currentWindow, Font* defaultFont) {
+void Start(GLFWwindow* currentWindow, Font* defaultFont) {
 	font = defaultFont;
 
 	window = currentWindow;
@@ -138,12 +143,12 @@ void uiStart(GLFWwindow* currentWindow, Font* defaultFont) {
 	Renderer::switchDepthTest(false);
 }
 
-void uiEnd() {
+void End() {
 	Renderer::unbindShader();
 	Renderer::switchDepthTest(true);
 }
 
-void uiSetAnchor(uiAnchor anchor, float offset) {
+void SetAnchor(uiAnchor anchor, float offset) {
 	switch (anchor) {
 	case uiAnchor::Center:
 		originX = (float)displayW / 2.0f;
@@ -168,26 +173,25 @@ void uiSetAnchor(uiAnchor anchor, float offset) {
 	}
 }
 
-void uiSetOrigin(float x, float y) {
+void SetOrigin(float x, float y) {
 	originX = x;
 	originY = y;
 }
 
-void uiShiftOrigin(float offsetX, float offsetY) {
+void ShiftOrigin(float offsetX, float offsetY) {
 	originX += offsetX;
 	originY += offsetY;
 }
 
-
-void uiSetAdvanceMode(AdvanceMode mode) {
+void SetAdvanceMode(AdvanceMode mode) {
 	advanceMode = mode;
 }
 
-void uiSetMargin(bool enabled) {
+void SetMargin(bool enabled) {
 	marginEnabled = enabled;
 }
 
-void uiAdvance(float offsetX, float offsetY) {
+void Advance(float offsetX, float offsetY) {
 	switch (advanceMode)
 	{
 	case AdvanceMode::Right:
@@ -207,13 +211,13 @@ void uiAdvance(float offsetX, float offsetY) {
 	}
 }
 
-void uiUseFont(Font* newFont)
+void UseFont(Font* newFont)
 {
 	font = newFont;
 }
 
 // NOTE: элементы отцентрованы при помощи translate. отстальные элементы не отцентрованы
-void uiDrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
+void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
 	Renderer::bindTexture(texture);
 
 	glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
@@ -233,11 +237,11 @@ void uiDrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 u
 
 	Renderer::unbindTexture();
 
-	uiAdvance(scale.x, scale.y);
+	Advance(scale.x, scale.y);
 }
 
-bool uiButton(const char* text, glm::vec2 size) {
-	float textWidth = uiGetTextWidth(text);
+bool Button(const char* text, glm::vec2 size) {
+	float textWidth = GetTextWidth(text);
 	
 	if (size.x * size.y == 0)
 		size = glm::vec2(textWidth + uiStyle.padding * 2, font->size + uiStyle.padding * 2);
@@ -278,13 +282,13 @@ bool uiButton(const char* text, glm::vec2 size) {
 		Renderer::drawGeometry(&face);
 	}
 
-	uiTextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2 - font->size / 2);
-	uiAdvance(size.x, size.y);
+	TextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2 - font->size / 2);
+	Advance(size.x, size.y);
 
 	return res;
 }
 
-bool uiSliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue) {
+bool SliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue) {
 	
 	float sliderRange = maxValue - minValue;
 	float normalizedValue = (*value - minValue) / sliderRange;
@@ -330,7 +334,7 @@ bool uiSliderInternal(const char* name, const char* text, float* value, float mi
 	}
 
 	{
-		uiTextInternal(text, originX, originY + knobHeight / 2 + uiStyle.padding);
+		TextInternal(text, originX, originY + knobHeight / 2 + uiStyle.padding);
 
 		glm::mat4 barModel = glm::mat4(1.0f);
 		barModel = glm::translate(barModel, glm::vec3(originX, originY - barHeight / 2, 0));
@@ -355,27 +359,27 @@ bool uiSliderInternal(const char* name, const char* text, float* value, float mi
 		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(knobModel));
 		Renderer::drawGeometry(&face);
 	}
-	uiAdvance(barWidth, knobHeight + font->size);
+	Advance(barWidth, knobHeight + font->size);
 	return res;
 }
 
-bool uiSliderFloat(const char* text, float* value, float minValue, float maxValue) {
+bool SliderFloat(const char* text, float* value, float minValue, float maxValue) {
 	char buf[128];
 	sprintf(buf, "%s %.1f", text, *value);
-	return uiSliderInternal(text, buf, value, minValue, maxValue);
+	return SliderInternal(text, buf, value, minValue, maxValue);
 }
 
-bool uiSliderInt(const char* text, int* value, int minValue, int maxValue) {
+bool SliderInt(const char* text, int* value, int minValue, int maxValue) {
 	char buf[128];
 	sprintf(buf, "%s %d", text, *value);
 	float v = *value;
 
-	bool res = uiSliderInternal(text, buf, &v, minValue, maxValue);
+	bool res = SliderInternal(text, buf, &v, minValue, maxValue);
 	*value = v;
 	return res;
 }
 
-float uiGetTextWidth(const char* text) {
+float GetTextWidth(const char* text) {
 	u32 len = strlen(text);
 	
 	float width = 0;
@@ -400,7 +404,7 @@ float uiGetTextWidth(const char* text) {
 	return width;
 }
 
-float uiTextInternal(const char* text, float posX, float posY) {
+float TextInternal(const char* text, float posX, float posY) {
 	u32 len = strlen(text);
 	
 	Renderer::bindTexture(&font->atlas);
@@ -453,8 +457,9 @@ float uiTextInternal(const char* text, float posX, float posY) {
 	return x - posX;
 }
 
-void uiText(const char* text) {
-	float width = uiTextInternal(text, originX, originY);
-	uiAdvance(width, font->size);
+void Text(const char* text) {
+	float width = TextInternal(text, originX, originY);
+	Advance(width, font->size);
 }
 
+}

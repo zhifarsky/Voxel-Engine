@@ -20,20 +20,6 @@ struct Font {
 	float size; // pixel height
 };
 
-Font loadFont(const char* fontPath, float fontSize);
-
-void uiInit();
-void uiStart(GLFWwindow* window, Font* defaultFont);
-void uiEnd();
-
-void uiUseFont(Font* font);
-void uiDrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
-bool uiButton(const char* text, glm::vec2 size = glm::vec2(0.0, 0.0));
-bool uiSliderFloat(const char* text, float* value, float minValue, float maxValue);
-bool uiSliderInt(const char* text, int* value, int minValue, int maxValue);
-float uiGetTextWidth(const char* text);
-void uiText(const char* text);
-
 enum class uiAnchor {
 	Center,
 	Left,
@@ -45,12 +31,6 @@ enum class uiAnchor {
 enum class AdvanceMode {
 	Right, Left, Up, Down, None
 };
-
-void uiSetAnchor(uiAnchor anchor, float offset);
-void uiShiftOrigin(float offsetX, float offsetY);
-void uiSetOrigin(float x, float y);
-void uiSetAdvanceMode(AdvanceMode mode);
-void uiSetMargin(bool enabled);
 
 struct UiStyle {
 	glm::vec4 buttonColor;
@@ -69,3 +49,25 @@ struct UiStyle {
 	float padding;	// внутренний отступ
 	float margin;	// внешний отступ
 };
+
+Font loadFont(const char* fontPath, float fontSize);
+
+namespace UI {
+	void Init();
+	void Start(GLFWwindow* window, Font* defaultFont);
+	void End();
+
+	void UseFont(Font* font);
+	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
+	bool Button(const char* text, glm::vec2 size = glm::vec2(0.0, 0.0));
+	bool SliderFloat(const char* text, float* value, float minValue, float maxValue);
+	bool SliderInt(const char* text, int* value, int minValue, int maxValue);
+	float GetTextWidth(const char* text);
+	void Text(const char* text);
+
+	void SetAnchor(uiAnchor anchor, float offset);
+	void ShiftOrigin(float offsetX, float offsetY);
+	void SetOrigin(float x, float y);
+	void SetAdvanceMode(AdvanceMode mode);
+	void SetMargin(bool enabled);
+}

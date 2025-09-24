@@ -13,7 +13,8 @@ Shader
 	polyMeshShadowShader = NULL,
 	flatShader = NULL, 
 	spriteShader = NULL,
-	uiShader = NULL;
+	uiShader = NULL,
+	screenShader = NULL;
 
 Shader recompileShader(Shader shader, const char* fileName) {
 	Shader newShader = Renderer::createShaderFromFile(fileName);
@@ -36,6 +37,8 @@ void initShaders() {
 	spriteShader = recompileShader(spriteShader, SHADER_FOLDER "sprite.glsl");
 
 	uiShader = recompileShader(uiShader, SHADER_FOLDER "uiElement.glsl");
+
+	screenShader = recompileShader(screenShader, SHADER_FOLDER "screen.glsl");
 }
 
 void rebuildShaders() {
@@ -145,7 +148,7 @@ void drawFlat(Geometry* mesh, glm::vec3 color) {
 }
 
 void createSprite(Sprite& sprite, float scaleX, float scaleY, glm::vec2& uv, float sizeU, float sizeV) {
-	Vertex* vertices = new Vertex[4] {
+	static Vertex vertices[] = {
 		Vertex(-0.5, -0.5, 0, uv.x, uv.y),
 		Vertex(0.5, -0.5, 0, uv.x + sizeU, uv.y),
 		Vertex(0.5, 0.5, 0, uv.x + sizeU, uv.y + sizeV),

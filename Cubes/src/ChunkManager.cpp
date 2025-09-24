@@ -7,14 +7,14 @@
 ChunkManager g_chunkManager;
 
 static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
-	const glm::vec3 faceVerts[] = {
+	static glm::vec3 faceVerts[] = {
 	glm::vec3(0,0,0),
 	glm::vec3(1,0,0),
 	glm::vec3(1,0,1),
 	glm::vec3(0,0,1),
 	};
 
-	const int faceIndices[] = {
+	static int faceIndices[] = {
 		0, 1, 2, 2, 3, 0
 	};
 
@@ -75,6 +75,15 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 	glVertexAttribDivisor(5, 1);
 
 	glBindVertexArray(0);
+}
+
+void deleteBlockMesh(BlockMesh* mesh) {
+	glDeleteBuffers(1, &mesh->VBO);
+	glDeleteBuffers(1, &mesh->instanceVBO);
+	glDeleteBuffers(1, &mesh->EBO);
+	glDeleteVertexArrays(1, &mesh->VAO);
+	mesh->EBO = mesh->VBO = mesh->instanceVBO = 0;
+	mesh->needUpdate = false;
 }
 
 // обновить геометрию в ГПУ
@@ -273,9 +282,14 @@ void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
 }
 
 void ChunkManagerReleaseChunks(ChunkManager* manager) {
+	for (size_t i = 0; i < manager->chunksCount; i++)
+	{
+		deleteBlockMesh(&manager->chunks[i].mesh);
+	}
 	free(manager->chunks);
 	manager->chunks = NULL;
 	manager->chunksCount = 0;
+
 }
 
 // singlethreaded

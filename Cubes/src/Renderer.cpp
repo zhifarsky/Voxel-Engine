@@ -32,6 +32,7 @@ namespace Renderer {
 
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
+		glEnable(GL_MULTISAMPLE);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -202,23 +203,99 @@ namespace Renderer {
 		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
 	}
 
-	FrameBuffer createDepthMapFrameBuffer(Texture* depthMap) {
-		FrameBuffer fb;
+	void createMSAAFrameBuffer(FrameBuffer_new* fb, u32 width, u32 height, MSAAFactor samplesCount) {
+		*fb = {0};
+		Texture* texture = &fb->textures[0];
 
-		glGenFramebuffers(1, &fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		u32 samples = (u32)samplesCount;
+		
+		glGenFramebuffers(1, &fb->ID);
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+
+		// текстура для RGB буфера
+		glGenTextures(1, &fb->textures[0].ID);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture->ID);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, texture->ID, 0);
+
+		// RBO для Detph и Stencil буферов
+		glGenRenderbuffers(1, &fb->RBO);
+		glBindRenderbuffer(GL_RENDERBUFFER, fb->RBO);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+		
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb->RBO);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			FatalError("Framebuffer is not complete!");
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void createColorFrameBuffer(FrameBuffer_new* fb, u32 width, u32 height) {
+		*fb = { 0 };
+		Texture* texture = &fb->textures[0];
+
+		glGenFramebuffers(1, &fb->ID);
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+
+		// текстура для RGB буфера
+		glGenTextures(1, &texture->ID);
+		glBindTexture(GL_TEXTURE_2D, texture->ID);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->ID, 0);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			FatalError("Framebuffer is not complete!");
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void createDepthMapFrameBuffer(FrameBuffer_new* fb, u32 size) {
+		*fb = { 0 };
+		
+		Texture* depthMap = &fb->textures[0];
+		*depthMap = Renderer::createTexture(
+			size, size, NULL,
+			PixelFormat::DepthMap, PixelFormat::DepthMap,
+			TextureWrapping::ClampToBorder, TextureFiltering::Nearest);
+
+		glGenFramebuffers(1, &fb->ID);
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap->ID, 0);
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		return fb;
 	}
 
-	void bindFrameBuffer(FrameBuffer* frameBuffer) {
-		glBindFramebuffer(GL_FRAMEBUFFER, *frameBuffer);
+	void releaseFrameBuffer(FrameBuffer_new* fb) {
+		for (size_t i = 0; i < FRAMEBUFFER_MAX_TEXTURES; i++)
+		{
+			if (fb->textures[i].ID)
+				glDeleteTextures(1, &fb->textures[i].ID);
+		}
+
+		if (fb->RBO)
+			glDeleteRenderbuffers(1, &fb->RBO);
+
+		if (fb->ID)
+			glDeleteFramebuffers(1, &fb->ID);
+
+		*fb = { 0 };
 	}
-	
+
+	void bindFrameBuffer(FrameBuffer_new* fb) {
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+	}
+
 	void unbindFrameBuffer() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
@@ -231,6 +308,7 @@ namespace Renderer {
 		Texture texture;
 		texture.width = width;
 		texture.height = height;
+		texture.pixelformat = outputFormat;
 		
 		glGenTextures(1, &texture.ID);
 		glBindTexture(GL_TEXTURE_2D, texture.ID);
@@ -259,7 +337,6 @@ namespace Renderer {
 		GLenum glWrapping = TextureWrappingTable[(int)wrapping];
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapping);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapping);
-
 
 		return texture;
 	}
@@ -347,8 +424,6 @@ namespace Renderer {
 		if (!file)
 			FatalError("Error on opening file");
 		
-		Geometry geo;
-
 		int vCount = 0, uvCount = 0, faceCount = 0, normalCount = 0;
 
 		char line[256];

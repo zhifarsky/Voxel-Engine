@@ -9,7 +9,8 @@ extern Shader
 	cubeInstancedShader, shadowShader, 
 	polyMeshShader, polyMeshShadowShader,
 	flatShader, spriteShader, 
-	uiShader;
+	uiShader,
+	screenShader;
 
 void initShaders();
 void rebuildShaders();

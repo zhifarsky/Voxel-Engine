@@ -5,7 +5,7 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in int instancePackedOffset;
 layout (location = 2) in int instanceFaceDirection;
 layout (location = 3) in int instanceTextureID;
-layout (location = 4) in int instanceSizeX; // TODO: X и Z в ivec2 или упаковать в int
+layout (location = 4) in int instanceSizeX; // TODO: X пїЅ Z пїЅ ivec2 пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ int
 layout (location = 5) in int instanceSizeZ;
 
 uniform mat4 viewProjection;
@@ -43,7 +43,7 @@ void main() {
 
     // y+
     if (instanceFaceDirection == 0) {
-        pos.xz = pos.zx; // переворачиваем полигон (для верной работы FACE_CULL)
+        pos.xz = pos.zx; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ FACE_CULL)
         pos.y++;
         ourNormal = vec3(0,1,0);
     }
@@ -76,14 +76,14 @@ void main() {
         ourNormal = vec3(0,-1,0);        
     }
     
-    // распаковываем offset
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ offset
     vec3 offset = vec3(
 	    instancePackedOffset % CHUNK_SX,
 	    instancePackedOffset / (CHUNK_SX * CHUNK_SZ),
 	    instancePackedOffset / CHUNK_SX % CHUNK_SZ
     );
 
-    // todo: вычислить uv из instanceTextureID и atlasSize
+    // todo: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ uv пїЅпїЅ instanceTextureID пїЅ atlasSize
     //float u = uvs[gl_VertexID].x / float(atlasSize.x) + float((instanceTextureID * texSize) % atlasSize.x) / float(atlasSize.x);
     //float v = uvs[gl_VertexID].y / float(atlasSize.x) + float(instanceTextureID * texSize / atlasSize.x * texSize) / float(atlasSize.y);
     
@@ -94,7 +94,7 @@ void main() {
     texScale.y = 1.0f / uvSize;
     texOffset.x = (1.0 / uvSize) * float(instanceTextureID);
     texOffset.y = uvSize;
-    float u = uvs[gl_VertexID].x * instanceSizeZ / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: доделать (сейчас максимум один ряд текстур)
+    float u = uvs[gl_VertexID].x * instanceSizeZ / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
     float v = uvs[gl_VertexID].y * instanceSizeX / uvSize;
     ourUV = vec2(u,v);
 
@@ -156,7 +156,7 @@ float ShadowCalculationSmooth(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir
     float currentDepth = projCoords.z;
     // check whether current frag pos is in shadow
     //float bias = 0.005;
-    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.0002);  
+    float bias = max(0.01 * (1.0 - dot(normal, lightDir)), 0.0002);  
     
 	int shadowBlur = 1;
 	
