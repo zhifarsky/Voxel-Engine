@@ -4,7 +4,7 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
 #include "Mesh.h"
-#include "Directories.h"
+#include "Files.h"
 #include "Tools.h"
 
 using namespace UI;
@@ -286,6 +286,11 @@ bool Button(const char* text, glm::vec2 size) {
 	Advance(size.x, size.y);
 
 	return res;
+}
+
+bool CheckBox(const char* text, glm::vec2 size)
+{
+	return false;
 }
 
 bool SliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue) {

@@ -59,7 +59,8 @@ namespace UI {
 
 	void UseFont(Font* font);
 	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
-	bool Button(const char* text, glm::vec2 size = glm::vec2(0.0, 0.0));
+	bool Button(const char* text, glm::vec2 size = { 0, 0 });
+	bool CheckBox(const char* text, glm::vec2 size = { 0,0 });
 	bool SliderFloat(const char* text, float* value, float minValue, float maxValue);
 	bool SliderInt(const char* text, int* value, int minValue, int maxValue);
 	float GetTextWidth(const char* text);

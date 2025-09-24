@@ -11,7 +11,6 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_stdlib.h>
 
-#include "Header.h"
 #include "Renderer.h"
 #include "Mesh.h"
 #include "ui.h"
