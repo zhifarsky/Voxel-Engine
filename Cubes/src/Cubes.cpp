@@ -18,13 +18,14 @@
 #include "Tools.h"
 #include "Mesh.h"
 #include "ui.h"
-#include "Directories.h"
+#include "Files.h"
 #include "Entity.h"
 #include "DataStructures.h"
 #include "World.h"
 #include "Input.h"
 #include "Renderer.h"
 #include "ChunkManager.h"
+#include "Settings.h"
 #pragma endregion
 
 #define rotateXYZ(matrix, x, y, z)\
@@ -209,17 +210,18 @@ void RenderPauseMenu(GLFWwindow* window);
 void RenderGame(GLFWwindow* window);
 
 void CubesMainGameLoop(GLFWwindow* window) {
-	g_gameWorld.init(0, 8);
+	Settings settings;
+	SettingsLoad(&settings);
+	
+	g_gameWorld.init(0, settings.renderDistance);
 	g_gameWorld.gameState = gsMainMenu;
-
-	//chunks = g_gameWorld.chunks;
 
 	player.camera.pos = glm::vec3(8, 30, 8);
 	player.camera.front = glm::vec3(0, 0, -1);
 	player.camera.up = glm::vec3(0, 1, 0);
+	player.camera.FOV = settings.FOV;
 	player.maxSpeed = 15;
 	player.inventory = InventoryCreate();
-
 
 	// загрузка текстур
 	Assets.testTexture = Renderer::createTextureFromFile(TEX_FOLDER "uv.png", PixelFormat::RGBA);
@@ -392,8 +394,19 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		if (newInput->switchExitMenu.halfTransitionsCount) {
 			if (g_gameWorld.gameState == gsInGame)
 				g_gameWorld.gameState = gsExitMenu;
-			else if (g_gameWorld.gameState == gsExitMenu)
+			else if (g_gameWorld.gameState == gsExitMenu) {
+				// save settings to file
+				{
+					Settings settings;
+					settings.FOV = player.camera.FOV;
+					//settings.shadowQuality = shadowQuality; // TODO: сделать сохранение настройки
+					settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
+					settings.antiAliasingQuality = (int)g_MSAAFactor;
+					SettingsSave(&settings);
+				}
+
 				g_gameWorld.gameState = gsInGame;
+			}
 		}
 
 		switch (g_gameWorld.gameState)

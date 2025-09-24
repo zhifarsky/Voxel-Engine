@@ -18,10 +18,10 @@ glm::mat4 getProjection(float FOV, int displayW, int displayH);
 int getChunksCount(int renderDistance);
 
 struct Camera {
-	glm::vec3 pos = glm::vec3(0, 0, 0);
-	glm::vec3 front = glm::vec3(0, 0, -1);
-	glm::vec3 up = glm::vec3(0, 1, 0);
-	float FOV = 80;
+	glm::vec3 pos;
+	glm::vec3 front;
+	glm::vec3 up;
+	float FOV;
 
 	void update(float yaw, float pitch);
 };

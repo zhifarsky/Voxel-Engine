@@ -4,6 +4,7 @@
 #include <stb_image.h>
 #include "Renderer.h"
 #include "Tools.h"
+#include "Files.h"
 
 const char* VertexShaderToken = "#type vertex";
 const char* FragmentShaderToken = "#type fragment";

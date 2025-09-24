@@ -29,14 +29,12 @@ const vec2 uvs[4] = vec2[4](
     vec2(1.0,  0.0)
 );
 
+const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 24;
+
 void main() {
-    int CHUNK_SX = 16;
-    int CHUNK_SZ = 16;
-    int CHUNK_SY = 24;
     vec3 pos = aPos;
     
     int texSize = 16;
-
 
     pos.x *= float(instanceSizeX);
     pos.z *= float(instanceSizeZ);
