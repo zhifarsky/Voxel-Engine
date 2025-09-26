@@ -204,7 +204,7 @@ namespace Renderer {
 		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
 	}
 
-	void createMSAAFrameBuffer(FrameBuffer_new* fb, u32 width, u32 height, MSAAFactor samplesCount) {
+	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, MSAAFactor samplesCount) {
 		*fb = {0};
 		Texture* texture = &fb->textures[0];
 
@@ -237,7 +237,7 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void createColorFrameBuffer(FrameBuffer_new* fb, u32 width, u32 height) {
+	void createColorFrameBuffer(FrameBuffer* fb, u32 width, u32 height) {
 		*fb = { 0 };
 		Texture* texture = &fb->textures[0];
 
@@ -260,7 +260,7 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void createDepthMapFrameBuffer(FrameBuffer_new* fb, u32 size) {
+	void createDepthMapFrameBuffer(FrameBuffer* fb, u32 size) {
 		*fb = { 0 };
 		
 		Texture* depthMap = &fb->textures[0];
@@ -277,7 +277,7 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void releaseFrameBuffer(FrameBuffer_new* fb) {
+	void releaseFrameBuffer(FrameBuffer* fb) {
 		for (size_t i = 0; i < FRAMEBUFFER_MAX_TEXTURES; i++)
 		{
 			if (fb->textures[i].ID)
@@ -293,7 +293,7 @@ namespace Renderer {
 		*fb = { 0 };
 	}
 
-	void bindFrameBuffer(FrameBuffer_new* fb) {
+	void bindFrameBuffer(FrameBuffer* fb) {
 		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 	}
 

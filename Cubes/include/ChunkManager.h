@@ -57,8 +57,8 @@ struct ChunkGenTask {
 struct ChunkManager {
 	Chunk* chunks;
 	ChunkGenTask* chunkGenTasks;
-	Array<WorkingThread> threads;
-	WorkQueue workQueue;
+	Array<WorkingThread*> threads;
+	WorkQueue* workQueue;
 	int chunksCount;
 	int seed;
 };

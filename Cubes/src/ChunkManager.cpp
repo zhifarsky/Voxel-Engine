@@ -254,18 +254,16 @@ void ChunkGenerateMesh(Chunk* chunk) {
 	chunk->mesh.needUpdate = true;
 }
  
-DWORD chunkGenThreadProc(WorkingThread* args);
+u32 chunkGenThreadProc(WorkingThread* args);
 
 void ChunkManagerCreate(u32 threadsCount) {
 	g_chunkManager.seed = 0;
-	g_chunkManager.workQueue = WorkQueue::Create(GetChunksCount(MAX_RENDER_DISTANCE));
+	g_chunkManager.workQueue = WorkQueueCreate(GetChunksCount(MAX_RENDER_DISTANCE));
 	g_chunkManager.chunkGenTasks = (ChunkGenTask*)calloc(GetChunksCount(MAX_RENDER_DISTANCE), sizeof(ChunkGenTask));
 	g_chunkManager.threads.alloc(threadsCount);
 	for (size_t i = 0; i < threadsCount; i++) 
 	{
-		WorkingThread thread;
-		thread.threadID = i;
-		thread.handle = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)chunkGenThreadProc, &g_chunkManager.threads[i], 0, 0);
+		WorkingThread* thread = WorkingThreadCreate(i, chunkGenThreadProc, &g_chunkManager.threads[i]);
 		g_chunkManager.threads.append(thread);
 	}
 }
@@ -305,26 +303,27 @@ void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ
 	manager->chunks[index].posx = posX;
 	manager->chunks[index].posz = posZ;
 	
-	ChunkGenTask* task = &manager->chunkGenTasks[manager->workQueue.taskCount];
+	ChunkGenTask* task = &manager->chunkGenTasks[WorkQueueGetTasksCount(manager->workQueue)];
 	task->index = index;
-	manager->workQueue.addTask();
+	WorkQueueAddTask(manager->workQueue);
 }
 
-DWORD chunkGenThreadProc(WorkingThread* args) {
+u32 chunkGenThreadProc(WorkingThread* args) {
 	for (;;) {
-		QueueTaskItem queueItem = g_chunkManager.workQueue.getNextTask();
+		QueueTaskItem queueItem = WorkQueueGetNextTask(g_chunkManager.workQueue);
 		if (queueItem.valid) {
 			ChunkGenTask* task = &g_chunkManager.chunkGenTasks[queueItem.taskIndex];
-			
+
 			Chunk* chunk = &g_chunkManager.chunks[task->index];
 
 			ChunkGenerateBlocks(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
 			ChunkGenerateMesh(chunk);
 
-			g_chunkManager.workQueue.setTaskCompleted();
+			WorkQueueSetTaskCompleted(g_chunkManager.workQueue);
 		}
 		else
-			WaitForSingleObject(g_chunkManager.workQueue.semaphore, INFINITE);
+			WorkQueueThreadWaitForNextTask(g_chunkManager.workQueue, WAIT_INFINITE);
+			//WaitForSingleObject(g_chunkManager.workQueue.semaphore, INFINITE);
 	}
 
 	return 0;
@@ -335,7 +334,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 	static bool printed = false;
 	printed = false;
 	
-	manager->workQueue.clearTasks();
+	WorkQueueClearTasks(manager->workQueue);
 
 	int centerPosX = (int)(playerPosX / CHUNK_SX) * CHUNK_SX;
 	int centerPosZ = (int)(playerPosZ / CHUNK_SZ) * CHUNK_SZ;
@@ -384,7 +383,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 		}
 	}
 
-	manager->workQueue.waitAndClear();
+	WorkQueueWaitAndClear(manager->workQueue);
 
 	// обновляем чанки на ГПУ
 	for (size_t i = 0; i < manager->chunksCount; i++)

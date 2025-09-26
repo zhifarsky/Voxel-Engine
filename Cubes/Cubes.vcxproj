@@ -114,13 +114,14 @@
     <ClCompile Include="src\DataStructures.cpp" />
     <ClCompile Include="src\Files.cpp" />
     <ClCompile Include="src\Input.cpp" />
-    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\win32_Main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\Settings.cpp" />
     <ClCompile Include="src\Tools.cpp" />
     <ClCompile Include="src\ui.cpp" />
+    <ClCompile Include="src\win32_DataStructures.cpp" />
     <ClCompile Include="src\World.cpp" />
   </ItemGroup>
   <ItemGroup>

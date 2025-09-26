@@ -13,7 +13,6 @@ extern Shader
 	screenShader;
 
 void initShaders();
-void rebuildShaders();
 
 // SPRITE
 void setupSprite(Sprite& sprite);

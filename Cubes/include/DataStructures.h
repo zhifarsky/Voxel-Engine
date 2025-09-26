@@ -1,5 +1,4 @@
 #pragma once
-#include <windows.h>
 #include "Typedefs.h"
 
 template<typename T>
@@ -90,27 +89,24 @@ struct QueueTaskItem {
 	bool valid;
 };
 
-struct WorkQueue {
-	int volatile taskCount;
-	int volatile nextTask;
-	int volatile taskCompletionCount;
-	HANDLE semaphore;
+#define WAIT_INFINITE 0xFFFFFFFF
 
-	//WorkQueue(int maxSemaphore);
-	static WorkQueue Create(u32 maxSemaphore);
+struct WorkQueue;
 
-	void addTask(); // добавить задачу
-	void clearTasks();
+WorkQueue* WorkQueueCreate(u32 maxSemaphore);
 
-	QueueTaskItem getNextTask(); 	// получить индекс задачи, которую нужно выполнить
-	void setTaskCompleted(); // выполнение задачи закончено
+void WorkQueueAddTask(WorkQueue* queue); // добавить задачу
+void WorkQueueClearTasks(WorkQueue* queue);
 
-	void waitAndClear(); // ожидание выполнения всех задач
-	bool workStillInProgress();
+int WorkQueueGetTasksCount(WorkQueue* queue);
+QueueTaskItem WorkQueueGetNextTask(WorkQueue* queue); 	// получить индекс задачи, которую нужно выполнить
+void WorkQueueSetTaskCompleted(WorkQueue* queue); // выполнение задачи закончено
 
-};
+void WorkQueueThreadWaitForNextTask(WorkQueue* queue, u32 timeMilliseconds);
+void WorkQueueWaitAndClear(WorkQueue* queue); // ожидание выполнения всех задач
+bool WorkQueueWorkStillInProgress(WorkQueue* queue);
 
-struct WorkingThread {
-	HANDLE handle;
-	int threadID;
-};
+struct WorkingThread;
+
+WorkingThread* WorkingThreadCreate(int id, void* routine, void* argument);
+void WorkingThreadRelease(WorkingThread* thread);

@@ -41,20 +41,6 @@ void initShaders() {
 	screenShader = recompileShader(screenShader, SHADER_FOLDER "screen.glsl");
 }
 
-void rebuildShaders() {
-	dbgprint("Rebuilding shaders...\n");
-	//for (Shader shader : {
-	//	cubeInstancedShader, shadowShader,
-	//		polyMeshShader, polyMeshShadowShader,
-	//		flatShader, spriteShader, uiShader})
-	//{
-	//	
-	//}
-
-	initShaders();
-	dbgprint("Shaders rebuild done!\n");
-}
-
 #pragma region Sprite
 void setupSprite(Sprite& sprite) {
 	GLuint VAO, VBO, EBO;

@@ -9,10 +9,16 @@ struct ButtonState {
 	bool endedDown;
 };
 
-#define ButtonHeldDown(btn) !btn.endedDown
-#define ButtonClicked(btn) btn.halfTransitionsCount && btn.endedDown
+#define ButtonHeldDown(btn) (!btn.endedDown)
+#define ButtonClicked(btn) (btn.halfTransitionsCount)
 
 struct Input {
+	ButtonState startGame;
+	ButtonState switchExitMenu;
+	
+	ButtonState scrollUp;
+	ButtonState scrollDown;
+
 	ButtonState forward;
 	ButtonState backwards;
 	ButtonState left;
@@ -21,11 +27,10 @@ struct Input {
 	ButtonState attack;
 	ButtonState placeBlock;
 
-	ButtonState inventoryNextItem;
-	ButtonState inventoryPrevItem;
+	ButtonState inventorySlots[9]; // TODO: убрать захардкоженое число
 
-	ButtonState startGame;
-	ButtonState switchExitMenu;
+	// DEBUG
+	ButtonState rebuildShaders;
 };
 
 void ProcessButtonInput(ButtonState* oldButtonState, ButtonState* newButtonState, bool isReleased);

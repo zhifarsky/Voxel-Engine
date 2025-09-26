@@ -28,7 +28,7 @@ struct Texture {
 
 typedef u32 Shader;
 
-struct FrameBuffer_new {
+struct FrameBuffer {
 	Texture textures[FRAMEBUFFER_MAX_TEXTURES];
 	u32 ID, RBO;
 };
@@ -143,13 +143,13 @@ namespace Renderer {
 	void setUniformFloat4(Shader shader, const char* name, float x, float y, float z, float w);
 	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v);
 
-	void createMSAAFrameBuffer(FrameBuffer_new* frameBuffer, u32 width, u32 height, MSAAFactor samplesCount);
-	void createColorFrameBuffer(FrameBuffer_new* frameBuffer, u32 width, u32 height);
-	void createDepthMapFrameBuffer(FrameBuffer_new* frameBuffer, u32 size);
+	void createMSAAFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height, MSAAFactor samplesCount);
+	void createColorFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height);
+	void createDepthMapFrameBuffer(FrameBuffer* frameBuffer, u32 size);
 	
-	void releaseFrameBuffer(FrameBuffer_new* frameBuffer);
+	void releaseFrameBuffer(FrameBuffer* frameBuffer);
 
-	void bindFrameBuffer(FrameBuffer_new* frameBuffer);
+	void bindFrameBuffer(FrameBuffer* frameBuffer);
 	void unbindFrameBuffer();
 
 	Texture createTexture(

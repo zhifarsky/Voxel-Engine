@@ -1,9 +1,6 @@
 #pragma region external dependencies
-//#define NOMINMAX
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-//#include <glad/glad.h>
-//#include <SOIL/SOIL.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
@@ -37,86 +34,12 @@ float near_plane = 1.0f, far_plane = 500.0f;
 float shadowLightDist = 100;
 
 Player player;
-Input input[2] = { 0 };
-Input* newInput = &input[0];
-Input* oldInput = &input[1];
 
-static float lastX = 400, lastY = 300; // позици€ курсора
-static float yaw = 0, pitch = 0;
 static bool cursorMode = false; // TRUE дл€ взаимодействи€ с UI, FALSE дл€ перемещени€ камеры
 
 static bool g_vsyncOn = false;
 
 static DynamicArray<Entity> entities;
-
-// mouse input
-static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-	if (cursorMode == true) {
-		ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
-		lastX = xpos;
-		lastY = ypos;
-		return;
-	}
-
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // reversed since y-coordinates range from bottom to top
-	lastX = xpos;
-	lastY = ypos;
-
-
-	const float sensitivity = 0.1f;
-	xoffset *= sensitivity;
-	yoffset *= sensitivity;
-
-	yaw += xoffset;
-	pitch += yoffset;
-
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
-
-}
-
-
-
-static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-	if (yoffset > 0) {
-		InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
-	}
-	else if (yoffset < 0) {
-		InventorySelectItem(&player.inventory, player.inventory.selectedIndex - 1);
-	}
-}
-
-static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-	//if (cursorMode == true) {
-	//	ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-	//	return;
-	//}
-}
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	if (key == GLFW_KEY_Q && action == GLFW_RELEASE) {
-		if (cursorMode == false) {
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			cursorMode = true;
-		}
-		else {
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			cursorMode = false;
-		}
-	}
-	else if (key == GLFW_KEY_R && action == GLFW_RELEASE) {
-		rebuildShaders();
-	}
-
-	// переключение между €чейками инвентар€
-	else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9 && action == GLFW_PRESS) 
-	{
-		InventorySelectItem(&player.inventory, key - GLFW_KEY_1);
-	}
-}
 
 enum uiElemType : u16 {
 	uiInventorySelectCell,
@@ -171,9 +94,9 @@ struct {
 	Texture testTexture, textureAtlas, uiAtlas, entityTexture;
 	Geometry screenQuad, defaultBox, entityMesh;
 	Sprite sunSprite, moonSprite;
-	FrameBuffer_new depthMapFBO;
+	FrameBuffer depthMapFBO;
 	// рендерим в screenFBO с MSAA, копируем результат в intermediateFBO и делаем постобработку
-	FrameBuffer_new screenFBO, intermediateFBO; 
+	FrameBuffer screenFBO, intermediateFBO; 
 	//Texture depthMap;
 	Font bigFont, regularFont;
 } Assets;
@@ -208,15 +131,16 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void RenderMainMenu(GLFWwindow* window);
 void RenderPauseMenu(GLFWwindow* window);
-void RenderGame(GLFWwindow* window);
+void RenderGame(GLFWwindow* window, Input* input);
 
-void CubesMainGameLoop(GLFWwindow* window) {
+void GameInit(GLFWwindow* window) {
 	Settings settings;
 	SettingsLoad(&settings);
 	g_shadowQuality = settings.shadowQuality;
 	g_MSAAFactor = (Renderer::MSAAFactor)settings.antiAliasingQuality;
 	g_vsyncOn = settings.vsync;
-	
+	glfwSwapInterval(settings.vsync);
+
 	g_gameWorld.init(0, settings.renderDistance);
 	g_gameWorld.gameState = gsMainMenu;
 
@@ -297,8 +221,8 @@ void CubesMainGameLoop(GLFWwindow* window) {
 
 		static Vertex vertices[] = {
 			Vertex(-1,-1, 0, 0,0),
-			Vertex( 1,-1, 0, 1,0),
-			Vertex( 1, 1, 0, 1,1),
+			Vertex(1,-1, 0, 1,0),
+			Vertex(1, 1, 0, 1,1),
 			Vertex(-1, 1, 0, 0,1),
 		};
 		static Triangle triangles[] = {
@@ -307,43 +231,9 @@ void CubesMainGameLoop(GLFWwindow* window) {
 		};
 
 		Assets.screenQuad = Renderer::createGeometry(vertices, 4, triangles, 2);
-
-		//GLuint VAO, VBO, EBO;
-		//glGenVertexArrays(1, &VAO);
-		//glGenBuffers(1, &VBO);
-		//glGenBuffers(1, &EBO);
-
-		//glBindVertexArray(VAO);
-		//glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-
-		//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
-
-		//GLint stride = sizeof(Vertex);
-		//glEnableVertexAttribArray(0);
-		//glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, pos)); // pos
-		//glEnableVertexAttribArray(1);
-		//glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, uv)); // tex coord
-
-		//glBindVertexArray(0);
-
-		//screenQuad.vertices = vertices;
-		//screenQuad.triangles = triangles;
-		//screenQuad.vertexCount = 4;
-		//screenQuad.triangleCount = 2;
-		//screenQuad.VAO = VAO;
-		//screenQuad.VBO = VBO;
-		//screenQuad.EBO = EBO;
 	}
 
-
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetKeyCallback(window, key_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	{
 		Entity entity;
@@ -360,92 +250,70 @@ void CubesMainGameLoop(GLFWwindow* window) {
 
 	{
 		// shadow framebuffer
-		//Renderer::createDepthMapFrameBuffer(&Assets.depthMapFBO, 4096);
 		InitShadowMapBuffer(4096);
 
 		// screen framebuffer
 		GetFramebufferSize(window, &display_w, &display_h);
 		InitFramebuffers(display_w, display_h, g_MSAAFactor);
-	} 
-
-	// MAIN GAME LOOP
-	while (!glfwWindowShouldClose(window)) {
-		g_time = glfwGetTime();
-		g_deltaTime = g_time - g_prevTime;
-		g_prevTime = g_time;
-
-		GetFramebufferSize(window, &display_w, &display_h);
-		//Renderer::setViewportDimensions(display_w, display_h);
-
-		// input processing
-		{
-			ProcessButtonInput(&oldInput->startGame, &newInput->startGame, IsKeyReleased(window, GLFW_KEY_ENTER));
-			ProcessButtonInput(&oldInput->switchExitMenu, &newInput->switchExitMenu, IsKeyReleased(window, GLFW_KEY_ESCAPE));
-
-			ProcessButtonInput(&oldInput->attack, &newInput->attack, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
-			ProcessButtonInput(&oldInput->placeBlock, &newInput->placeBlock, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));
-
-			ProcessButtonInput(&oldInput->forward, &newInput->forward, IsKeyReleased(window, GLFW_KEY_W));
-			ProcessButtonInput(&oldInput->backwards, &newInput->backwards, IsKeyReleased(window, GLFW_KEY_S));
-			ProcessButtonInput(&oldInput->left, &newInput->left, IsKeyReleased(window, GLFW_KEY_A));
-			ProcessButtonInput(&oldInput->right, &newInput->right, IsKeyReleased(window, GLFW_KEY_D));
-		}
-
-		if (newInput->startGame.halfTransitionsCount) {
-			if (g_gameWorld.gameState == gsMainMenu)
-				g_gameWorld.gameState = gsInGame;
-		}
-		if (newInput->switchExitMenu.halfTransitionsCount) {
-			if (g_gameWorld.gameState == gsInGame)
-				g_gameWorld.gameState = gsExitMenu;
-			else if (g_gameWorld.gameState == gsExitMenu) {
-				// save settings to file
-				{
-					Settings settings;
-					settings.FOV = player.camera.FOV;
-					settings.shadowQuality = g_shadowQuality;
-					settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
-					settings.antiAliasingQuality = (int)g_MSAAFactor;
-					settings.vsync = g_vsyncOn;
-					SettingsSave(&settings);
-				}
-
-				g_gameWorld.gameState = gsInGame;
-			}
-		}
-
-		switch (g_gameWorld.gameState)
-		{
-		case gsMainMenu:
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			RenderMainMenu(window);
-			break;
-		case gsExitMenu:
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			RenderPauseMenu(window);
-			break;
-		case gsInGame:
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			RenderGame(window);
-			break;
-		}
-
-		// ImGui
-		//drawDebugGui(
-		//	&wireframe_cb, &debugView_cb, &fov_slider, 
-		//	&player.speed, &chunksUpdated, 
-		//	&sunDir, &sunColor, 
-		//	&ambientColor, 
-		//	glm::vec2(currentChunkPosX, currentChunkPosZ));
-
-		// swap old and new inputs
-		Input* tempInput = oldInput;
-		oldInput = newInput;
-		newInput = tempInput;
-
-		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
+}
+
+void GameUpdateAndRender(GLFWwindow* window, float time, Input* newInput) {
+	g_time = time;
+	g_deltaTime = g_time - g_prevTime;
+	g_prevTime = g_time;
+
+	GetFramebufferSize(window, &display_w, &display_h);
+	//Renderer::setViewportDimensions(display_w, display_h);
+
+	if (ButtonClicked(newInput->startGame)) {
+		if (g_gameWorld.gameState == gsMainMenu)
+			g_gameWorld.gameState = gsInGame;
+	}
+	if (ButtonClicked(newInput->switchExitMenu)) {
+		if (g_gameWorld.gameState == gsInGame)
+			g_gameWorld.gameState = gsExitMenu;
+		else if (g_gameWorld.gameState == gsExitMenu) {
+			// save settings to file
+			{
+				Settings settings;
+				settings.FOV = player.camera.FOV;
+				settings.shadowQuality = g_shadowQuality;
+				settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
+				settings.antiAliasingQuality = (int)g_MSAAFactor;
+				settings.vsync = g_vsyncOn;
+				SettingsSave(&settings);
+			}
+
+			g_gameWorld.gameState = gsInGame;
+		}
+	}
+	if (ButtonClicked(newInput->rebuildShaders)) {
+		dbgprint("Rebuilding shaders...\n");
+		initShaders();
+		dbgprint("Shaders rebuild done!\n");
+	}
+	
+
+
+	switch (g_gameWorld.gameState)
+	{
+	case gsMainMenu:
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		RenderMainMenu(window);
+		break;
+	case gsExitMenu:
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		RenderPauseMenu(window);
+		break;
+	case gsInGame:
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		RenderGame(window, newInput);
+		break;
+	}
+
+	glfwSwapBuffers(window);
+	glfwPollEvents();
 }
 
 void RenderMainMenu(GLFWwindow* window) {
@@ -541,25 +409,84 @@ void RenderPauseMenu(GLFWwindow* window) {
 	UI::End();
 }
 
-void RenderGame(GLFWwindow* window) {
+void RenderGame(GLFWwindow* window, Input* input) {
 	{
-		// update player
-		float cameraSpeedAdj = player.maxSpeed * g_deltaTime; // делаем скорость камеры независимой от FPS
-		if (ButtonHeldDown(newInput->forward))
-			player.speedVector += cameraSpeedAdj * player.camera.front;
+		// update player rotation
+		{
+			static float lastX = 0, lastY = 0; // позици€ курсора
+			static float yaw = 0, pitch = 0;
+			static const float sensitivity = 0.1f; // TODO: перенести в настройки
+
+			double xpos, ypos;
+			glfwGetCursorPos(window, &xpos, &ypos);
+
+			//if (cursorMode == true) {
+			//	ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+			//	lastX = xpos;
+			//	lastY = ypos;
+			//	return;
+			//}
+
+			float xoffset = xpos - lastX;
+			float yoffset = lastY - ypos; // reversed since y-coordinates range from bottom to top
+			lastX = xpos;
+			lastY = ypos;
+
+			xoffset *= sensitivity;
+			yoffset *= sensitivity;
+
+			yaw += xoffset;
+			pitch += yoffset;
+
+			if (pitch > 89.0f)
+				pitch = 89.0f;
+			if (pitch < -89.0f)
+				pitch = -89.0f;
+
+			// update player camera
+			glm::vec3 direction;
+			direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+			direction.y = sin(glm::radians(pitch));
+			direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+			player.camera.front = glm::normalize(direction);
+		}
+
+		// update player pos
+		{
+			float cameraSpeedAdj = player.maxSpeed * g_deltaTime; // делаем скорость камеры независимой от FPS
+			if (ButtonHeldDown(input->forward))
+				player.speedVector += cameraSpeedAdj * player.camera.front;
 			//player.camera.pos += cameraSpeedAdj * player.camera.front;
-		if (ButtonHeldDown(newInput->backwards))
-			player.speedVector -= cameraSpeedAdj * player.camera.front;
+			if (ButtonHeldDown(input->backwards))
+				player.speedVector -= cameraSpeedAdj * player.camera.front;
 			//player.camera.pos -= cameraSpeedAdj * player.camera.front;
-		if (ButtonHeldDown(newInput->left))
-			player.speedVector -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;;
+			if (ButtonHeldDown(input->left))
+				player.speedVector -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;;
 			//player.camera.pos -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
-		if (ButtonHeldDown(newInput->right))
-			player.speedVector += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+			if (ButtonHeldDown(input->right))
+				player.speedVector += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
 			//player.camera.pos += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
 
-		player.camera.pos += player.speedVector;
-		player.speedVector *= 0.8; // TODO: deltatime
+			player.camera.pos += player.speedVector;
+			player.speedVector *= 0.8; // TODO: deltatime
+		}
+
+		// player inventory
+		{
+			for (size_t i = 0; i < INVENTORY_MAX_SIZE; i++)
+			{
+				if (ButtonClicked(input->inventorySlots[i])) {
+					InventorySelectItem(&player.inventory, i);
+				}
+			}
+
+			if (ButtonClicked(input->scrollUp)) {
+				InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
+			}
+			if (ButtonClicked(input->scrollDown)) {
+				InventorySelectItem(&player.inventory, player.inventory.selectedIndex - 1);
+			}
+		}
 
 		// collect dropped items
 		float collectRadius = 3;
@@ -612,14 +539,14 @@ void RenderGame(GLFWwindow* window) {
 	ChunkManagerBuildChunks(&g_chunkManager, player.camera.pos.x, player.camera.pos.z);
 
 	// destroying / building blocks
-	if (newInput->placeBlock.halfTransitionsCount) {
+	if (ButtonClicked(input->placeBlock)) {
 		InventoryCell *cell = &player.inventory.cells[player.inventory.selectedIndex];
 		if (cell->itemsCount > 0) {
 			ChunkManagerPlaceBlock(&g_chunkManager, cell->itemType, player.camera.pos, player.camera.front, 128);
 			InventoryDropItem(&player.inventory, player.inventory.selectedIndex, 1);
 		}
 	}
-	else if (newInput->attack.halfTransitionsCount) {
+	else if (ButtonClicked(input->attack)) {
 		PlaceBlockResult res = ChunkManagerPlaceBlock(&g_chunkManager, BlockType::btAir, player.camera.pos, player.camera.front, 128);
 		if (res.success) {
 			Item drop = {};
@@ -680,18 +607,10 @@ void RenderGame(GLFWwindow* window) {
 
 #pragma region ќтрисовка
 #pragma region трансформации
-
-
+	
 	// трансформаци€ вида (камера)
-	glm::vec3 direction;
 	glm::mat4 view, projection;
 	{
-		direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-		direction.y = sin(glm::radians(pitch));
-		direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-		player.camera.front = glm::normalize(direction);
-
-
 		view = glm::lookAt(player.camera.pos, player.camera.pos + player.camera.front, player.camera.up);
 
 		// матрица проекции (перспективна€/ортогональна€ проекци€)
@@ -775,7 +694,7 @@ void RenderGame(GLFWwindow* window) {
 	drawSprite(Assets.sunSprite, Assets.textureAtlas.ID);
 	spriteApplyTransform(player.camera.pos + moonDir, 0.3, true);
 	drawSprite(Assets.moonSprite, Assets.textureAtlas.ID);
-	glDepthMask(TRUE);
+	glDepthMask(GL_TRUE);
 
 	// set global uniforms
 	{
@@ -1030,71 +949,4 @@ void RenderGame(GLFWwindow* window) {
 	UI::End();
 #pragma endregion
 
-}
-
-static void drawDebugGui(bool* wireframe_cb, bool* debugView_cb, float* fov_slider, float* camspeed_slider,
-	int* chunksUpdated,
-	glm::vec3* sunDir, glm::vec3* sunColor, glm::vec3* skyColor,
-	glm::vec2 currentChunkPos)
-{
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
-
-	if (ImGui::Button("Rebuild shaders")) {
-		initShaders();
-	}
-	ImGui::Separator();
-
-	ImGui::SliderFloat("FOV", fov_slider, 0, 179);
-	ImGui::SliderFloat("Cam speed", camspeed_slider, 1, 60);
-	ImGui::Separator();
-	ImGui::Checkbox("wireframe", wireframe_cb);
-	ImGui::Checkbox("Debug view", debugView_cb);
-	ImGui::Separator();
-	ImGui::SliderFloat3("Sun position", (float*)sunDir, -1, 1);
-	ImGui::ColorEdit3("Sun color", (float*)sunColor);
-	ImGui::ColorEdit3("Ambient color", (float*)skyColor);
-	ImGui::Separator();
-	ImGui::InputFloat3("Camera pos", (float*)&player.camera.pos);
-	ImGui::InputFloat2("Chunk pos", (float*)&currentChunkPos);
-	ImGui::InputFloat3("Camera front", (float*)&player.camera.front);
-	ImGui::Separator();
-	ImGui::SliderFloat("Shadow near plane", &near_plane, 0.1, 1000);
-	ImGui::SliderFloat("Shadow far plane", &far_plane, 0.1, 1000);
-	ImGui::SliderFloat("Shadow light dist", &shadowLightDist, 0, 50);
-
-	ImGui::Separator();
-
-	if (g_vsyncOn) ImGui::Text("VSync ON");
-	else ImGui::Text("VSync OFF");
-
-	if (ImGui::Button("VSync")) {
-		g_vsyncOn = !g_vsyncOn;
-		typedef BOOL(APIENTRY* PFNWGLSWAPINTERVALPROC)(int);
-		PFNWGLSWAPINTERVALPROC wglSwapIntervalEXT = 0;
-
-		const char* extensions = (char*)glGetString(GL_EXTENSIONS);
-
-		wglSwapIntervalEXT = (PFNWGLSWAPINTERVALPROC)wglGetProcAddress("wglSwapIntervalEXT");
-
-		if (wglSwapIntervalEXT) {
-			if (g_vsyncOn) wglSwapIntervalEXT(1);
-			else wglSwapIntervalEXT(0);
-		}
-	}
-	ImGui::Separator();
-	if (ImGui::TreeNodeEx("Chunks")) {
-		for (size_t i = 0; i < g_chunkManager.chunksCount; i++)
-		{
-			ImGui::PushID(i);
-			int pos[2] = { g_chunkManager.chunks[i].posx, g_chunkManager.chunks[i].posz };
-			ImGui::InputInt2("", pos);
-			ImGui::PopID();
-		}
-		ImGui::TreePop();
-	}
-
-	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
