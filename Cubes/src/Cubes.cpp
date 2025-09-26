@@ -1,5 +1,5 @@
 #pragma region external dependencies
-#define NOMINMAX
+//#define NOMINMAX
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 //#include <glad/glad.h>
@@ -45,7 +45,7 @@ static float lastX = 400, lastY = 300; // позиция курсора
 static float yaw = 0, pitch = 0;
 static bool cursorMode = false; // TRUE для взаимодействия с UI, FALSE для перемещения камеры
 
-static bool vsyncOn = false;
+static bool g_vsyncOn = false;
 
 static DynamicArray<Entity> entities;
 
@@ -141,6 +141,7 @@ struct UVOffset {
 };
 
 Renderer::MSAAFactor g_MSAAFactor = Renderer::MSAAFactor::X4;
+int g_shadowQuality = 12;
 
 float g_time = 0, g_deltaTime = 0, g_prevTime = 0;
 
@@ -212,6 +213,9 @@ void RenderGame(GLFWwindow* window);
 void CubesMainGameLoop(GLFWwindow* window) {
 	Settings settings;
 	SettingsLoad(&settings);
+	g_shadowQuality = settings.shadowQuality;
+	g_MSAAFactor = (Renderer::MSAAFactor)settings.antiAliasingQuality;
+	g_vsyncOn = settings.vsync;
 	
 	g_gameWorld.init(0, settings.renderDistance);
 	g_gameWorld.gameState = gsMainMenu;
@@ -399,9 +403,10 @@ void CubesMainGameLoop(GLFWwindow* window) {
 				{
 					Settings settings;
 					settings.FOV = player.camera.FOV;
-					//settings.shadowQuality = shadowQuality; // TODO: сделать сохранение настройки
+					settings.shadowQuality = g_shadowQuality;
 					settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
 					settings.antiAliasingQuality = (int)g_MSAAFactor;
+					settings.vsync = g_vsyncOn;
 					SettingsSave(&settings);
 				}
 
@@ -449,6 +454,9 @@ void RenderMainMenu(GLFWwindow* window) {
 	UI::Start(window, &Assets.regularFont);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	UI::SetAdvanceMode(AdvanceMode::Down);
+	
+	const char* buttonText = "Start game";
+	UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
 	if (UI::Button("Start game", glm::vec2(0.0, 0.0))) {
 		g_gameWorld.gameState = gsInGame;
 	}
@@ -472,61 +480,57 @@ void RenderPauseMenu(GLFWwindow* window) {
 
 	UI::Start(window, &Assets.regularFont);
 	UI::SetAdvanceMode(AdvanceMode::Down);
+	float elemWidth = 400;
 
 	switch (menuState)
 	{
 	case PauseMenuState::MainMenu: {
 		UI::SetAnchor(uiAnchor::Center, 0);
-		if (UI::Button("Return", glm::vec2(0.0, 0.0))) {
+		UI::ShiftOrigin(-elemWidth / 2, 0);
+		if (UI::Button("Return", glm::vec2(elemWidth, 0))) {
 			g_gameWorld.gameState = gsInGame;
 		}
-		if (UI::Button("Settings")) {
+		if (UI::Button("Settings", glm::vec2(elemWidth, 0))) {
 			menuState = PauseMenuState::SettingsMenu;
 		}
-		if (UI::Button("Exit")) {
+		if (UI::Button("Exit", glm::vec2(elemWidth, 0))) {
 			glfwSetWindowShouldClose(window, true);
 		}
 	} break;
 	case PauseMenuState::SettingsMenu: {
 		UI::SetAnchor(uiAnchor::Center, 0);
-		UI::ShiftOrigin(0, 200);
+		UI::ShiftOrigin(-elemWidth / 2, 200);
 
-		UI::SliderFloat("FOV", &player.camera.FOV, 40, 120);
+		UI::SliderFloat("FOV", &player.camera.FOV, 40, 120, elemWidth);
 
 		int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
-		if (UI::SliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE)) {
+		if (UI::SliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE, elemWidth)) {
 			if (GetRenderDistance(g_chunkManager.chunksCount) != renderDistanceSlider) {
 				ChunkManagerReleaseChunks(&g_chunkManager);
 				ChunkManagerAllocChunks(&g_chunkManager, renderDistanceSlider);
 			}
 		}
 
-		static int shadowQuality = 12;
-		if (UI::SliderInt("Shadow quality", &shadowQuality, 10, 14)) {
-			InitShadowMapBuffer(pow(2, shadowQuality));
+		if (UI::SliderInt("Shadow quality", &g_shadowQuality, 10, 14, elemWidth)) {
+			InitShadowMapBuffer(pow(2, g_shadowQuality));
 		}
 
 		static int MSAAFactorSlider = sqrt((int)g_MSAAFactor);
-		if (UI::SliderInt("Anti Aliasing quality", &MSAAFactorSlider, 0, 4)) {
+		if (UI::SliderInt("Anti Aliasing quality", &MSAAFactorSlider, 0, 4, elemWidth)) {
 			g_MSAAFactor = (Renderer::MSAAFactor)pow(2, MSAAFactorSlider);
 			InitFramebuffers(display_w, display_h, g_MSAAFactor);
 		}
 
-		if (UI::Button("Switch wireframe mode"))
-			wireframe_cb = !wireframe_cb;
+		UI::CheckBox("Wireframe mode", &wireframe_cb);
+		
+		UI::CheckBox("Debug view", &debugView_cb);
 
-		if (UI::Button("Switch debug view"))
-			debugView_cb = !debugView_cb;
-
-		if (UI::Button("Switch vsync")) {
-			if (vsyncOn)
-				glfwSwapInterval(1);
-			else
-				glfwSwapInterval(0);
-			vsyncOn = !vsyncOn;
+		if (UI::CheckBox("Vsync", &g_vsyncOn)) {
+			if (g_vsyncOn)	glfwSwapInterval(1);
+			else			glfwSwapInterval(0);
 		}
 
-		if (UI::Button("Back")) {
+		if (UI::Button("Back", glm::vec2(elemWidth, 0))) {
 			menuState = PauseMenuState::MainMenu;
 		}
 	} break;
@@ -1062,11 +1066,11 @@ static void drawDebugGui(bool* wireframe_cb, bool* debugView_cb, float* fov_slid
 
 	ImGui::Separator();
 
-	if (vsyncOn) ImGui::Text("VSync ON");
+	if (g_vsyncOn) ImGui::Text("VSync ON");
 	else ImGui::Text("VSync OFF");
 
 	if (ImGui::Button("VSync")) {
-		vsyncOn = !vsyncOn;
+		g_vsyncOn = !g_vsyncOn;
 		typedef BOOL(APIENTRY* PFNWGLSWAPINTERVALPROC)(int);
 		PFNWGLSWAPINTERVALPROC wglSwapIntervalEXT = 0;
 
@@ -1075,7 +1079,7 @@ static void drawDebugGui(bool* wireframe_cb, bool* debugView_cb, float* fov_slid
 		wglSwapIntervalEXT = (PFNWGLSWAPINTERVALPROC)wglGetProcAddress("wglSwapIntervalEXT");
 
 		if (wglSwapIntervalEXT) {
-			if (vsyncOn) wglSwapIntervalEXT(1);
+			if (g_vsyncOn) wglSwapIntervalEXT(1);
 			else wglSwapIntervalEXT(0);
 		}
 	}

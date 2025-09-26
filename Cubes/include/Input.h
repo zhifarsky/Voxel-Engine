@@ -21,6 +21,9 @@ struct Input {
 	ButtonState attack;
 	ButtonState placeBlock;
 
+	ButtonState inventoryNextItem;
+	ButtonState inventoryPrevItem;
+
 	ButtonState startGame;
 	ButtonState switchExitMenu;
 };

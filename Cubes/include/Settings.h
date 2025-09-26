@@ -8,6 +8,7 @@ struct Settings {
 	int renderDistance;
 	int antiAliasingQuality;
 	int shadowQuality;
+	bool vsync;
 };
 
 void SettingsCreateDefault(Settings* settings);

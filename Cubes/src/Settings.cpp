@@ -7,6 +7,7 @@ void SettingsCreateDefault(Settings* settings)
 	settings->renderDistance = 10;
 	settings->antiAliasingQuality = 4;
 	settings->shadowQuality = 12;
+	settings->vsync = true;
 }
 
 void SettingsSave(Settings* settings) {
@@ -18,6 +19,7 @@ void SettingsSave(Settings* settings) {
 	SerializeVariable(fileStream, settings->renderDistance);
 	SerializeVariable(fileStream, settings->antiAliasingQuality);
 	SerializeVariable(fileStream, settings->shadowQuality);
+	SerializeVariable(fileStream, settings->vsync);
 	fclose(fileStream);
 }
 
@@ -33,5 +35,6 @@ void SettingsLoad(Settings* settings) {
 	DeserializeVariable(fileStream, settings->renderDistance);
 	DeserializeVariable(fileStream, settings->antiAliasingQuality);
 	DeserializeVariable(fileStream, settings->shadowQuality);
+	DeserializeVariable(fileStream, settings->vsync);
 	fclose(fileStream);
 }

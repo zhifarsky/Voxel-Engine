@@ -57,12 +57,15 @@ namespace UI {
 	void Start(GLFWwindow* window, Font* defaultFont);
 	void End();
 
+	UiStyle* GetStyle();
+
 	void UseFont(Font* font);
 	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
 	bool Button(const char* text, glm::vec2 size = { 0, 0 });
-	bool CheckBox(const char* text, glm::vec2 size = { 0,0 });
-	bool SliderFloat(const char* text, float* value, float minValue, float maxValue);
-	bool SliderInt(const char* text, int* value, int minValue, int maxValue);
+	float GetButtonWidth(const char* text);
+	bool CheckBox(const char* text, bool* value, glm::vec2 size = { 0,0 });
+	bool SliderFloat(const char* text, float* value, float minValue, float maxValue, float width = 0);
+	bool SliderInt(const char* text, int* value, int minValue, int maxValue, float width = 0);
 	float GetTextWidth(const char* text);
 	void Text(const char* text);
 

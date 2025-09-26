@@ -119,6 +119,10 @@ void Init() {
 	}
 }
 
+UiStyle* GetStyle() {
+	return &uiStyle;
+}
+
 void Start(GLFWwindow* currentWindow, Font* defaultFont) {
 	font = defaultFont;
 
@@ -243,8 +247,10 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 bool Button(const char* text, glm::vec2 size) {
 	float textWidth = GetTextWidth(text);
 	
-	if (size.x * size.y == 0)
-		size = glm::vec2(textWidth + uiStyle.padding * 2, font->size + uiStyle.padding * 2);
+	if (size.x == 0)
+		size.x = textWidth + uiStyle.padding * 2;
+	if (size.y == 0)
+		size.y = font->size + uiStyle.padding * 2;
 
 	ElementState state = {0};
 	if (elementsState.count(text))
@@ -282,23 +288,73 @@ bool Button(const char* text, glm::vec2 size) {
 		Renderer::drawGeometry(&face);
 	}
 
-	TextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2 - font->size / 2);
+	TextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2);
 	Advance(size.x, size.y);
 
 	return res;
 }
 
-bool CheckBox(const char* text, glm::vec2 size)
-{
-	return false;
+float GetButtonWidth(const char* text) {
+	return GetTextWidth(text) + uiStyle.padding * 2;
 }
 
-bool SliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue) {
+bool CheckBox(const char* text, bool* value, glm::vec2 size)
+{
+	if (size.x * size.y == 0)
+		size = glm::vec2(50, 50);
+
+	ElementState state = { 0 };
+	if (elementsState.count(text))
+		state = elementsState[text];
+	
+	double px, py;
+	glfwGetCursorPos(window, &px, &py);
+	py = displayH - py;
+	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool hovered = pointRectCollision(
+		px, py,
+		originX, originY,
+		originX + size.x,
+		originY + size.y);
+
+	bool res = hovered && clicked && !state.wasActive;
+	state.wasActive = hovered && clicked;
+	elementsState[text] = state;
+
+	if (res)
+		*value = !*value;
+
+	glm::vec4 color = uiStyle.buttonColor;
+	if (*value)
+		color = uiStyle.buttonActiveColor;
+	else if (hovered)
+		color = uiStyle.buttonHoveredColor;
+
+	{
+		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
+		model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
+		model = glm::scale(model, glm::vec3(size, 1));
+
+		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
+		Renderer::setUniformFloat4(uiShader, "color", color);
+		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+
+		Renderer::drawGeometry(&face);
+	}
+
+	TextInternal(text, originX + size.x + uiStyle.margin, originY + font->size / 2);
+
+	Advance(size.x, size.y);
+
+	return res;
+}
+
+bool SliderInternal(const char* name, const char* text, float* value, float minValue, float maxValue, float width) {
 	
 	float sliderRange = maxValue - minValue;
 	float normalizedValue = (*value - minValue) / sliderRange;
 
-	float barWidth = uiStyle.sliderBarSize.x;
+	float barWidth = width == 0 ? uiStyle.sliderBarSize.x : width;
 	float barHeight = uiStyle.sliderBarSize.y;
 	float knobWidth = uiStyle.sliderKnobSize.x;
 	float knobHeight = uiStyle.sliderKnobSize.y;
@@ -368,18 +424,18 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 	return res;
 }
 
-bool SliderFloat(const char* text, float* value, float minValue, float maxValue) {
+bool SliderFloat(const char* text, float* value, float minValue, float maxValue, float width) {
 	char buf[128];
 	sprintf(buf, "%s %.1f", text, *value);
-	return SliderInternal(text, buf, value, minValue, maxValue);
+	return SliderInternal(text, buf, value, minValue, maxValue, width);
 }
 
-bool SliderInt(const char* text, int* value, int minValue, int maxValue) {
+bool SliderInt(const char* text, int* value, int minValue, int maxValue, float width) {
 	char buf[128];
 	sprintf(buf, "%s %d", text, *value);
 	float v = *value;
 
-	bool res = SliderInternal(text, buf, &v, minValue, maxValue);
+	bool res = SliderInternal(text, buf, &v, minValue, maxValue, width);
 	*value = v;
 	return res;
 }
