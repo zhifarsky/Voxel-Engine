@@ -89,15 +89,12 @@ int CALLBACK WinMain(
     ImGui::StyleColorsDark();
 #pragma endregion
 
-    // компил€ци€ шейдеров
-    initShaders();
-    UI::Init();
-
+    GameInit();
+    
     Input input[2] = { 0 };
     Input* newInput = &input[0];
     Input* oldInput = &input[1];
 
-    GameInit();
     // MAIN LOOP
     while (!glfwWindowShouldClose(window)) {
 #define IsMouseButtonReleased(window, button) (glfwGetMouseButton(window, button) == GLFW_RELEASE)

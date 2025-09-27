@@ -124,6 +124,9 @@ void RenderPauseMenu(Input* input);
 void RenderGame(Input* input);
 
 void GameInit() {
+	initShaders(); // компил€ци€ шейдеров
+	UI::Init();
+
 	Settings settings;
 	SettingsLoad(&settings);
 	g_shadowQuality = settings.shadowQuality;
@@ -238,10 +241,6 @@ void GameInit() {
 	{
 		// shadow framebuffer
 		InitShadowMapBuffer(pow(2, g_shadowQuality));
-
-		// screen framebuffer
-		//GetFramebufferSize(&display_w, &display_h);
-		//InitFramebuffers(display_w, fbInfo->sizeY, g_MSAAFactor);
 	}
 }
 
@@ -250,7 +249,6 @@ void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBuff
 	g_deltaTime = g_time - g_prevTime;
 	g_prevTime = g_time;
 
-	//GetFramebufferSize(&fbInfo->sizeX, &fbInfo->sizeY);
 	fbInfo = frameBufferInfo;
 	static FrameBufferInfo lastFBInfo = { 0 };
 	if (lastFBInfo.sizeX != frameBufferInfo->sizeX || lastFBInfo.sizeY != frameBufferInfo->sizeY) {
@@ -444,16 +442,12 @@ void RenderGame(Input* input) {
 			float cameraSpeedAdj = player.maxSpeed * g_deltaTime; // делаем скорость камеры независимой от FPS
 			if (ButtonHeldDown(input->forward))
 				player.speedVector += cameraSpeedAdj * player.camera.front;
-			//player.camera.pos += cameraSpeedAdj * player.camera.front;
 			if (ButtonHeldDown(input->backwards))
 				player.speedVector -= cameraSpeedAdj * player.camera.front;
-			//player.camera.pos -= cameraSpeedAdj * player.camera.front;
 			if (ButtonHeldDown(input->left))
 				player.speedVector -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;;
-			//player.camera.pos -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
 			if (ButtonHeldDown(input->right))
 				player.speedVector += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
-			//player.camera.pos += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
 
 			player.camera.pos += player.speedVector;
 			player.speedVector *= 0.8; // TODO: deltatime
