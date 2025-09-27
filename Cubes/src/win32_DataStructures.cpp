@@ -4,6 +4,7 @@
 #include <windows.h>
 #include "DataStructures.h"
 
+// TODO: Минимальное выделение через VirtualAlloc - 64KB, а не 4KB
 constexpr u64 PAGE_SIZE = 4 * 1024;
 #define roundToMultiple(number, multiple) ((number + multiple - 1) / multiple) * multiple
 

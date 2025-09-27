@@ -1,6 +1,4 @@
 #pragma region external dependencies
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
@@ -11,6 +9,7 @@
 #include <imgui_stdlib.h>
 #pragma endregion
 #pragma region internal dependencies
+#include "Cubes.h"
 #include "Typedefs.h"
 #include "Tools.h"
 #include "Mesh.h"
@@ -63,12 +62,14 @@ struct UVOffset {
 	}
 };
 
+// TDOO: перенести глобальные переменные
+
 Renderer::MSAAFactor g_MSAAFactor = Renderer::MSAAFactor::X4;
 int g_shadowQuality = 12;
 
 float g_time = 0, g_deltaTime = 0, g_prevTime = 0;
 
-int display_w, display_h;
+FrameBufferInfo* fbInfo;
 
 bool debugView_cb = false;
 bool wireframe_cb = false;
@@ -101,13 +102,6 @@ struct {
 	Font bigFont, regularFont;
 } Assets;
 
-void GetFramebufferSize(GLFWwindow* window, int* width, int* height) {
-	int w, h;
-	glfwGetFramebufferSize(window, &w, &h);
-	*width = std::max(1, w);
-	*height = std::max(1, h);
-}
-
 void InitFramebuffers(int width, int height, Renderer::MSAAFactor MSAAFactor) {
 	if ((width * height) == 0)
 		return;
@@ -125,21 +119,17 @@ void InitShadowMapBuffer(u32 size) {
 	Renderer::createDepthMapFrameBuffer(&Assets.depthMapFBO, size);
 }
 
-static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-	InitFramebuffers(width, height, g_MSAAFactor);
-}
+void RenderMainMenu(Input* input);
+void RenderPauseMenu(Input* input);
+void RenderGame(Input* input);
 
-void RenderMainMenu(GLFWwindow* window);
-void RenderPauseMenu(GLFWwindow* window);
-void RenderGame(GLFWwindow* window, Input* input);
-
-void GameInit(GLFWwindow* window) {
+void GameInit() {
 	Settings settings;
 	SettingsLoad(&settings);
 	g_shadowQuality = settings.shadowQuality;
 	g_MSAAFactor = (Renderer::MSAAFactor)settings.antiAliasingQuality;
 	g_vsyncOn = settings.vsync;
-	glfwSwapInterval(settings.vsync);
+	SetVsync(settings.vsync);
 
 	g_gameWorld.init(0, settings.renderDistance);
 	g_gameWorld.gameState = gsMainMenu;
@@ -218,7 +208,6 @@ void GameInit(GLFWwindow* window) {
 	}
 
 	{
-
 		static Vertex vertices[] = {
 			Vertex(-1,-1, 0, 0,0),
 			Vertex(1,-1, 0, 1,0),
@@ -232,8 +221,6 @@ void GameInit(GLFWwindow* window) {
 
 		Assets.screenQuad = Renderer::createGeometry(vertices, 4, triangles, 2);
 	}
-
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	{
 		Entity entity;
@@ -250,21 +237,25 @@ void GameInit(GLFWwindow* window) {
 
 	{
 		// shadow framebuffer
-		InitShadowMapBuffer(4096);
+		InitShadowMapBuffer(pow(2, g_shadowQuality));
 
 		// screen framebuffer
-		GetFramebufferSize(window, &display_w, &display_h);
-		InitFramebuffers(display_w, display_h, g_MSAAFactor);
+		//GetFramebufferSize(&display_w, &display_h);
+		//InitFramebuffers(display_w, fbInfo->sizeY, g_MSAAFactor);
 	}
 }
 
-void GameUpdateAndRender(GLFWwindow* window, float time, Input* newInput) {
+void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBufferInfo) {
 	g_time = time;
 	g_deltaTime = g_time - g_prevTime;
 	g_prevTime = g_time;
 
-	GetFramebufferSize(window, &display_w, &display_h);
-	//Renderer::setViewportDimensions(display_w, display_h);
+	//GetFramebufferSize(&fbInfo->sizeX, &fbInfo->sizeY);
+	fbInfo = frameBufferInfo;
+	static FrameBufferInfo lastFBInfo = { 0 };
+	if (lastFBInfo.sizeX != frameBufferInfo->sizeX || lastFBInfo.sizeY != frameBufferInfo->sizeY) {
+		InitFramebuffers(frameBufferInfo->sizeX, frameBufferInfo->sizeY, g_MSAAFactor);
+	}
 
 	if (ButtonClicked(newInput->startGame)) {
 		if (g_gameWorld.gameState == gsMainMenu)
@@ -299,27 +290,25 @@ void GameUpdateAndRender(GLFWwindow* window, float time, Input* newInput) {
 	switch (g_gameWorld.gameState)
 	{
 	case gsMainMenu:
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		RenderMainMenu(window);
+		SetCursorMode(true);
+		RenderMainMenu(newInput);
 		break;
 	case gsExitMenu:
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		RenderPauseMenu(window);
+		SetCursorMode(true);
+		RenderPauseMenu(newInput);
 		break;
 	case gsInGame:
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		RenderGame(window, newInput);
+		SetCursorMode(false);
+		RenderGame(newInput);
 		break;
 	}
 
-	glfwSwapBuffers(window);
-	glfwPollEvents();
 }
 
-void RenderMainMenu(GLFWwindow* window) {
+void RenderMainMenu(Input* input) {
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	UI::Start(window, &Assets.regularFont);
+	UI::Start(input, &Assets.regularFont, fbInfo);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	UI::SetAdvanceMode(AdvanceMode::Down);
 	
@@ -337,7 +326,7 @@ void RenderMainMenu(GLFWwindow* window) {
 	UI::End();
 }
 
-void RenderPauseMenu(GLFWwindow* window) {
+void RenderPauseMenu(Input* input) {
 	enum class PauseMenuState {
 		MainMenu,
 		SettingsMenu
@@ -346,7 +335,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	UI::Start(window, &Assets.regularFont);
+	UI::Start(input, &Assets.regularFont, fbInfo);
 	UI::SetAdvanceMode(AdvanceMode::Down);
 	float elemWidth = 400;
 
@@ -362,7 +351,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 			menuState = PauseMenuState::SettingsMenu;
 		}
 		if (UI::Button("Exit", glm::vec2(elemWidth, 0))) {
-			glfwSetWindowShouldClose(window, true);
+			CloseWindow();
 		}
 	} break;
 	case PauseMenuState::SettingsMenu: {
@@ -386,7 +375,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 		static int MSAAFactorSlider = sqrt((int)g_MSAAFactor);
 		if (UI::SliderInt("Anti Aliasing quality", &MSAAFactorSlider, 0, 4, elemWidth)) {
 			g_MSAAFactor = (Renderer::MSAAFactor)pow(2, MSAAFactorSlider);
-			InitFramebuffers(display_w, display_h, g_MSAAFactor);
+			InitFramebuffers(fbInfo->sizeX, fbInfo->sizeY, g_MSAAFactor);
 		}
 
 		UI::CheckBox("Wireframe mode", &wireframe_cb);
@@ -394,8 +383,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 		UI::CheckBox("Debug view", &debugView_cb);
 
 		if (UI::CheckBox("Vsync", &g_vsyncOn)) {
-			if (g_vsyncOn)	glfwSwapInterval(1);
-			else			glfwSwapInterval(0);
+			SetVsync(g_vsyncOn);
 		}
 
 		if (UI::Button("Back", glm::vec2(elemWidth, 0))) {
@@ -409,7 +397,7 @@ void RenderPauseMenu(GLFWwindow* window) {
 	UI::End();
 }
 
-void RenderGame(GLFWwindow* window, Input* input) {
+void RenderGame(Input* input) {
 	{
 		// update player rotation
 		{
@@ -418,7 +406,7 @@ void RenderGame(GLFWwindow* window, Input* input) {
 			static const float sensitivity = 0.1f; // TODO: перенести в настройки
 
 			double xpos, ypos;
-			glfwGetCursorPos(window, &xpos, &ypos);
+			GetCursorPos(&xpos, &ypos);
 
 			//if (cursorMode == true) {
 			//	ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
@@ -615,7 +603,7 @@ void RenderGame(GLFWwindow* window, Input* input) {
 
 		// матрица проекции (перспективная/ортогональная проекция)
 		projection = glm::mat4(1.0);
-		projection = glm::perspective(glm::radians(player.camera.FOV), (float)display_w / (float)display_h, 0.1f, 1000.0f);
+		projection = glm::perspective(glm::radians(player.camera.FOV), (float)fbInfo->sizeX / (float)fbInfo->sizeY, 0.1f, 1000.0f);
 	}
 #pragma endregion
 
@@ -677,11 +665,11 @@ void RenderGame(GLFWwindow* window, Input* input) {
 
 		Renderer::unbindFrameBuffer();
 		//glCullFace(GL_BACK);
-		//Renderer::setViewportDimensions(display_w, display_h);
+		//Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
 	}
 
 	Renderer::bindFrameBuffer(&Assets.screenFBO);
-	Renderer::setViewportDimensions(display_w, display_h);
+	Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
 	Renderer::clear(ambientLightColor.r, ambientLightColor.g, ambientLightColor.b, 1.0);
 
 	if (wireframe_cb) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -844,34 +832,27 @@ void RenderGame(GLFWwindow* window, Input* input) {
 	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 1.5));
 	drawFlat(&Assets.defaultBox, glm::vec3(0, 0, 1));
 
-	// TEST
+	// post processing & draw to default buffer
 	{
-		// post processing & draw to default buffer
-		// TDOO: fix
-		{
-			Renderer::switchDepthTest(false);
-			Renderer::bindShader(screenShader);
+		Renderer::switchDepthTest(false);
+		Renderer::bindShader(screenShader);
 
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, Assets.screenFBO.ID);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Assets.intermediateFBO.ID);
-			glBlitFramebuffer(0, 0, display_w, display_h, 0, 0, display_w, display_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			Renderer::bindTexture(&Assets.intermediateFBO.textures[0]);
-			Renderer::drawGeometry(&Assets.screenQuad); // TEST
-			Renderer::unbindTexture();
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, Assets.screenFBO.ID);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Assets.intermediateFBO.ID);
+		glBlitFramebuffer(0, 0, fbInfo->sizeX, fbInfo->sizeY, 0, 0, fbInfo->sizeX, fbInfo->sizeY, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		Renderer::bindTexture(&Assets.intermediateFBO.textures[0]);
+		Renderer::drawGeometry(&Assets.screenQuad); // TEST
+		Renderer::unbindTexture();
 
-			Renderer::unbindShader();
-			Renderer::switchDepthTest(true);
-		}
+		Renderer::unbindShader();
+		Renderer::switchDepthTest(true);
 	}
 
 	// draw ui
-	UI::Start(window, &Assets.regularFont);
+	UI::Start(input, &Assets.regularFont, fbInfo);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset); // cursor
-
-	//SetAnchor(uiTopAnchor, 360/2);
-	//DrawElement(depthMap, { 0,0,0 }, { 360,360,1 }, { 1,1 }, { 0,0 }); // depthmap (shadow)
 
 	// debug info
 	{

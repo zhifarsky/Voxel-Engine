@@ -13,19 +13,42 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_stdlib.h>
 
+#include "Cubes.h"
 #include "Renderer.h"
 #include "Mesh.h"
 #include "ui.h"
 #include "Input.h"
+#include "Tools.h"
 #pragma endregion
 
-void GameInit(GLFWwindow* window);
-void GameUpdateAndRender(GLFWwindow* window, float time, Input* input);
-
+static GLFWwindow* window;
 double g_MouseScrollYOffset = 0;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     g_MouseScrollYOffset = yoffset;
+}
+
+void GetFramebufferSize(int* width, int* height) {
+    int w, h;
+    glfwGetFramebufferSize(window, &w, &h);
+    *width = std::max(1, w);
+    *height = std::max(1, h);
+}
+
+void SetVsync(bool vsyncOn) {
+    glfwSwapInterval(vsyncOn);
+}
+
+void GetCursorPos(double* xpos, double* ypos) {
+    glfwGetCursorPos(window, xpos, ypos);
+}
+
+void SetCursorMode(bool enabled) {
+    glfwSetInputMode(window, GLFW_CURSOR, enabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+}
+
+void CloseWindow() {
+    glfwSetWindowShouldClose(window, true);
 }
 
 int CALLBACK WinMain(
@@ -34,7 +57,6 @@ int CALLBACK WinMain(
     LPSTR CommandLine,
     int ShowCode)
 {
-    GLFWwindow* window;
 #pragma region GLFW
     if (!glfwInit())
         return -1;
@@ -75,11 +97,15 @@ int CALLBACK WinMain(
     Input* newInput = &input[0];
     Input* oldInput = &input[1];
 
-    GameInit(window);
+    GameInit();
     // MAIN LOOP
     while (!glfwWindowShouldClose(window)) {
+#define IsMouseButtonReleased(window, button) (glfwGetMouseButton(window, button) == GLFW_RELEASE)
+#define IsKeyReleased(window, key) (glfwGetKey(window, key) == GLFW_RELEASE)
         // input processing
         {
+            ProcessButtonInput(&oldInput->uiClick, &newInput->uiClick, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
+
             ProcessButtonInput(&oldInput->startGame, &newInput->startGame, IsKeyReleased(window, GLFW_KEY_ENTER));
             ProcessButtonInput(&oldInput->switchExitMenu, &newInput->switchExitMenu, IsKeyReleased(window, GLFW_KEY_ESCAPE));
 
@@ -95,7 +121,8 @@ int CALLBACK WinMain(
             ProcessButtonInput(&oldInput->attack, &newInput->attack, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
             ProcessButtonInput(&oldInput->placeBlock, &newInput->placeBlock, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));
 
-            for (size_t i = 0; i < 9; i++) // TODO: убрать захардкоженое число
+            ProcessButtonInput(&oldInput->openInventory, &newInput->openInventory, IsKeyReleased(window, GLFW_KEY_TAB));
+            for (size_t i = 0; i < ArraySize(oldInput->inventorySlots); i++)
             {
                 ProcessButtonInput(&oldInput->inventorySlots[i], &newInput->inventorySlots[i], IsKeyReleased(window, GLFW_KEY_1 + i));
             }
@@ -105,12 +132,18 @@ int CALLBACK WinMain(
 #endif
         }
 
-        GameUpdateAndRender(window, glfwGetTime(), newInput);
+        FrameBufferInfo fbInfo;
+        GetFramebufferSize(&fbInfo.sizeX, &fbInfo.sizeY);
+
+        GameUpdateAndRender(glfwGetTime(), newInput, &fbInfo);
 
         // swap old and new inputs
         Input* tempInput = oldInput;
         oldInput = newInput;
         newInput = tempInput;
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
     ImGui_ImplGlfw_Shutdown();

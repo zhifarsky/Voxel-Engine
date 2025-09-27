@@ -19,7 +19,7 @@ static Sprite face;
 
 Font* font;
 
-GLFWwindow* window;
+Input* input;
 float originX = 0, originY = 0;
 float left, right, bottom, top;
 int displayW, displayH;
@@ -123,11 +123,13 @@ UiStyle* GetStyle() {
 	return &uiStyle;
 }
 
-void Start(GLFWwindow* currentWindow, Font* defaultFont) {
+void Start(Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
 	font = defaultFont;
 
-	window = currentWindow;
-	glfwGetFramebufferSize(window, &displayW, &displayH);
+	//window = currentWindow;
+	input = currentInput;
+	displayW = fbInfo->sizeX;
+	displayH = fbInfo->sizeY;
 
 	originX = originY = 0;
 
@@ -257,9 +259,9 @@ bool Button(const char* text, glm::vec2 size) {
 		state = elementsState[text];
 
 	double px, py;
-	glfwGetCursorPos(window, &px, &py);
+	GetCursorPos(&px, &py);
 	py = displayH - py;
-	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool clicked = ButtonClicked(input->uiClick);
 	bool hovered = pointRectCollision(
 		px, py,
 		originX, originY, 
@@ -308,9 +310,9 @@ bool CheckBox(const char* text, bool* value, glm::vec2 size)
 		state = elementsState[text];
 	
 	double px, py;
-	glfwGetCursorPos(window, &px, &py);
+	GetCursorPos(&px, &py);
 	py = displayH - py;
-	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool clicked = ButtonClicked(input->uiClick);
 	bool hovered = pointRectCollision(
 		px, py,
 		originX, originY,
@@ -361,9 +363,9 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 	glm::vec2 knobPos(originX + barWidth * normalizedValue, originY);
 
 	double px, py;
-	glfwGetCursorPos(window, &px, &py);
+	GetCursorPos(&px, &py);
 	py = displayH - py;
-	bool clicked = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	bool clicked = ButtonHeldDown(input->uiClick);
 	bool hovered = pointRectCollision(
 		px, py,
 		originX, knobPos.y - knobHeight / 2,

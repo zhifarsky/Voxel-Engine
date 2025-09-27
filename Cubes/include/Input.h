@@ -1,8 +1,4 @@
 #pragma once
-#include <GLFW/glfw3.h>
-
-#define IsMouseButtonReleased(window, button) (glfwGetMouseButton(window, button) == GLFW_RELEASE)
-#define IsKeyReleased(window, key) (glfwGetKey(window, key) == GLFW_RELEASE)
 
 struct ButtonState {
 	int halfTransitionsCount;
@@ -13,6 +9,8 @@ struct ButtonState {
 #define ButtonClicked(btn) (btn.halfTransitionsCount)
 
 struct Input {
+	ButtonState uiClick;
+	
 	ButtonState startGame;
 	ButtonState switchExitMenu;
 	
@@ -27,6 +25,7 @@ struct Input {
 	ButtonState attack;
 	ButtonState placeBlock;
 
+	ButtonState openInventory;
 	ButtonState inventorySlots[9]; // TODO: убрать захардкоженое число
 
 	// DEBUG

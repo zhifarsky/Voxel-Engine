@@ -128,6 +128,7 @@
     <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="glad\include\KHR\khrplatform.h" />
     <ClInclude Include="include\ChunkManager.h" />
+    <ClInclude Include="include\Cubes.h" />
     <ClInclude Include="include\DataStructures.h" />
     <ClInclude Include="include\Files.h" />
     <ClInclude Include="include\Input.h" />

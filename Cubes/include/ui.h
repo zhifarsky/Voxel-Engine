@@ -1,7 +1,7 @@
 #pragma once
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 #include <glm.hpp>
+#include "Cubes.h"
+#include "Input.h"
 #include "Typedefs.h"
 #include "Renderer.h"
 #include <stb_truetype.h>
@@ -54,7 +54,7 @@ Font loadFont(const char* fontPath, float fontSize);
 
 namespace UI {
 	void Init();
-	void Start(GLFWwindow* window, Font* defaultFont);
+	void Start(Input* input, Font* defaultFont, FrameBufferInfo* fbInfo);
 	void End();
 
 	UiStyle* GetStyle();
