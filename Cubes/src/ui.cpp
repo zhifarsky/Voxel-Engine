@@ -29,8 +29,7 @@ AdvanceMode advanceMode;
 UiStyle uiStyle;
 bool marginEnabled;
 
-
-
+// TODO: кэширование атласа шрифта
 Font loadFont(const char* path, float fontSize) {
 	Font font = { 0 };
 

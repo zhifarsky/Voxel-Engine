@@ -156,6 +156,7 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 				}
 
 				Block* block = &blocks[y][z][x];
+				block->used = false;
 
 				// generate height
 				if (y > height * 23.0f)
@@ -192,6 +193,41 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->generated = true;
 }
 
+void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
+	for (s32 y = 0; y < CHUNK_SY; y++) {
+		for (s32 z = 0; z < CHUNK_SZ; z++) {
+			for (s32 x = 0; x < CHUNK_SX; x++) {
+				chunk->blocks[y][z][x].type = BlockType::btAir;
+				chunk->blocks[y][z][x].used = false;
+			}
+		}
+	}
+	
+
+	// столбы в углах
+	//for (size_t y = 0; y  < CHUNK_SY; y ++)
+	//{
+	//	chunk->blocks[y][0][CHUNK_SX - 1].type = BlockType::btGround;
+	//	chunk->blocks[y][CHUNK_SZ - 1][0].type = BlockType::btStone;
+	//	chunk->blocks[y][CHUNK_SZ - 1][CHUNK_SX - 1].type = BlockType::btSnow;
+	//}
+
+	chunk->blocks[0][0][0].type = BlockType::btGround;
+	chunk->blocks[0][0][1].type = BlockType::btGround;
+	chunk->blocks[0][0][2].type = BlockType::btGround;
+	chunk->blocks[0][0][3].type = BlockType::btStone;
+	
+	chunk->blocks[0][1][0].type = BlockType::btGround;
+	chunk->blocks[0][1][1].type = BlockType::btGround;
+	chunk->blocks[0][1][2].type = BlockType::btGround;
+	chunk->blocks[0][1][3].type = BlockType::btStone;
+
+	chunk->blocks[0][2][0].type = BlockType::btStone;
+	chunk->blocks[0][2][1].type = BlockType::btStone;
+	chunk->blocks[0][2][2].type = BlockType::btStone;
+	chunk->blocks[0][2][3].type = BlockType::btStone;
+}
+
 void ChunkGenerateMesh(Chunk* chunk) {
 	int layerStride = CHUNK_SX * CHUNK_SZ;
 	int stride = CHUNK_SX;
@@ -219,11 +255,101 @@ void ChunkGenerateMesh(Chunk* chunk) {
 					default:						texID = tidGround;	break;
 					}
 
+#define GREEDY 1
 					// TODO: Greedy meshing
+					// TODO: проверить, в правильные ли стороны расшир€ет sizeX и sizeZ на –ј«Ќџ’ сторонах куба
+					// top
+#if GREEDY
+					if(!blocks[y][z][x].used) {
+						int sizeX = 1, sizeZ = 0;
+						
+						for (int i = z; i < CHUNK_SZ; i++) // TODO: остальные стороны блока провер€ютс€ в этом же цикле
+						{
+							if ((blocks[y][z][x].type == blocks[y][i][x].type)) 
+							{
+								if (y == CHUNK_SY - 1 || blocks[y + 1][i][x].type == BlockType::btAir)
+								{
+									blocks[y][i][x].used = true;
+									sizeZ++;
+								}
+								else {
+									break;
+								}
+							}
+							else {
+								break;
+							}
+						}
+						if (sizeX && sizeZ)
+							faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID, sizeX, sizeZ);
+
+						//sizeX = 1, sizeZ = 0;
+						//for (int i = z; i < CHUNK_SZ; i++)
+						//{
+						//	if ((blocks[y][z][x].type == blocks[y][i][x].type))
+						//	{
+						//		if (y == 0 || blocks[y - 1][i][x].type == BlockType::btAir)
+						//		{
+						//			blocks[y][i][x].used = true;
+						//			sizeZ++;
+						//		}
+						//		else {
+						//			break;
+						//		}
+						//	}
+						//	else {
+						//		break;
+						//	}
+						//}
+						//if (sizeX && sizeZ)
+						//	faces[faceCount++] = BlockFaceInstance(blockIndex, faceYNeg, texID, sizeX, sizeZ);
+						//	
+						//sizeX = 1, sizeZ = 0;
+						//for (int i = z; i < CHUNK_SZ; i++)
+						//{
+						//	if ((blocks[y][z][x].type == blocks[y][i][x].type))
+						//	{
+						//		if (z == 0 || blocks[y][z - 1][x].type == BlockType::btAir)
+						//		{
+						//			blocks[y][i][x].used = true;
+						//			sizeZ++;
+						//		}
+						//		else {
+						//			break;
+						//		}
+						//	}
+						//	else {
+						//		break;
+						//	}
+						//}
+						//if (sizeX && sizeZ)
+						//	faces[faceCount++] = BlockFaceInstance(blockIndex, faceZPos, texID, sizeX, sizeZ);
+					}
+					//if(!blocks[y][z][x].used) {
+					//	int sizeX = 1, sizeZ = 0;
+					//	
+					//	for (int i = z; i < CHUNK_SZ; i++) // TODO: остальные стороны блока провер€ютс€ в этом же цикле
+					//	{
+					//		if ((blocks[y][z][x].type == blocks[y][i][x].type) && 
+					//			(y == CHUNK_SY - 1 || blocks[y + 1][i][x].type == BlockType::btAir))
+					//		{
+					//			blocks[y][i][x].used = true;
+					//			sizeZ++;
+					//		}
+					//		else {
+					//			break;
+					//		}
+					//	}
+					//	if (sizeX && sizeZ)
+					//		faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID, sizeX, sizeZ);
+					//}
+#else					
 					// top
 					if (y == CHUNK_SY - 1 || blocks[y + 1][z][x].type == BlockType::btAir) {
-						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID);
+						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID, 1, 1);
 					}
+
+#endif
 					// bottom
 					if (y == 0 || blocks[y - 1][z][x].type == BlockType::btAir) {
 						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYNeg, texID);
@@ -246,6 +372,16 @@ void ChunkGenerateMesh(Chunk* chunk) {
 					}
 				}
 				blockIndex++;
+			}
+		}
+	}
+
+
+	// TODO: изменить хранение переменных used, чтобы проще было очищать
+	for (size_t y = 0; y < CHUNK_SY; y++) {
+		for (size_t z = 0; z < CHUNK_SZ; z++) {
+			for (size_t x = 0; x < CHUNK_SX; x++) {
+				chunk->blocks[y][z][x].used = false;
 			}
 		}
 	}
@@ -317,6 +453,7 @@ u32 chunkGenThreadProc(WorkingThread* args) {
 			Chunk* chunk = &g_chunkManager.chunks[task->index];
 
 			ChunkGenerateBlocks(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
+			//ChunkGenerateBlocks_DEBUG(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
 			ChunkGenerateMesh(chunk);
 
 			WorkQueueSetTaskCompleted(g_chunkManager.workQueue);
@@ -416,7 +553,8 @@ Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float pos
 		posZ - manager->chunks[chunkIndex].posz);
 
 	// если блок не в пределах чанка
-	if (relativePos.x >= CHUNK_SX || relativePos.y >= CHUNK_SY || relativePos.z >= CHUNK_SZ) {
+	if (relativePos.x >= CHUNK_SX || relativePos.y >= CHUNK_SY || relativePos.z >= CHUNK_SZ ||
+		relativePos.x < 0 || relativePos.y < 0 || relativePos.z < 0) {
 		return NULL;
 	}
 

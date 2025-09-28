@@ -6,7 +6,7 @@
 #include "Renderer.h"
 
 extern Shader 
-	cubeInstancedShader, shadowShader, 
+	cubeInstancedShader, cubeInstancedShadowShader, 
 	polyMeshShader, polyMeshShadowShader,
 	flatShader, spriteShader, 
 	uiShader,

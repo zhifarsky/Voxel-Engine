@@ -30,13 +30,13 @@ matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
 float near_plane = 1.0f, far_plane = 500.0f;
+float projDim = 128;
 float shadowLightDist = 100;
 
 Player player;
 
-static bool cursorMode = false; // TRUE для взаимодействия с UI, FALSE для перемещения камеры
-
 static bool g_vsyncOn = false;
+static bool g_GenChunks = true;
 
 static DynamicArray<Entity> entities;
 
@@ -74,6 +74,7 @@ FrameBufferInfo* fbInfo;
 bool debugView_cb = false;
 bool wireframe_cb = false;
 
+bool g_UpdateSun = true;
 float sunSpeed = 0.05;
 glm::vec3 sunDir(0, 0, 0);
 glm::vec3 moonDir(0, 0, 0);
@@ -376,9 +377,19 @@ void RenderPauseMenu(Input* input) {
 			InitFramebuffers(fbInfo->sizeX, fbInfo->sizeY, g_MSAAFactor);
 		}
 
+		UI::CheckBox("Update sun", &g_UpdateSun);
+		if (!g_UpdateSun) {
+			static float sunSlider = 0;
+			UI::SliderFloat("Sun direction", &sunSlider, -2, 2);
+			sunDir.x = cos(sunSlider);
+			sunDir.y = sin(sunSlider);
+			sunDir.z = 0;
+		}
+
 		UI::CheckBox("Wireframe mode", &wireframe_cb);
 		
 		UI::CheckBox("Debug view", &debugView_cb);
+		UI::CheckBox("Generate chunks", &g_GenChunks);
 
 		if (UI::CheckBox("Vsync", &g_vsyncOn)) {
 			SetVsync(g_vsyncOn);
@@ -393,6 +404,120 @@ void RenderPauseMenu(Input* input) {
 	}
 
 	UI::End();
+}
+
+void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
+	//glCullFace(GL_FRONT);
+	
+	Renderer::bindShader(cubeInstancedShadowShader);
+	Renderer::setUniformMatrix4(cubeInstancedShadowShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+
+	for (size_t c = 0; c < chunksCount; c++)
+	{
+		Chunk& chunk = chunks[c];
+		if (chunk.generated && !chunk.mesh.needUpdate) {
+			Renderer::setUniformInt2(cubeInstancedShadowShader, "chunkPos", chunk.posx, chunk.posz);
+
+			Renderer::drawInstancedGeo(chunk.mesh.VAO, 6, chunk.mesh.faceCount);
+		}
+	}
+	
+	//glCullFace(GL_BACK);
+}
+
+// draw to screen
+void DrawChunks(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection) {
+	Renderer::bindShader(cubeInstancedShader);
+	Renderer::bindTexture(&Assets.textureAtlas, 0);
+	Renderer::bindTexture(&depthMapFBO->textures[0], 1);
+
+	{
+		Renderer::setUniformFloat3(cubeInstancedShader, "sunDir", directLightDir.x, directLightDir.y, directLightDir.z);
+		Renderer::setUniformFloat3(cubeInstancedShader, "sunColor", directLightColor.x, directLightColor.y, directLightColor.z);
+		Renderer::setUniformFloat3(cubeInstancedShader, "ambientColor", ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
+
+		Renderer::setUniformMatrix4(cubeInstancedShader, "viewProjection", (float*)glm::value_ptr(projection * view));
+		Renderer::setUniformMatrix4(cubeInstancedShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+
+		Renderer::setUniformInt(cubeInstancedShader, "texture1", 0);
+		Renderer::setUniformInt(cubeInstancedShader, "shadowMap", 1);
+	}
+
+	for (size_t c = 0; c < chunksCount; c++)
+	{
+		Chunk* chunk = &chunks[c];
+		if (chunk->generated && !chunk->mesh.needUpdate) {
+			Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk->posx, chunk->posz);
+			Renderer::setUniformInt2(cubeInstancedShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
+
+			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
+		}
+	}
+
+	Renderer::unbindTexture(0);
+	Renderer::unbindTexture(1);
+	Renderer::unbindShader();
+}
+
+void DrawEntitiesShadow(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
+	//glCullFace(GL_FRONT);
+
+	Renderer::bindShader(polyMeshShadowShader);
+	Renderer::setUniformMatrix4(polyMeshShadowShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+
+	for (size_t i = 0; i < entitiesCount; i++)
+	{
+		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
+		model = glm::translate(model, entities[i].pos);
+		model = glm::rotate(model, glm::radians(entities[i].rot.x), glm::vec3(1.0, 0.0, 0.0));
+		model = glm::rotate(model, glm::radians(entities[i].rot.y), glm::vec3(0.0, 1.0, 0.0));
+		model = glm::rotate(model, glm::radians(entities[i].rot.z), glm::vec3(0.0, 0.0, 1.0));
+		model = glm::scale(model, glm::vec3(1, 2, 1));
+		Renderer::setUniformMatrix4(polyMeshShadowShader, "model", glm::value_ptr(model));
+
+		// TODO: биндить нужный мэш в зависимости от типа entity
+		Renderer::drawGeometry(&Assets.entityMesh);
+	}
+
+	//glCullFace(GL_BACK);
+}
+
+// draw to screen
+void DrawEntities(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, glm::mat4& lightSpaceMatrix, glm::mat4& view, glm::mat4& projection) {
+	Renderer::bindShader(polyMeshShader);
+	Renderer::bindTexture(&Assets.entityTexture, 0);
+	Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
+
+	{
+		Renderer::setUniformFloat3(polyMeshShader, "sunDir", directLightDir.x, directLightDir.y, directLightDir.z);
+		Renderer::setUniformFloat3(polyMeshShader, "sunColor", directLightColor.x, directLightColor.y, directLightColor.z);
+		Renderer::setUniformFloat3(polyMeshShader, "ambientColor", ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
+
+		Renderer::setUniformMatrix4(polyMeshShader, "projection", glm::value_ptr(projection));
+		Renderer::setUniformMatrix4(polyMeshShader, "view", glm::value_ptr(view));
+		Renderer::setUniformMatrix4(polyMeshShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+
+		Renderer::setUniformInt(polyMeshShader, "texture1", 0);
+		Renderer::setUniformInt(polyMeshShader, "shadowMap", 1);
+
+		Renderer::setUniformFloat(polyMeshShader, "lightingFactor", 1.0f);
+	}
+
+	for (size_t i = 0; i < entitiesCount; i++)
+	{
+		Entity* e = &entities[i];
+		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
+		model = glm::translate(model, e->pos);
+		rotateXYZ(model, e->rot.x, e->rot.y, e->rot.z);
+		model = glm::scale(model, { 1,1,1 });
+		Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
+
+		Renderer::drawGeometry(&Assets.entityMesh);
+	}
+
+	Renderer::unbindTexture(0);
+	Renderer::unbindTexture(1);
+	Renderer::unbindShader();
 }
 
 void RenderGame(Input* input) {
@@ -440,17 +565,61 @@ void RenderGame(Input* input) {
 		// update player pos
 		{
 			float cameraSpeedAdj = player.maxSpeed * g_deltaTime; // делаем скорость камеры независимой от FPS
-			if (ButtonHeldDown(input->forward))
-				player.speedVector += cameraSpeedAdj * player.camera.front;
-			if (ButtonHeldDown(input->backwards))
-				player.speedVector -= cameraSpeedAdj * player.camera.front;
-			if (ButtonHeldDown(input->left))
-				player.speedVector -= glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;;
-			if (ButtonHeldDown(input->right))
-				player.speedVector += glm::normalize(glm::cross(player.camera.front, player.camera.up)) * cameraSpeedAdj;
+			float jumpSpeedAdj = 100 * g_deltaTime;
+			static bool flyMode = true;
+			if (flyMode) {
+				if (ButtonHeldDown(input->forward))
+					player.speedVector += cameraSpeedAdj * glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
+				if (ButtonHeldDown(input->backwards))
+					player.speedVector -= cameraSpeedAdj * glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
+				if (ButtonHeldDown(input->left))
+					player.speedVector -= glm::normalize(glm::cross(glm::normalize(player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) * cameraSpeedAdj;;
+				if (ButtonHeldDown(input->right))
+					player.speedVector += glm::normalize(glm::cross(glm::normalize(player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) * cameraSpeedAdj;
 
+				if (ButtonHeldDown(input->up))
+					player.speedVector += cameraSpeedAdj * player.camera.up;
+				if (ButtonHeldDown(input->down))
+					player.speedVector -= cameraSpeedAdj * player.camera.up;
+			}
+			else {
+				if (ButtonHeldDown(input->forward))
+					player.speedVector += cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
+				if (ButtonHeldDown(input->backwards))
+					player.speedVector -= cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
+				if (ButtonHeldDown(input->left))
+					player.speedVector -= glm::normalize(glm::cross((player.camera.front * glm::vec3(1,0,1)), player.camera.up)) * cameraSpeedAdj;;
+				if (ButtonHeldDown(input->right))
+					player.speedVector += glm::normalize(glm::cross((player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) * cameraSpeedAdj;
+				
+				if (ButtonClicked(input->up))
+					player.speedVector += jumpSpeedAdj * player.camera.up;
+			}
+
+			glm::vec3 prevPos = player.camera.pos;
 			player.camera.pos += player.speedVector;
 			player.speedVector *= 0.8; // TODO: deltatime
+
+#if 0
+			// gravity, ground collision
+			player.camera.pos.y -= 20 * g_deltaTime; // gravity
+			Block *block1, *block2;
+			//do {
+			//	belowBlock = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
+			//	if (belowBlock && belowBlock->type != BlockType::btAir)
+			//		player.camera.pos.y = (int)player.camera.pos.y + 1;
+			//	else
+			//		break;
+			//} while (belowBlock);
+			block1 = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
+			block2 = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 1, player.camera.pos.z);
+			
+			if ((block1 && block1->type != BlockType::btAir) ||
+				(block2 && block2->type != BlockType::btAir)) 
+			{
+				player.camera.pos = { prevPos.x, floor(prevPos.y) + 0.01, prevPos.z };
+			}
+#endif
 		}
 
 		// player inventory
@@ -486,9 +655,11 @@ void RenderGame(Input* input) {
 
 		// обновление направления солнца
 #if 1
-		sunDir.x = cos((g_time + 10) * sunSpeed);
-		sunDir.y = sin((g_time + 10) * sunSpeed);
-		sunDir.z = 0;
+		if (g_UpdateSun) {
+			sunDir.x = cos((g_time + 10) * sunSpeed);
+			sunDir.y = sin((g_time + 10) * sunSpeed);
+			sunDir.z = 0;
+		}
 #endif
 		moonDir = -sunDir;
 		isDay = (sunDir.y > 0);
@@ -518,7 +689,9 @@ void RenderGame(Input* input) {
 	if (player.camera.pos.z < 0)
 		currentChunkPosZ -= CHUNK_SZ;
 
-	ChunkManagerBuildChunks(&g_chunkManager, player.camera.pos.x, player.camera.pos.z);
+	if (g_GenChunks) {
+		ChunkManagerBuildChunks(&g_chunkManager, player.camera.pos.x, player.camera.pos.z);
+	}
 
 	// destroying / building blocks
 	if (ButtonClicked(input->placeBlock)) {
@@ -585,11 +758,26 @@ void RenderGame(Input* input) {
 		}
 	}
 
-
-
 #pragma region Отрисовка
-#pragma region трансформации
-	
+	// clear framebuffers & bind Screen Framebuffer
+	{
+		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
+		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
+		Renderer::clear(0, 0, 0);
+		
+		Renderer::bindFrameBuffer(&Assets.screenFBO);
+		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
+		Renderer::clear(ambientLightColor.r, ambientLightColor.g, ambientLightColor.b);
+	}
+
+	if (wireframe_cb) {
+		glLineWidth(3);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
 	// трансформация вида (камера)
 	glm::mat4 view, projection;
 	{
@@ -599,16 +787,10 @@ void RenderGame(Input* input) {
 		projection = glm::mat4(1.0);
 		projection = glm::perspective(glm::radians(player.camera.FOV), (float)fbInfo->sizeX / (float)fbInfo->sizeY, 0.1f, 1000.0f);
 	}
-#pragma endregion
 
-	// draw shadow maps
+	// трансформация тени
 	glm::mat4 lightSpaceMatrix;
 	{
-		//glCullFace(GL_FRONT);
-
-		//float projDim = (float)Assets.depthMap.width / 16.0f;
-		//float projDim = (float)Assets.depthMapFBO.textures[0].width / 16.0f / 4;
-		float projDim = 128;
 		glm::mat4 lightProjection = glm::ortho(-projDim, projDim, -projDim, projDim, near_plane, far_plane);
 		glm::mat4 lightView = glm::lookAt(
 			shadowLightDist * directLightDir + player.camera.pos * glm::vec3(1, 0, 1),
@@ -616,147 +798,48 @@ void RenderGame(Input* input) {
 			glm::vec3(0.0f, 1.0f, 0.0f));
 
 		lightSpaceMatrix = lightProjection * lightView;
-
-		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
-		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
-		//glClear(GL_DEPTH_BUFFER_BIT);
-		Renderer::clear(0, 0, 0);
-
-		Renderer::bindShader(shadowShader);
-		// установка переменных в вершинном шейдере
-		Renderer::setUniformMatrix4(shadowShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-
-
-		// chunks shadowmaps
-		for (size_t c = 0; c < g_chunkManager.chunksCount; c++)
-		{
-			Chunk& chunk = g_chunkManager.chunks[c];
-			if (chunk.generated && !chunk.mesh.needUpdate) {
-				// render 1 chunk
-				Renderer::setUniformInt2(shadowShader, "chunkPos", chunk.posx, chunk.posz);
-				Renderer::setUniformInt2(shadowShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
-
-				Renderer::drawInstancedGeo(chunk.mesh.VAO, 6, chunk.mesh.faceCount);
-			}
-		}
-
-		// entities shadowmaps
-		Renderer::bindShader(polyMeshShadowShader);
-		Renderer::setUniformMatrix4(polyMeshShadowShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-		for (size_t i = 0; i < entities.count; i++)
-		{
-			glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
-			model = glm::translate(model, entities[i].pos);
-			model = glm::rotate(model, glm::radians(entities[i].rot.x), glm::vec3(1.0, 0.0, 0.0));
-			model = glm::rotate(model, glm::radians(entities[i].rot.y), glm::vec3(0.0, 1.0, 0.0));
-			model = glm::rotate(model, glm::radians(entities[i].rot.z), glm::vec3(0.0, 0.0, 1.0));
-			model = glm::scale(model, glm::vec3(1, 2, 1));
-			Renderer::setUniformMatrix4(polyMeshShadowShader, "model", glm::value_ptr(model));
-
-			// TODO: биндить нужный меш в зависимости от типа entity
-			Renderer::drawGeometry(&Assets.entityMesh);
-		}
-
-		Renderer::unbindFrameBuffer();
-		//glCullFace(GL_BACK);
-		//Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
 	}
-
-	Renderer::bindFrameBuffer(&Assets.screenFBO);
-	Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
-	Renderer::clear(ambientLightColor.r, ambientLightColor.g, ambientLightColor.b, 1.0);
-
-	if (wireframe_cb) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// draw sun and moon
-	glDepthMask(GL_FALSE); // render on background
-	useSpriteShader(projection, view);
-	spriteApplyTransform(player.camera.pos + sunDir, 0.3, true);
-	drawSprite(Assets.sunSprite, Assets.textureAtlas.ID);
-	spriteApplyTransform(player.camera.pos + moonDir, 0.3, true);
-	drawSprite(Assets.moonSprite, Assets.textureAtlas.ID);
-	glDepthMask(GL_TRUE);
-
-	// set global uniforms
 	{
-		// set chunks uniforms
-		{
-			Renderer::bindShader(cubeInstancedShader);
-
-			Renderer::setUniformFloat3(cubeInstancedShader, "sunDir", directLightDir.x, directLightDir.y, directLightDir.z);
-			Renderer::setUniformFloat3(cubeInstancedShader, "sunColor", directLightColor.x, directLightColor.y, directLightColor.z);
-			Renderer::setUniformFloat3(cubeInstancedShader, "ambientColor", ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
-
-			Renderer::setUniformMatrix4(cubeInstancedShader, "viewProjection", (float*)glm::value_ptr(projection * view));
-			Renderer::setUniformMatrix4(cubeInstancedShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-
-			Renderer::setUniformInt(cubeInstancedShader, "texture1", 0);
-			Renderer::setUniformInt(cubeInstancedShader, "shadowMap", 1);
-		}
-		// set polymesh uniforms
-		{
-			Renderer::bindShader(polyMeshShader);
-
-			Renderer::setUniformFloat3(polyMeshShader, "sunDir", directLightDir.x, directLightDir.y, directLightDir.z);
-			Renderer::setUniformFloat3(polyMeshShader, "sunColor", directLightColor.x, directLightColor.y, directLightColor.z);
-			Renderer::setUniformFloat3(polyMeshShader, "ambientColor", ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
-
-			Renderer::setUniformMatrix4(polyMeshShader, "projection", glm::value_ptr(projection));
-			Renderer::setUniformMatrix4(polyMeshShader, "view", glm::value_ptr(view));
-			Renderer::setUniformMatrix4(polyMeshShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-
-			Renderer::setUniformInt(polyMeshShader, "texture1", 0);
-			Renderer::setUniformInt(polyMeshShader, "shadowMap", 1);
-
-			Renderer::setUniformFloat(polyMeshShader, "lightingFactor", 1.0f);
-		}
-
-		Renderer::unbindShader();
+		glDepthMask(GL_FALSE); // render on background
+		useSpriteShader(projection, view);
+		spriteApplyTransform(player.camera.pos + sunDir, 0.3, true);
+		drawSprite(Assets.sunSprite, Assets.textureAtlas.ID);
+		spriteApplyTransform(player.camera.pos + moonDir, 0.3, true);
+		drawSprite(Assets.moonSprite, Assets.textureAtlas.ID);
+		glDepthMask(GL_TRUE);
 	}
 
-	// можно отрисовывать
-	// draw chunks
+	// draw chunks & entities
 	{
-		Renderer::bindShader(cubeInstancedShader);
-		Renderer::bindTexture(&Assets.textureAtlas, 0);
-		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
+		// draw shadows
+		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
+		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
+		DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, lightSpaceMatrix);
+		DrawEntitiesShadow(entities.items, entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
 
-		for (size_t c = 0; c < g_chunkManager.chunksCount; c++)
-		{
-			Chunk* chunk = &g_chunkManager.chunks[c];
-			if (chunk->generated && !chunk->mesh.needUpdate) {
-				Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk->posx, chunk->posz);
-				Renderer::setUniformInt2(cubeInstancedShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
+		// draw to screen
+		Renderer::bindFrameBuffer(&Assets.screenFBO);
+		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
+		DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
+		DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
 
-				Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
-			}
-		}
-
-		Renderer::unbindTexture(0);
-		Renderer::unbindTexture(1);
-	}
-
-	// draw entities
-	{
-		Renderer::bindShader(polyMeshShader);
-		Renderer::bindTexture(&Assets.entityTexture, 0);
-		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
-
-		for (size_t i = 0; i < entities.count; i++)
-		{
-			Entity* e = &entities.items[i];
-			glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
-			model = glm::translate(model, e->pos);
-			rotateXYZ(model, e->rot.x, e->rot.y, e->rot.z);
-			model = glm::scale(model, { 1,1,1 });
-			Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
-
-			Renderer::drawGeometry(&Assets.entityMesh);
-		}
-		Renderer::unbindShader();
-		Renderer::unbindTexture(0);
-		Renderer::unbindTexture(1);
+		// draw wireframe
+		// TODO: чтобы было видно, нужно менять цвет в шейдере на другой
+		//if (wireframe_cb) {
+		//	glDepthMask(GL_FALSE);
+		//	glDepthFunc(GL_LEQUAL);
+		//	glLineWidth(2);
+		//	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		//	DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
+		//	DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
+		//	glDepthMask(GL_TRUE);
+		//	glDepthFunc(GL_LESS);
+		//	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//}
+		//else 
+		//	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
 	// draw dropped items
@@ -799,21 +882,6 @@ void RenderGame(Input* input) {
 			drawFlat(&Assets.defaultBox, glm::vec3(0, 0, 0));
 		}
 	}
-
-#define GRAVITY 0
-#if GRAVITY
-	// gravity, ground collision
-	player.camera.pos.y -= 20 * g_deltaTime;
-	Block* belowBlock;
-	do {
-		belowBlock = g_gameWorld.peekBlockFromPos(glm::vec3(player.camera.pos.x - chunk.posx, player.camera.pos.y - 2, player.camera.pos.z - chunk.posz));
-		if (belowBlock && belowBlock->type != (int)BlockType::(int)BlockType::btAir)
-			player.camera.pos.y = (int)player.camera.pos.y + 1;
-		else
-			break;
-	} while (belowBlock);
-#endif
-
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -862,6 +930,10 @@ void RenderGame(Input* input) {
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
 		UI::Text(buf);
 		sprintf(buf, "%d dropped items", g_gameWorld.droppedItems.count);
+		UI::Text(buf);
+		sprintf(buf, "pos x%.2f y%.2f z%.2f",  player.camera.pos.x,  player.camera.pos.y,  player.camera.pos.z);
+		UI::Text(buf);
+		sprintf(buf, "orient x%.2f y%.2f z%.2f",  player.camera.front.x,  player.camera.front.y,  player.camera.front.z);
 		UI::Text(buf);
 	}
 
@@ -922,6 +994,7 @@ void RenderGame(Input* input) {
 		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(heartWidth, heartWidth, 1), uiUV[uiHeart].scale, uiUV[uiHeart].offset); // health bar
 	}
 	UI::End();
+
 #pragma endregion
 
 }

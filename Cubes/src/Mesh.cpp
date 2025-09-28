@@ -8,7 +8,7 @@
 
 Shader
 	cubeInstancedShader = NULL,
-	shadowShader = NULL,
+	cubeInstancedShadowShader = NULL,
 	polyMeshShader = NULL,
 	polyMeshShadowShader = NULL,
 	flatShader = NULL, 
@@ -28,7 +28,7 @@ Shader recompileShader(Shader shader, const char* fileName) {
 void initShaders() {
 	using namespace Renderer;
 	cubeInstancedShader = recompileShader(cubeInstancedShader, SHADER_FOLDER "block.glsl");
-	shadowShader = recompileShader(shadowShader, SHADER_FOLDER "blockShadow.glsl");
+	cubeInstancedShadowShader = recompileShader(cubeInstancedShadowShader, SHADER_FOLDER "blockShadow.glsl");
 	
 	polyMeshShader = recompileShader(polyMeshShader, SHADER_FOLDER "polyMesh.glsl");
 	polyMeshShadowShader = recompileShader(polyMeshShadowShader, SHADER_FOLDER "polyMeshShadow.glsl");

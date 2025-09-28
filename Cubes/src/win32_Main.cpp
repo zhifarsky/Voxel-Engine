@@ -114,6 +114,8 @@ int CALLBACK WinMain(
             ProcessButtonInput(&oldInput->backwards, &newInput->backwards, IsKeyReleased(window, GLFW_KEY_S));
             ProcessButtonInput(&oldInput->left, &newInput->left, IsKeyReleased(window, GLFW_KEY_A));
             ProcessButtonInput(&oldInput->right, &newInput->right, IsKeyReleased(window, GLFW_KEY_D));
+            ProcessButtonInput(&oldInput->up, &newInput->up, IsKeyReleased(window, GLFW_KEY_SPACE));
+            ProcessButtonInput(&oldInput->down, &newInput->down, IsKeyReleased(window, GLFW_KEY_LEFT_CONTROL));
 
             ProcessButtonInput(&oldInput->attack, &newInput->attack, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
             ProcessButtonInput(&oldInput->placeBlock, &newInput->placeBlock, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));

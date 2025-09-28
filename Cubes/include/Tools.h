@@ -2,14 +2,6 @@
 #include <chrono>
 #include "Typedefs.h"
 
-#ifdef _DEBUG
-    #ifdef _MSC_VER
-        #define DEBUG_BREAK if (IsDebuggerPresent()) { __debugbreak(); } 
-    #endif
-#else
-    #define DEBUG_BREAK ;
-#endif
-
 #define ArraySize(a) (sizeof(a) / sizeof(*a))
 
 void FatalError(const char* msg, int exitCode = 1);
@@ -25,7 +17,8 @@ struct Timer {
 	std::chrono::steady_clock::time_point startTime, stopTime;
 	void start();
 	void stop();
-	void printMS(const char* msg = NULL);
+	void printMilliseconds(const char* msg = NULL);
+    void printMicroseconds(const char* msg = NULL);
 	void printS(const char* msg = NULL);
 };
 

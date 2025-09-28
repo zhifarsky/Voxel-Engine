@@ -21,6 +21,8 @@ struct Input {
 	ButtonState backwards;
 	ButtonState left;
 	ButtonState right;
+	ButtonState up;
+	ButtonState down;
 
 	ButtonState attack;
 	ButtonState placeBlock;
