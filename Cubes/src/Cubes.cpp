@@ -652,7 +652,6 @@ void RenderGame(Input* input) {
 		}
 
 		// collect dropped items
-#if 0
 		float collectRadius = 3;
 		for (size_t i = 0; i < g_gameWorld.droppedItems.count; i++)
 		{
@@ -665,7 +664,6 @@ void RenderGame(Input* input) {
 				item->count = 0; 
 			}
 		}
-#endif
 
 		// обновление направления солнца
 #if 1
@@ -862,11 +860,10 @@ void RenderGame(Input* input) {
 				continue;
 
 			glm::mat4 model = glm::mat4(1.0f);
-			//model = glm::translate(model, {0.0f, sin(g_time) * 0.3, 0.0f});
+			model = glm::translate(model, {0.0f, sin(g_time) * 0.3, 0.0f});
 			model = glm::translate(model, item->pos);
-			//model = glm::translate(model, { -2.0 + 0.5, 0.5, 0.5 });
-			//rotateXYZ(model, 0.0f, g_time * 30, 0.0f);
-			model = glm::scale(model, { 0.3, 1.0, 0.3 });
+			rotateXYZ(model, 0.0f, g_time * 30, 0.0f);
+			model = glm::scale(model, { 0.3, 0.3, 0.3 });
 			model = glm::translate(model, {-0.5, -0.5, -0.5}); // center
 			Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
 

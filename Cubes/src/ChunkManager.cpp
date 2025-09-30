@@ -563,12 +563,8 @@ Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm
 		block = ChunkManagerPeekBlockFromPos(manager, currentPos.x, currentPos.y, currentPos.z, &chunkIndex);
 
 		if (block != NULL && block->type != BlockType::btAir) {
-			if (outBlockPos) {
-				outBlockPos->x = currentPos.x >= 0 ? currentPos.x : glm::ceil(currentPos.x);
-				outBlockPos->y = currentPos.y >= 0 ? currentPos.y : glm::ceil(currentPos.y);
-				outBlockPos->z = currentPos.z >= 0 ? currentPos.z : glm::ceil(currentPos.z);
-			}
-				//*outBlockPos = glm::ivec3(currentPos.x, currentPos.y, currentPos.z);
+			if (outBlockPos)
+				*outBlockPos = glm::floor(currentPos);
 			if (outChunkIndex)
 				*outChunkIndex = chunkIndex;
 			return block;
