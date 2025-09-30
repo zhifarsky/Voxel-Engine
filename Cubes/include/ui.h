@@ -23,7 +23,11 @@ struct Font {
 enum class uiAnchor {
 	Center,
 	Left,
+	LeftTop,
+	LeftBottom,
 	Right,
+	RightTop,
+	RightBottom,
 	Top,
 	Bottom
 };

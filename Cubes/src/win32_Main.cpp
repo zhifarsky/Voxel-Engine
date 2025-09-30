@@ -126,6 +126,8 @@ int CALLBACK WinMain(
                 ProcessButtonInput(&oldInput->inventorySlots[i], &newInput->inventorySlots[i], IsKeyReleased(window, GLFW_KEY_1 + i));
             }
 
+            ProcessButtonInput(&oldInput->showDebugInfo, &newInput->showDebugInfo, IsKeyReleased(window, GLFW_KEY_F1));
+
 #if _DEBUG
             ProcessButtonInput(&oldInput->rebuildShaders, &newInput->rebuildShaders, IsKeyReleased(window, GLFW_KEY_R));
 #endif

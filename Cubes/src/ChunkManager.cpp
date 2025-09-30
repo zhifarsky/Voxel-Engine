@@ -6,6 +6,10 @@
 
 ChunkManager g_chunkManager;
 
+float Remap(float value, float oldMin, float oldMax, float newMin, float newMax) {
+	return newMin + (value - oldMin) * (newMax - newMin) / (oldMax - oldMin);
+}
+
 static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 	static glm::vec3 faceVerts[] = {
 	glm::vec3(0,0,0),
@@ -148,6 +152,9 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 				// height
 				float height = PerlinNoise(seed, glm::vec2(x + posx, z + posz) * noiseScale);
 				height = (height + 1.0f) / 2.0f;
+				height *= Remap(
+					PerlinNoise(seed + 1, glm::vec2(x + posx, z + posz) * (noiseScale / 5)),
+					-1, 1, 0, 1.5);
 
 				// generate rivers between biomes
 				if (temperature > biomeEdge && temperature - riverWidth <= biomeEdge) {
@@ -161,7 +168,7 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 				// generate height
 				if (y > height * 23.0f)
 					block->type = BlockType::btAir;
-				else if (y > height * 20.0f) {
+				else if (y > height * 15.0f) {
 					block->type = groundBlockType;
 				}
 				else
@@ -212,20 +219,28 @@ void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
 	//	chunk->blocks[y][CHUNK_SZ - 1][CHUNK_SX - 1].type = BlockType::btSnow;
 	//}
 
-	chunk->blocks[0][0][0].type = BlockType::btGround;
-	chunk->blocks[0][0][1].type = BlockType::btGround;
-	chunk->blocks[0][0][2].type = BlockType::btGround;
-	chunk->blocks[0][0][3].type = BlockType::btStone;
-	
-	chunk->blocks[0][1][0].type = BlockType::btGround;
-	chunk->blocks[0][1][1].type = BlockType::btGround;
-	chunk->blocks[0][1][2].type = BlockType::btGround;
-	chunk->blocks[0][1][3].type = BlockType::btStone;
+	//chunk->blocks[0][0][0].type = BlockType::btGround;
+	//chunk->blocks[0][0][1].type = BlockType::btGround;
+	//chunk->blocks[0][0][2].type = BlockType::btGround;
+	//chunk->blocks[0][0][3].type = BlockType::btStone;
+	//
+	//chunk->blocks[0][1][0].type = BlockType::btGround;
+	//chunk->blocks[0][1][1].type = BlockType::btGround;
+	//chunk->blocks[0][1][2].type = BlockType::btGround;
+	//chunk->blocks[0][1][3].type = BlockType::btStone;
 
-	chunk->blocks[0][2][0].type = BlockType::btStone;
-	chunk->blocks[0][2][1].type = BlockType::btStone;
-	chunk->blocks[0][2][2].type = BlockType::btStone;
-	chunk->blocks[0][2][3].type = BlockType::btStone;
+	//chunk->blocks[0][2][0].type = BlockType::btStone;
+	//chunk->blocks[0][2][1].type = BlockType::btStone;
+	//chunk->blocks[0][2][2].type = BlockType::btStone;
+	//chunk->blocks[0][2][3].type = BlockType::btStone;
+
+	for (size_t z = 0; z < CHUNK_SZ; z++)
+	{
+		for (size_t x = 0; x < CHUNK_SZ; x++)
+		{
+			chunk->blocks[0][z][x].type = BlockType::btGround;
+		}
+	}
 }
 
 void ChunkGenerateMesh(Chunk* chunk) {
@@ -256,93 +271,59 @@ void ChunkGenerateMesh(Chunk* chunk) {
 					}
 
 #define GREEDY 1
-					// TODO: Greedy meshing
+					// TODO: Greedy meshing дл€ остальных сторон
 					// TODO: проверить, в правильные ли стороны расшир€ет sizeX и sizeZ на –ј«Ќџ’ сторонах куба
 					// top
 #if GREEDY
-					if(!blocks[y][z][x].used) {
-						int sizeX = 1, sizeZ = 0;
-						
+					{
+						int sizeX = 0, sizeZ = 0;
+
 						for (int i = z; i < CHUNK_SZ; i++) // TODO: остальные стороны блока провер€ютс€ в этом же цикле
 						{
-							if ((blocks[y][z][x].type == blocks[y][i][x].type)) 
+							// провер€ем блоки по оси Z
+							if (!blocks[y][i][x].used &&
+								(blocks[y][z][x].type == blocks[y][i][x].type) &&
+								(y == CHUNK_SY - 1 ||
+									blocks[y + 1][i][x].type == BlockType::btAir))
 							{
-								if (y == CHUNK_SY - 1 || blocks[y + 1][i][x].type == BlockType::btAir)
+								sizeZ++;
+
+								// провер€ем блоки по оси X
+								// TODO: на каждой итерации провер€ем текущий блок, хот€ он уже проверен выше 
+								int sizeX_current = 1;
+								for (int j = x + 1; j < CHUNK_SX; j++)
 								{
-									blocks[y][i][x].used = true;
-									sizeZ++;
+									if (!(blocks[y][i][j].used) &&
+										(blocks[y][z][x].type == blocks[y][i][j].type) &&
+										(y == CHUNK_SY - 1 ||
+											blocks[y + 1][i][j].type == BlockType::btAir))
+									{
+										sizeX_current++;
+									}
+									else
+										break;
 								}
-								else {
-									break;
-								}
+
+								if (sizeX == 0)
+									sizeX = sizeX_current;
+								else
+									sizeX = std::min(sizeX, sizeX_current);
 							}
-							else {
+							else
 								break;
+						}
+
+						for (int i = z; i < z + sizeZ; i++)
+						{
+							for (int j = x; j < x + sizeX; j++)
+							{
+								blocks[y][i][j].used = true;
 							}
 						}
+
 						if (sizeX && sizeZ)
 							faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID, sizeX, sizeZ);
-
-						//sizeX = 1, sizeZ = 0;
-						//for (int i = z; i < CHUNK_SZ; i++)
-						//{
-						//	if ((blocks[y][z][x].type == blocks[y][i][x].type))
-						//	{
-						//		if (y == 0 || blocks[y - 1][i][x].type == BlockType::btAir)
-						//		{
-						//			blocks[y][i][x].used = true;
-						//			sizeZ++;
-						//		}
-						//		else {
-						//			break;
-						//		}
-						//	}
-						//	else {
-						//		break;
-						//	}
-						//}
-						//if (sizeX && sizeZ)
-						//	faces[faceCount++] = BlockFaceInstance(blockIndex, faceYNeg, texID, sizeX, sizeZ);
-						//	
-						//sizeX = 1, sizeZ = 0;
-						//for (int i = z; i < CHUNK_SZ; i++)
-						//{
-						//	if ((blocks[y][z][x].type == blocks[y][i][x].type))
-						//	{
-						//		if (z == 0 || blocks[y][z - 1][x].type == BlockType::btAir)
-						//		{
-						//			blocks[y][i][x].used = true;
-						//			sizeZ++;
-						//		}
-						//		else {
-						//			break;
-						//		}
-						//	}
-						//	else {
-						//		break;
-						//	}
-						//}
-						//if (sizeX && sizeZ)
-						//	faces[faceCount++] = BlockFaceInstance(blockIndex, faceZPos, texID, sizeX, sizeZ);
 					}
-					//if(!blocks[y][z][x].used) {
-					//	int sizeX = 1, sizeZ = 0;
-					//	
-					//	for (int i = z; i < CHUNK_SZ; i++) // TODO: остальные стороны блока провер€ютс€ в этом же цикле
-					//	{
-					//		if ((blocks[y][z][x].type == blocks[y][i][x].type) && 
-					//			(y == CHUNK_SY - 1 || blocks[y + 1][i][x].type == BlockType::btAir))
-					//		{
-					//			blocks[y][i][x].used = true;
-					//			sizeZ++;
-					//		}
-					//		else {
-					//			break;
-					//		}
-					//	}
-					//	if (sizeX && sizeZ)
-					//		faces[faceCount++] = BlockFaceInstance(blockIndex, faceYPos, texID, sizeX, sizeZ);
-					//}
 #else					
 					// top
 					if (y == CHUNK_SY - 1 || blocks[y + 1][z][x].type == BlockType::btAir) {
@@ -350,6 +331,7 @@ void ChunkGenerateMesh(Chunk* chunk) {
 					}
 
 #endif
+#if 1
 					// bottom
 					if (y == 0 || blocks[y - 1][z][x].type == BlockType::btAir) {
 						faces[faceCount++] = BlockFaceInstance(blockIndex, faceYNeg, texID);
@@ -370,6 +352,7 @@ void ChunkGenerateMesh(Chunk* chunk) {
 					if (x == CHUNK_SX - 1 || blocks[y][z][x + 1].type == BlockType::btAir) {
 						faces[faceCount++] = BlockFaceInstance(blockIndex, faceXNeg, texID);
 					}
+#endif
 				}
 				blockIndex++;
 			}
@@ -580,8 +563,12 @@ Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm
 		block = ChunkManagerPeekBlockFromPos(manager, currentPos.x, currentPos.y, currentPos.z, &chunkIndex);
 
 		if (block != NULL && block->type != BlockType::btAir) {
-			if (outBlockPos)
-				*outBlockPos = glm::ivec3(currentPos.x, currentPos.y, currentPos.z);
+			if (outBlockPos) {
+				outBlockPos->x = currentPos.x >= 0 ? currentPos.x : glm::ceil(currentPos.x);
+				outBlockPos->y = currentPos.y >= 0 ? currentPos.y : glm::ceil(currentPos.y);
+				outBlockPos->z = currentPos.z >= 0 ? currentPos.z : glm::ceil(currentPos.z);
+			}
+				//*outBlockPos = glm::ivec3(currentPos.x, currentPos.y, currentPos.z);
 			if (outChunkIndex)
 				*outChunkIndex = chunkIndex;
 			return block;

@@ -156,23 +156,39 @@ void End() {
 void SetAnchor(uiAnchor anchor, float offset) {
 	switch (anchor) {
 	case uiAnchor::Center:
-		originX = (float)displayW / 2.0f;
-		originY = (float)displayH / 2.0f;
+		originX = displayW / 2.0f;
+		originY = displayH / 2.0f;
 		break;
 	case uiAnchor::Left:
-		originY = (float)displayH / 2.0f;
+		originY = displayH / 2.0f;
+		originX = left + offset;
+		break;
+	case uiAnchor::LeftTop:
+		originY = top - offset;
+		originX = left + offset;
+		break;
+	case uiAnchor::LeftBottom:
+		originY = bottom + offset;
 		originX = left + offset;
 		break;
 	case uiAnchor::Right:
-		originY = (float)displayH / 2.0f;
+		originY = displayH / 2.0f;
+		originX = right - offset;
+		break;
+	case uiAnchor::RightTop:
+		originY = top - offset;
+		originX = right - offset;
+		break;
+	case uiAnchor::RightBottom:
+		originY = bottom + offset;
 		originX = right - offset;
 		break;
 	case uiAnchor::Top:
-		originX = (float)displayW / 2.0f;
+		originX = displayW / 2.0f;
 		originY = top - offset;
 		break;
 	case uiAnchor::Bottom:
-		originX = (float)displayW / 2.0f;
+		originX = displayW / 2.0f;
 		originY = bottom + offset;
 		break;
 	}

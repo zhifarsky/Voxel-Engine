@@ -127,6 +127,9 @@ uniform vec3 sunDir;
 uniform vec3 sunColor;
 uniform vec3 ambientColor;
 
+uniform bool overrideColor;
+uniform vec3 color;
+
 float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     // perform perspective divide
@@ -176,6 +179,11 @@ float ShadowCalculationSmooth(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir
 }  
 
 void main() {
+   if (overrideColor) {
+        FragColor = vec4(color, 1.0);
+        return;
+    }
+   
     vec2 uv = vec2(texOffset.x + mod(ourUV.x, texScale.x), texOffset.y + mod(ourUV.y, texScale.y));
     //vec2 uv = ourUV;
     vec4 texColor = texture(texture1, uv);

@@ -32,6 +32,7 @@ struct Input {
 
 	// DEBUG
 	ButtonState rebuildShaders;
+	ButtonState showDebugInfo;
 };
 
 void ProcessButtonInput(ButtonState* oldButtonState, ButtonState* newButtonState, bool isReleased);

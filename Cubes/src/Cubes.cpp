@@ -73,6 +73,7 @@ FrameBufferInfo* fbInfo;
 
 bool debugView_cb = false;
 bool wireframe_cb = false;
+bool g_ShowDebugInfo = true;
 
 bool g_UpdateSun = true;
 float sunSpeed = 0.05;
@@ -245,7 +246,7 @@ void GameInit() {
 	}
 }
 
-void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBufferInfo) {
+void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferInfo) {
 	g_time = time;
 	g_deltaTime = g_time - g_prevTime;
 	g_prevTime = g_time;
@@ -256,11 +257,11 @@ void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBuff
 		InitFramebuffers(frameBufferInfo->sizeX, frameBufferInfo->sizeY, g_MSAAFactor);
 	}
 
-	if (ButtonClicked(newInput->startGame)) {
+	if (ButtonClicked(input->startGame)) {
 		if (g_gameWorld.gameState == gsMainMenu)
 			g_gameWorld.gameState = gsInGame;
 	}
-	if (ButtonClicked(newInput->switchExitMenu)) {
+	if (ButtonClicked(input->switchExitMenu)) {
 		if (g_gameWorld.gameState == gsInGame)
 			g_gameWorld.gameState = gsExitMenu;
 		else if (g_gameWorld.gameState == gsExitMenu) {
@@ -278,10 +279,13 @@ void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBuff
 			g_gameWorld.gameState = gsInGame;
 		}
 	}
-	if (ButtonClicked(newInput->rebuildShaders)) {
+	if (ButtonClicked(input->rebuildShaders)) {
 		dbgprint("Rebuilding shaders...\n");
 		initShaders();
 		dbgprint("Shaders rebuild done!\n");
+	}
+	if (ButtonClicked(input->showDebugInfo)) {
+		g_ShowDebugInfo = !g_ShowDebugInfo;
 	}
 	
 
@@ -290,15 +294,15 @@ void GameUpdateAndRender(float time, Input* newInput, FrameBufferInfo* frameBuff
 	{
 	case gsMainMenu:
 		SetCursorMode(true);
-		RenderMainMenu(newInput);
+		RenderMainMenu(input);
 		break;
 	case gsExitMenu:
 		SetCursorMode(true);
-		RenderPauseMenu(newInput);
+		RenderPauseMenu(input);
 		break;
 	case gsInGame:
 		SetCursorMode(false);
-		RenderGame(newInput);
+		RenderGame(input);
 		break;
 	}
 
@@ -426,12 +430,20 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 }
 
 // draw to screen
-void DrawChunks(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection) {
+void DrawChunks(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection, bool overrideColor = false) {
 	Renderer::bindShader(cubeInstancedShader);
 	Renderer::bindTexture(&Assets.textureAtlas, 0);
 	Renderer::bindTexture(&depthMapFBO->textures[0], 1);
 
 	{
+		if (!overrideColor) {
+			Renderer::setUniformInt(cubeInstancedShader, "overrideColor", 0);
+		}
+		else {
+			Renderer::setUniformInt(cubeInstancedShader, "overrideColor", 1);
+			Renderer::setUniformFloat3(cubeInstancedShader, "color", 0, 0, 0);
+		}
+		
 		Renderer::setUniformFloat3(cubeInstancedShader, "sunDir", directLightDir.x, directLightDir.y, directLightDir.z);
 		Renderer::setUniformFloat3(cubeInstancedShader, "sunColor", directLightColor.x, directLightColor.y, directLightColor.z);
 		Renderer::setUniformFloat3(cubeInstancedShader, "ambientColor", ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
@@ -640,6 +652,7 @@ void RenderGame(Input* input) {
 		}
 
 		// collect dropped items
+#if 0
 		float collectRadius = 3;
 		for (size_t i = 0; i < g_gameWorld.droppedItems.count; i++)
 		{
@@ -652,6 +665,7 @@ void RenderGame(Input* input) {
 				item->count = 0; 
 			}
 		}
+#endif
 
 		// обновление направления солнца
 #if 1
@@ -706,8 +720,10 @@ void RenderGame(Input* input) {
 		if (res.success) {
 			Item drop = {};
 			drop.type = res.typePrev;
-			drop.pos = { res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5 };
+			drop.pos = glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5);
 			drop.count = 1;
+			dbgprint("[DESTR] px%d py%d pz%d\n", res.pos.x, res.pos.y, res.pos.z);
+			dbgprint("[DROP] px%.1f py%.1f pz%.1f\n", drop.pos.x, drop.pos.y, drop.pos.z);
 			g_gameWorld.droppedItems.append(drop);
 		}
 	}
@@ -770,14 +786,6 @@ void RenderGame(Input* input) {
 		Renderer::clear(ambientLightColor.r, ambientLightColor.g, ambientLightColor.b);
 	}
 
-	if (wireframe_cb) {
-		glLineWidth(3);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-	else {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
-
 	// трансформация вида (камера)
 	glm::mat4 view, projection;
 	{
@@ -826,20 +834,19 @@ void RenderGame(Input* input) {
 		DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
 
 		// draw wireframe
-		// TODO: чтобы было видно, нужно менять цвет в шейдере на другой
-		//if (wireframe_cb) {
-		//	glDepthMask(GL_FALSE);
-		//	glDepthFunc(GL_LEQUAL);
-		//	glLineWidth(2);
-		//	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		//	DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
-		//	DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
-		//	glDepthMask(GL_TRUE);
-		//	glDepthFunc(GL_LESS);
-		//	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		//}
-		//else 
-		//	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		if (wireframe_cb) {
+			glDepthMask(GL_FALSE);
+			glDepthFunc(GL_LEQUAL);
+			glLineWidth(2);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection, true);
+			DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_LESS);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+		else 
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
 	// draw dropped items
@@ -855,10 +862,11 @@ void RenderGame(Input* input) {
 				continue;
 
 			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, {0.0f, sin(g_time) * 0.3, 0.0f});
+			//model = glm::translate(model, {0.0f, sin(g_time) * 0.3, 0.0f});
 			model = glm::translate(model, item->pos);
-			rotateXYZ(model, 0.0f, g_time * 30, 0.0f);
-			model = glm::scale(model, { 0.3, 0.3, 0.3 });
+			//model = glm::translate(model, { -2.0 + 0.5, 0.5, 0.5 });
+			//rotateXYZ(model, 0.0f, g_time * 30, 0.0f);
+			model = glm::scale(model, { 0.3, 1.0, 0.3 });
 			model = glm::translate(model, {-0.5, -0.5, -0.5}); // center
 			Renderer::setUniformMatrix4(polyMeshShader, "model", glm::value_ptr(model));
 
@@ -887,11 +895,11 @@ void RenderGame(Input* input) {
 
 	// axis
 	useFlatShader(projection, view); // TODO: uniform переменные в шейдере можно установить один раз за кадр? Также можно испоьзовать uniform buffer
-	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1.5, 0.2, 0.2));
+	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 0.2, 0.2));
 	drawFlat(&Assets.defaultBox, glm::vec3(1, 0, 0));
-	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 1.5, 0.2));
+	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 1, 0.2));
 	drawFlat(&Assets.defaultBox, glm::vec3(0, 1, 0));
-	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 1.5));
+	flatApplyTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 1));
 	drawFlat(&Assets.defaultBox, glm::vec3(0, 0, 1));
 
 	// post processing & draw to default buffer
@@ -904,7 +912,7 @@ void RenderGame(Input* input) {
 		glBlitFramebuffer(0, 0, fbInfo->sizeX, fbInfo->sizeY, 0, 0, fbInfo->sizeX, fbInfo->sizeY, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		Renderer::bindTexture(&Assets.intermediateFBO.textures[0]);
-		Renderer::drawGeometry(&Assets.screenQuad); // TEST
+		Renderer::drawGeometry(&Assets.screenQuad);
 		Renderer::unbindTexture();
 
 		Renderer::unbindShader();
@@ -917,8 +925,9 @@ void RenderGame(Input* input) {
 	UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset); // cursor
 
 	// debug info
+	if (g_ShowDebugInfo)
 	{
-		UI::SetAnchor(uiAnchor::Left, 10);
+		UI::SetAnchor(uiAnchor::LeftTop, 25);
 		UI::SetAdvanceMode(AdvanceMode::Down);
 		char buf[128];
 		sprintf(buf, "FPS: %d", (int)(1.0f / g_deltaTime));
@@ -928,6 +937,14 @@ void RenderGame(Input* input) {
 		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
 		UI::Text(buf);
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
+		UI::Text(buf);
+		int polyCount = 0;
+		for (size_t i = 0; i < g_chunkManager.chunksCount; i++) {
+			Chunk* chunk = &g_chunkManager.chunks[i];
+			if (chunk->generated && !chunk->mesh.needUpdate)
+				polyCount += chunk->mesh.faceCount;
+		}
+		sprintf(buf, "Chunks polycount: %d", polyCount);
 		UI::Text(buf);
 		sprintf(buf, "%d dropped items", g_gameWorld.droppedItems.count);
 		UI::Text(buf);
