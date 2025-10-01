@@ -7,8 +7,7 @@
 #define CHUNK_SY 24
 #define CHUNK_SIZE (CHUNK_SX * CHUNK_SZ * CHUNK_SY)
 #define MIN_RENDER_DISTANCE 1
-#define MAX_RENDER_DISTANCE 32
-//#define MAX_RENDER_DISTANCE 24
+#define MAX_RENDER_DISTANCE 24
 #define GetChunksSideCount(renderDistance) (renderDistance * 2 + 1)
 #define GetChunksCount(renderDistance) (GetChunksSideCount(renderDistance) * GetChunksSideCount(renderDistance))
 #define GetRenderDistance(chunksCount) (((int)sqrt(chunksCount) - 1) / 2)
