@@ -5,9 +5,16 @@
 struct FrameBufferInfo {
 	int sizeX, sizeY;
 };
+
+enum class WindowMode {
+	Windowed,
+	WindowedFullScreen
+};
+
 void SetVsync(bool vsyncOn);
 void GetCursorPos(double* xpos, double* ypos);
 void SetCursorMode(bool enabled);
+void WindowSwitchMode(WindowMode windowMode);
 void CloseWindow();
 
 // game

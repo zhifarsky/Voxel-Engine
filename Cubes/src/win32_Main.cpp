@@ -21,6 +21,9 @@
 #include "Tools.h"
 #pragma endregion
 
+#define DEFAULT_WIDTH 1280
+#define DEFAULT_HEIGHT 720
+
 static GLFWwindow* window;
 double g_MouseScrollYOffset = 0;
 
@@ -47,6 +50,31 @@ void SetCursorMode(bool enabled) {
     glfwSetInputMode(window, GLFW_CURSOR, enabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 }
 
+void WindowSwitchMode(WindowMode windowMode)
+{
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+    static int lastWidth = DEFAULT_WIDTH, lastHeight = DEFAULT_HEIGHT;
+    static int lastPosX = 0, lastPosY = 0;
+
+    switch (windowMode)
+    {
+    case WindowMode::Windowed:
+        glfwSetWindowMonitor(window, NULL, 0, 0, lastWidth, lastHeight, mode->refreshRate);
+        glfwSetWindowPos(window, lastPosX, lastPosY);
+        break;
+    case WindowMode::WindowedFullScreen:
+        glfwGetWindowSize(window, &lastWidth, &lastHeight);
+        glfwGetWindowPos(window, &lastPosX, &lastPosY);
+        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        break;
+    default:
+        break;
+    }
+
+}
+
 void CloseWindow() {
     glfwSetWindowShouldClose(window, true);
 }
@@ -65,12 +93,15 @@ int CALLBACK WinMain(
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(1280, 720, "CUBES", NULL, NULL);
+    window = glfwCreateWindow(DEFAULT_WIDTH, DEFAULT_HEIGHT, "CUBES", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
         return -1;
     }
+
+    // WindowSwitchMode(WindowMode::WindowedFullScreen); // для полноэкранного режима при запуске
+
     glfwMakeContextCurrent(window);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // disable cursor
     glfwSetScrollCallback(window, scroll_callback);

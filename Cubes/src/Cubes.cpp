@@ -29,7 +29,12 @@ matrix = glm::rotate(matrix, glm::radians(x), glm::vec3(1.0, 0.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
-float near_plane = 1.0f, far_plane = 500.0f;
+// TDOO: bounding box вместо радиуса
+float chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
+
+float cameraNearClip = 0.1f, cameraFarClip = 1000.0f;
+
+float near_plane = 0.1f, far_plane = 1000.0f;
 float projDim = 128;
 float shadowLightDist = 100;
 
@@ -361,6 +366,14 @@ void RenderPauseMenu(Input* input) {
 		UI::SetAnchor(uiAnchor::Center, 0);
 		UI::ShiftOrigin(-elemWidth / 2, 200);
 
+		static bool fullScreen = false;
+		if (UI::CheckBox("Fullscreen mode", &fullScreen)) {
+			if (fullScreen)
+				WindowSwitchMode(WindowMode::WindowedFullScreen);
+			else
+				WindowSwitchMode(WindowMode::Windowed);
+		}
+
 		UI::SliderFloat("FOV", &player.camera.FOV, 40, 120, elemWidth);
 
 		int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
@@ -410,7 +423,7 @@ void RenderPauseMenu(Input* input) {
 	UI::End();
 }
 
-void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
+void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, Frustum* frustum, glm::mat4& lightSpaceMatrix) {
 	//glCullFace(GL_FRONT);
 	
 	Renderer::bindShader(cubeInstancedShadowShader);
@@ -418,11 +431,17 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 
 	for (size_t c = 0; c < chunksCount; c++)
 	{
-		Chunk& chunk = chunks[c];
-		if (chunk.generated && !chunk.mesh.needUpdate) {
-			Renderer::setUniformInt2(cubeInstancedShadowShader, "chunkPos", chunk.posx, chunk.posz);
+		Chunk* chunk = &chunks[c];
+		if (chunk->generated && !chunk->mesh.needUpdate) {
+			// frustum culling
+			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
+			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+				continue;
+			}
+			
+			Renderer::setUniformInt2(cubeInstancedShadowShader, "chunkPos", chunk->posx, chunk->posz);
 
-			Renderer::drawInstancedGeo(chunk.mesh.VAO, 6, chunk.mesh.faceCount);
+			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 		}
 	}
 	
@@ -430,7 +449,13 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 }
 
 // draw to screen
-void DrawChunks(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection, bool overrideColor = false) {
+int DrawChunks(
+	Chunk* chunks, int chunksCount,
+	FrameBuffer* depthMapFBO, FrameBuffer* screenFBO,
+	Frustum *frustum,
+	glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection, 
+	bool overrideColor = false) 
+{
 	Renderer::bindShader(cubeInstancedShader);
 	Renderer::bindTexture(&Assets.textureAtlas, 0);
 	Renderer::bindTexture(&depthMapFBO->textures[0], 1);
@@ -455,20 +480,32 @@ void DrawChunks(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, FrameB
 		Renderer::setUniformInt(cubeInstancedShader, "shadowMap", 1);
 	}
 
+	int chunksRendered = 0;
+
 	for (size_t c = 0; c < chunksCount; c++)
 	{
 		Chunk* chunk = &chunks[c];
 		if (chunk->generated && !chunk->mesh.needUpdate) {
+			// frustum culling
+			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
+			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+				continue;
+			}
+			
 			Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk->posx, chunk->posz);
 			Renderer::setUniformInt2(cubeInstancedShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
 
 			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
+
+			chunksRendered++;
 		}
 	}
 
 	Renderer::unbindTexture(0);
 	Renderer::unbindTexture(1);
 	Renderer::unbindShader();
+
+	return chunksRendered;
 }
 
 void DrawEntitiesShadow(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
@@ -739,6 +776,7 @@ void RenderGame(Input* input) {
 		entity.pos += entity.speed * g_deltaTime;
 		entity.speed *= 0.1;
 		Block* belowBlock;
+#if 1
 		do {
 			belowBlock = ChunkManagerPeekBlockFromPos(&g_chunkManager, entity.pos.x, entity.pos.y, entity.pos.z);
 			if (belowBlock && belowBlock->type != BlockType::btAir)
@@ -746,6 +784,7 @@ void RenderGame(Input* input) {
 			else
 				break;
 		} while (belowBlock);
+#endif
 
 		if (glm::distance(entity.pos, player.camera.pos) < 16) {
 			entity.state = entityStateChasing;
@@ -817,18 +856,26 @@ void RenderGame(Input* input) {
 		glDepthMask(GL_TRUE);
 	}
 
+	Frustum frustum = FrustumCreate(
+		player.camera.pos, player.camera.front, player.camera.up,
+		(float)fbInfo->sizeX / fbInfo->sizeY,
+		player.camera.FOV,
+		cameraNearClip, cameraFarClip);
+
 	// draw chunks & entities
+	int chunksRendered = 0;
 	{
 		// draw shadows
 		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
 		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
-		DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, lightSpaceMatrix);
+		DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &frustum, lightSpaceMatrix);
 		DrawEntitiesShadow(entities.items, entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
+
 
 		// draw to screen
 		Renderer::bindFrameBuffer(&Assets.screenFBO);
 		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
-		DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
+		chunksRendered = DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &frustum, lightSpaceMatrix, view, projection);
 		DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
 
 		// draw wireframe
@@ -837,7 +884,7 @@ void RenderGame(Input* input) {
 			glDepthFunc(GL_LEQUAL);
 			glLineWidth(2);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection, true);
+			DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &frustum, lightSpaceMatrix, view, projection, true);
 			DrawEntities(entities.items, entities.count, &Assets.depthMapFBO, &Assets.screenFBO, lightSpaceMatrix, view, projection);
 			glDepthMask(GL_TRUE);
 			glDepthFunc(GL_LESS);
@@ -933,6 +980,8 @@ void RenderGame(Input* input) {
 		UI::Text(buf);
 		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
 		UI::Text(buf);
+		sprintf(buf, "%d chunks rendered", chunksRendered);
+		UI::Text(buf);
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
 		UI::Text(buf);
 		int polyCount = 0;
@@ -1007,8 +1056,14 @@ void RenderGame(Input* input) {
 	{
 		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(heartWidth, heartWidth, 1), uiUV[uiHeart].scale, uiUV[uiHeart].offset); // health bar
 	}
-	UI::End();
 
+	// shadows debug
+#if 0
+	UI::SetAnchor(uiAnchor::Top, 200);
+	UI::DrawElement(&Assets.depthMapFBO.textures[0], { 0,0,0, }, { 400, 400, 1 }, { 1,1 }, { 0,0 });
+#endif
+
+	UI::End();
 #pragma endregion
 
 }

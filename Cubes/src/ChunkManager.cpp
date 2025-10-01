@@ -22,11 +22,26 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 		0, 1, 2, 2, 3, 0
 	};
 
-	GLuint VAO, VBO, instanceVBO, EBO;
+	// instanced face
+	static GLuint VBO, EBO;
+	static bool firstRun = true;
+	if (firstRun) {
+		firstRun = false;
+		glGenBuffers(1, &VBO);
+		glGenBuffers(1, &EBO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		
+		glBufferData(GL_ARRAY_BUFFER, sizeof(faceVerts), faceVerts, GL_STATIC_DRAW); // отправка вершин в пам€ть видеокарты
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faceIndices), faceIndices, GL_STATIC_DRAW); // загружаем индексы
+		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
+
+	GLuint VAO, instanceVBO;
 	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
 	glGenBuffers(1, &instanceVBO);
-	glGenBuffers(1, &EBO);
 
 	mesh->VAO = VAO;
 	mesh->VBO = VBO;
@@ -40,13 +55,9 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 	// выбираем буфер как текущий
 	glBindVertexArray(VAO);
 
-	// instanced face
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(faceVerts), faceVerts, GL_STATIC_DRAW); // отправка вершин в пам€ть видеокарты
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faceIndices), faceIndices, GL_STATIC_DRAW); // загружаем индексы
-
+	
 	// "объ€сн€ем" как необходимо прочитать массив с вершинами
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pos
 	glEnableVertexAttribArray(0);
@@ -82,9 +93,9 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 }
 
 void deleteBlockMesh(BlockMesh* mesh) {
-	glDeleteBuffers(1, &mesh->VBO);
+	//glDeleteBuffers(1, &mesh->VBO);
 	glDeleteBuffers(1, &mesh->instanceVBO);
-	glDeleteBuffers(1, &mesh->EBO);
+	//glDeleteBuffers(1, &mesh->EBO);
 	glDeleteVertexArrays(1, &mesh->VAO);
 	mesh->EBO = mesh->VBO = mesh->instanceVBO = 0;
 	mesh->needUpdate = false;

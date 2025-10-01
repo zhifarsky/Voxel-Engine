@@ -49,7 +49,7 @@ struct Vertex {
 struct Triangle {
 	union {
 		int indices[3];
-		int a, b, c;
+		struct { int a, b, c; };
 	};
 
 	Triangle();
