@@ -1,6 +1,12 @@
 # Воксельный движок
 ## Демонстрация
-https://github.com/user-attachments/assets/7a1d5989-f1e8-410c-96ed-fb052af249e9
+
+https://github.com/user-attachments/assets/35f298a4-8a76-4e64-a970-c598b8c3997c
+
+UI
+
+https://github.com/user-attachments/assets/ce739cc9-bec5-4d53-82cf-cfc0ab4f9b1e
+
 ## О проекте
 - Удобство портирования: код, зависимый от ОС изолирован от остального кода 
 - Оптимизированные по памяти генерация и рендеринг чанков
