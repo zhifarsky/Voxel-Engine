@@ -8,10 +8,10 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-#include <imgui_stdlib.h>
+//#include <imgui.h>
+//#include <imgui_impl_glfw.h>
+//#include <imgui_impl_opengl3.h>
+//#include <imgui_stdlib.h>
 
 #include "Cubes.h"
 #include "Renderer.h"
@@ -25,6 +25,7 @@
 #define DEFAULT_HEIGHT 720
 
 static GLFWwindow* window;
+static WindowMode g_windowMode = WindowMode::Windowed;
 double g_MouseScrollYOffset = 0;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
@@ -50,29 +51,37 @@ void SetCursorMode(bool enabled) {
     glfwSetInputMode(window, GLFW_CURSOR, enabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 }
 
+WindowMode WindowGetCurrentMode() {
+    return g_windowMode;
+}
+
 void WindowSwitchMode(WindowMode windowMode)
 {
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
     static int lastWidth = DEFAULT_WIDTH, lastHeight = DEFAULT_HEIGHT;
-    static int lastPosX = 0, lastPosY = 0;
+    static int lastPosX = 100, lastPosY = 100;
 
     switch (windowMode)
     {
     case WindowMode::Windowed:
+        g_windowMode = WindowMode::Windowed;
+        glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
         glfwSetWindowMonitor(window, NULL, 0, 0, lastWidth, lastHeight, mode->refreshRate);
         glfwSetWindowPos(window, lastPosX, lastPosY);
         break;
     case WindowMode::WindowedFullScreen:
+        g_windowMode = WindowMode::WindowedFullScreen;
         glfwGetWindowSize(window, &lastWidth, &lastHeight);
         glfwGetWindowPos(window, &lastPosX, &lastPosY);
-        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        //glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(window, NULL, 0, 0, mode->width, mode->height, mode->refreshRate);
         break;
     default:
         break;
     }
-
 }
 
 void CloseWindow() {
@@ -94,30 +103,34 @@ int CALLBACK WinMain(
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     window = glfwCreateWindow(DEFAULT_WIDTH, DEFAULT_HEIGHT, "CUBES", NULL, NULL);
+    //auto monitor = glfwGetPrimaryMonitor();
+    //auto mode = glfwGetVideoMode(monitor);
+    //window = glfwCreateWindow(mode->width, mode->height, "CUBES", monitor, NULL);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // disable cursor
     if (!window)
     {
         glfwTerminate();
         return -1;
     }
 
-    // WindowSwitchMode(WindowMode::WindowedFullScreen); // для полноэкранного режима при запуске
+    //WindowSwitchMode(WindowMode::Windowed); // оконный при запуске
 
     glfwMakeContextCurrent(window);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // disable cursor
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // disable cursor
     glfwSetScrollCallback(window, scroll_callback);
 #pragma endregion
 
     Renderer::init((Renderer::LoadProc)glfwGetProcAddress);
 
 #pragma region Imgui
-    const char* glsl_version = "#version 330";
+    //const char* glsl_version = "#version 330";
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
-    ImGui::StyleColorsDark();
+    //IMGUI_CHECKVERSION();
+    //ImGui::CreateContext();
+    //ImGuiIO& io = ImGui::GetIO();
+    //ImGui_ImplGlfw_InitForOpenGL(window, true);
+    //ImGui_ImplOpenGL3_Init(glsl_version);
+    //ImGui::StyleColorsDark();
 #pragma endregion
 
     GameInit();
@@ -128,6 +141,8 @@ int CALLBACK WinMain(
 
     // MAIN LOOP
     while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+
 #define IsMouseButtonReleased(window, button) (glfwGetMouseButton(window, button) == GLFW_RELEASE)
 #define IsKeyReleased(window, key) (glfwGetKey(window, key) == GLFW_RELEASE)
         // input processing
@@ -136,6 +151,7 @@ int CALLBACK WinMain(
 
             ProcessButtonInput(&oldInput->startGame, &newInput->startGame, IsKeyReleased(window, GLFW_KEY_ENTER));
             ProcessButtonInput(&oldInput->switchExitMenu, &newInput->switchExitMenu, IsKeyReleased(window, GLFW_KEY_ESCAPE));
+            ProcessButtonInput(&oldInput->switchFullscreenMode, &newInput->switchFullscreenMode, IsKeyReleased(window, GLFW_KEY_F11));
 
             ProcessButtonInput(&oldInput->scrollUp, &newInput->scrollUp, g_MouseScrollYOffset > 0);
             ProcessButtonInput(&oldInput->scrollDown, &newInput->scrollDown, g_MouseScrollYOffset < 0);
@@ -175,12 +191,11 @@ int CALLBACK WinMain(
         newInput = tempInput;
 
         glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 
-    ImGui_ImplGlfw_Shutdown();
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui::DestroyContext();
+    //ImGui_ImplGlfw_Shutdown();
+    //ImGui_ImplOpenGL3_Shutdown();
+    //ImGui::DestroyContext();
 
     glfwTerminate();
 

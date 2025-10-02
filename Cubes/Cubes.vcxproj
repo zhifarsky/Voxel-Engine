@@ -116,6 +116,7 @@
     <ClCompile Include="src\DataStructures.cpp" />
     <ClCompile Include="src\Files.cpp" />
     <ClCompile Include="src\Input.cpp" />
+    <ClCompile Include="src\Items.cpp" />
     <ClCompile Include="src\win32_Main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Entity.cpp" />
@@ -135,6 +136,7 @@
     <ClInclude Include="include\DataStructures.h" />
     <ClInclude Include="include\Files.h" />
     <ClInclude Include="include\Input.h" />
+    <ClInclude Include="include\Items.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Entity.h" />
     <ClInclude Include="include\Renderer.h" />

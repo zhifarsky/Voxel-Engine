@@ -50,15 +50,9 @@ Frustum FrustumCreate(
 // true если сфера внутри frustum
 float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float radius);
 
-struct Item {
-	glm::vec3 pos;
-	u32 count;
-	BlockType type;
-};
-
 struct InventoryCell {
 	u32 itemsCount;
-	BlockType itemType;
+	ItemType itemType;
 };
 
 #define INVENTORY_MAX_SIZE 8
@@ -70,7 +64,7 @@ struct Inventory {
 };
 
 Inventory InventoryCreate();
-void InventoryAddItem(Inventory* inventory, BlockType type, int count);
+void InventoryAddItem(Inventory* inventory, ItemType type, int count);
 void InventorySelectItem(Inventory* inventory, int index);
 void InventoryDropItem(Inventory* inventory, int index, int count);
 

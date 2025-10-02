@@ -84,7 +84,7 @@ Inventory InventoryCreate() {
 	return inventory;
 }
 
-void InventoryAddItem(Inventory* inventory, BlockType type, int count)
+void InventoryAddItem(Inventory* inventory, ItemType type, int count)
 {
 	for (size_t i = 0; i < inventory->cellsCount; i++)
 	{

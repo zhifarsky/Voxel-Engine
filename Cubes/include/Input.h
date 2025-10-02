@@ -13,6 +13,7 @@ struct Input {
 	
 	ButtonState startGame;
 	ButtonState switchExitMenu;
+	ButtonState switchFullscreenMode;
 	
 	ButtonState scrollUp;
 	ButtonState scrollDown;

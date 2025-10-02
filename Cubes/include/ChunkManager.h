@@ -1,6 +1,7 @@
 #pragma once
 #include "Renderer.h"
 #include "DataStructures.h"
+#include "Items.h"
 
 #define CHUNK_SX 16
 #define CHUNK_SZ 16
@@ -15,20 +16,14 @@
 struct ChunkManager;
 extern ChunkManager g_chunkManager;
 
-enum class BlockType : u16 {
-	btGround,
-	btStone,
-	btSnow,
-	btIronOre,
-	texSun,
-	texMoon,
-	btAir,
-	btCOUNT // должен быть последним. обозначает количество типов блоков
-};
 
 struct Block {
 	BlockType type;
 	bool used;
+};
+
+enum class BlockSide {
+	None = 0, YPos, YNeg, XPos, XNeg, ZPos, ZNeg
 };
 
 struct BlockMesh {
@@ -70,11 +65,19 @@ struct PlaceBlockResult {
 	bool success;
 };
 
+struct PeekBlockResult {
+	Block* block; // NOTE: небезопасно хранить результат, т.к. указатель может быть невалиден
+	glm::ivec3 blockPos;
+	int chunkIndex;
+	bool success;
+};
+
 void ChunkManagerCreate(u32 threadsCount);
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
 void ChunkManagerReleaseChunks(ChunkManager* manager);
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ);
 void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);
-Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist, glm::ivec3* outBlockPos, int* outChunkIndex = NULL);
+PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist);
 PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
+PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist);

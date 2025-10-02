@@ -526,6 +526,34 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 	}
 }
 
+
+// TDOO: временное решение, сделать лучше
+BlockSide CubeGetSideFromRay(glm::ivec3& cubePos, glm::vec3& rayPos, glm::vec3& rayDir) {
+	glm::vec3 localCameraPos = rayPos - (glm::vec3)cubePos;
+
+	glm::vec3 fromCubeCenter = glm::normalize(localCameraPos - glm::vec3(0.5f));
+
+	float maxComponent = 0.0f;
+	int dominantAxis = -1;
+
+	for (int i = 0; i < 3; ++i) {
+		if (abs(fromCubeCenter[i]) > abs(maxComponent)) {
+			maxComponent = fromCubeCenter[i];
+			dominantAxis = i;
+		}
+	}
+
+	if (dominantAxis == 0) { // X-axis
+		return maxComponent > 0 ? BlockSide::XPos : BlockSide::XNeg;
+	}
+	else if (dominantAxis == 1) { // Y-axis
+		return maxComponent > 0 ? BlockSide::YPos : BlockSide::YNeg;
+	}
+	else { // Z-axis
+		return maxComponent > 0 ? BlockSide::ZPos : BlockSide::ZNeg;
+	}
+}
+
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex) {
 	int chunkIndex = -1;
 
@@ -558,47 +586,113 @@ Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float pos
 	return &manager->chunks[chunkIndex].blocks[relativePos.y][relativePos.z][relativePos.x];
 }
 
-Block* ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist, glm::ivec3* outBlockPos, int* outChunkIndex) {
+PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist) {
+	PeekBlockResult res = { };
+	
 	if (glm::length(rayDir) == 0)
-		return NULL;
+		return res;
 	float deltaDist = 1;
 	float dist = 0;
-
-	Block* block;
 
 	glm::vec3 norm = glm::normalize(rayDir);
 	while (dist < maxDist) {
 		glm::vec3 currentPos = rayPos + (norm * dist);
 		int chunkIndex = -1;
 
-		block = ChunkManagerPeekBlockFromPos(manager, currentPos.x, currentPos.y, currentPos.z, &chunkIndex);
+		Block* block = ChunkManagerPeekBlockFromPos(manager, currentPos.x, currentPos.y, currentPos.z, &chunkIndex);
 
 		if (block != NULL && block->type != BlockType::btAir) {
-			if (outBlockPos)
-				*outBlockPos = glm::floor(currentPos);
-			if (outChunkIndex)
-				*outChunkIndex = chunkIndex;
-			return block;
+			res.block = block;
+			res.blockPos = glm::floor(currentPos);
+			res.chunkIndex = chunkIndex;
+			res.success = true;
+
+			return res;
 		}
 
 		dist += deltaDist;
 	}
-	return NULL;
+
+	return res;
 }
 
+bool inline IsBlockIndexValid(glm::ivec3& index) {
+	return (
+		index.x >= 0 && index.x < CHUNK_SX &&
+		index.y >= 0 && index.y < CHUNK_SY &&
+		index.z >= 0 && index.z < CHUNK_SZ);
+}
+
+#define ChunkGetBlock(chunk, index) (chunk->blocks[index.y][index.z][index.x])
+
 PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+	PlaceBlockResult res = { };
+	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
+	if (peekRes.success) {
+		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
+		
+		// позиция относительно чанка
+		glm::ivec3 newBlockIndex = 
+			glm::vec3(peekRes.blockPos.x, peekRes.blockPos.y, peekRes.blockPos.z) - 
+			glm::vec3(chunk->posx, 0, chunk->posz);
+		
+		BlockSide side = CubeGetSideFromRay(peekRes.blockPos, pos, direction);
+		switch (side)
+		{
+		case BlockSide::YPos:
+			newBlockIndex.y += 1;
+			break;
+		case BlockSide::YNeg:
+			newBlockIndex.y -= 1;
+			break;
+		case BlockSide::XPos:
+			newBlockIndex.x += 1;
+			break;
+		case BlockSide::XNeg:
+			newBlockIndex.x -= 1;
+			break;
+		case BlockSide::ZPos:
+			newBlockIndex.z += 1;
+			break;
+		case BlockSide::ZNeg:
+			newBlockIndex.z -= 1;
+			break;
+		}
+
+		if (IsBlockIndexValid(newBlockIndex)) {
+			Block* newBlock = &ChunkGetBlock(chunk, newBlockIndex);
+			if (newBlock->type == BlockType::btAir) {
+				newBlock->type = blockType;
+
+				ChunkGenerateMesh(chunk);
+				updateBlockMesh(&chunk->mesh);
+
+				res.typePrev = peekRes.block->type;
+				res.typeNew = blockType;
+				res.pos = peekRes.blockPos;
+				res.success = true;
+
+				return res;
+			}
+		}
+
+	}
+
+	res.success = false;
+	return res;
+}
+
+PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
 	PlaceBlockResult res = {};
-	int chunkIndex = -1;
-	glm::ivec3 blockPos;
-	Block* block = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist, &blockPos, &chunkIndex);
-	if (block) {
-		res.typePrev = block->type;
-		res.typeNew = blockType;
-		res.pos = blockPos;
+	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
+	if (peekRes.success) {
+		res.typePrev = peekRes.block->type;
+		res.typeNew = BlockType::btAir;
+		res.pos = peekRes.blockPos;
 		res.success = true;
 
-		block->type = blockType;
-		Chunk* chunk = &manager->chunks[chunkIndex];
+		peekRes.block->type = BlockType::btAir;
+		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
 		ChunkGenerateMesh(chunk);
 		updateBlockMesh(&chunk->mesh);
 

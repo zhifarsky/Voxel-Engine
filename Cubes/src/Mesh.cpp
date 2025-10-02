@@ -134,7 +134,7 @@ void drawFlat(Geometry* mesh, glm::vec3 color) {
 }
 
 void createSprite(Sprite& sprite, float scaleX, float scaleY, glm::vec2& uv, float sizeU, float sizeV) {
-	static Vertex vertices[] = {
+	Vertex vertices[] = {
 		Vertex(-0.5, -0.5, 0, uv.x, uv.y),
 		Vertex(0.5, -0.5, 0, uv.x + sizeU, uv.y),
 		Vertex(0.5, 0.5, 0, uv.x + sizeU, uv.y + sizeV),

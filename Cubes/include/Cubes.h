@@ -15,6 +15,7 @@ void SetVsync(bool vsyncOn);
 void GetCursorPos(double* xpos, double* ypos);
 void SetCursorMode(bool enabled);
 void WindowSwitchMode(WindowMode windowMode);
+WindowMode WindowGetCurrentMode();
 void CloseWindow();
 
 // game

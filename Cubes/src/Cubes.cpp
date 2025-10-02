@@ -3,10 +3,10 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
 #include <gtc/noise.hpp>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-#include <imgui_stdlib.h>
+//#include <imgui.h>
+//#include <imgui_impl_glfw.h>
+//#include <imgui_impl_opengl3.h>
+//#include <imgui_stdlib.h>
 #pragma endregion
 #pragma region internal dependencies
 #include "Cubes.h"
@@ -42,19 +42,10 @@ Player player;
 
 static bool g_vsyncOn = false;
 static bool g_GenChunks = true;
+static int g_maxInteractionDistance = 12;
 
 static DynamicArray<Entity> entities;
 
-enum uiElemType : u16 {
-	uiInventorySelectCell,
-	uiInventoryCell,
-	uiHeart,
-	uiCross,
-	uiGroundBlock,
-	uiStoneBlock,
-	uiSnowBlock,
-	uiCOUNT
-};
 
 struct UVOffset {
 	glm::vec2 offset;
@@ -172,7 +163,7 @@ void GameInit() {
 		glm::vec2 tileSize(16.0f / (float)Assets.uiAtlas.width, 16.0f / (float)Assets.uiAtlas.height);
 		glm::vec2 tileOrigin(0, 0);
 
-		for (uiElemType elemType : {uiInventorySelectCell, uiInventoryCell, uiHeart, uiCross, uiGroundBlock, uiStoneBlock, uiSnowBlock})
+		for (uiElemType elemType : {uiInventorySelectCell, uiInventoryCell, uiHeart, uiCross, uiGroundBlock, uiStoneBlock, uiSnowBlock, uiIronOreBlock})
 		{
 			uiUV[elemType] = UVOffset(tileOrigin, tileSize);
 			tileOrigin.x += tileSize.x;
@@ -284,6 +275,17 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 			g_gameWorld.gameState = gsInGame;
 		}
 	}
+	if (ButtonClicked(input->switchFullscreenMode)) {
+		switch (WindowGetCurrentMode())
+		{
+		case WindowMode::Windowed:
+			WindowSwitchMode(WindowMode::WindowedFullScreen);
+			break;
+		case WindowMode::WindowedFullScreen:
+			WindowSwitchMode(WindowMode::Windowed);
+			break;
+		}
+	}
 	if (ButtonClicked(input->rebuildShaders)) {
 		dbgprint("Rebuilding shaders...\n");
 		initShaders();
@@ -292,7 +294,7 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 	if (ButtonClicked(input->showDebugInfo)) {
 		g_ShowDebugInfo = !g_ShowDebugInfo;
 	}
-	
+
 
 
 	switch (g_gameWorld.gameState)
@@ -311,6 +313,17 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 		break;
 	}
 
+	// в полноэкранном окне не отрисовывается системный курсор, поэтому отрисовываем его самостоятельно 
+	if (g_gameWorld.gameState == gsMainMenu || 
+		g_gameWorld.gameState == gsExitMenu)
+	{
+		UI::Start(input, &Assets.regularFont, fbInfo);
+		double xpos = 0, ypos = 0;
+		GetCursorPos(&xpos, &ypos);
+		UI::SetOrigin(xpos, fbInfo->sizeY - ypos);
+		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset);
+		UI::End();
+	}
 }
 
 void RenderMainMenu(Input* input) {
@@ -364,9 +377,9 @@ void RenderPauseMenu(Input* input) {
 	} break;
 	case PauseMenuState::SettingsMenu: {
 		UI::SetAnchor(uiAnchor::Center, 0);
-		UI::ShiftOrigin(-elemWidth / 2, 200);
+		UI::ShiftOrigin(-elemWidth / 2, 400);
 
-		static bool fullScreen = false;
+		bool fullScreen = (WindowGetCurrentMode() == WindowMode::WindowedFullScreen);
 		if (UI::CheckBox("Fullscreen mode", &fullScreen)) {
 			if (fullScreen)
 				WindowSwitchMode(WindowMode::WindowedFullScreen);
@@ -406,6 +419,7 @@ void RenderPauseMenu(Input* input) {
 		UI::CheckBox("Wireframe mode", &wireframe_cb);
 		
 		UI::CheckBox("Debug view", &debugView_cb);
+		UI::CheckBox("Debug info", &g_ShowDebugInfo);
 		UI::CheckBox("Generate chunks", &g_GenChunks);
 
 		if (UI::CheckBox("Vsync", &g_vsyncOn)) {
@@ -746,15 +760,18 @@ void RenderGame(Input* input) {
 	if (ButtonClicked(input->placeBlock)) {
 		InventoryCell *cell = &player.inventory.cells[player.inventory.selectedIndex];
 		if (cell->itemsCount > 0) {
-			ChunkManagerPlaceBlock(&g_chunkManager, cell->itemType, player.camera.pos, player.camera.front, 128);
-			InventoryDropItem(&player.inventory, player.inventory.selectedIndex, 1);
+			BlockType blockType = GetItemInfo(cell->itemType)->blockType;
+			auto res = ChunkManagerPlaceBlock(&g_chunkManager, blockType, player.camera.pos, player.camera.front, g_maxInteractionDistance);
+			if (res.success) {
+				InventoryDropItem(&player.inventory, player.inventory.selectedIndex, 1);
+			}
 		}
 	}
 	else if (ButtonClicked(input->attack)) {
-		PlaceBlockResult res = ChunkManagerPlaceBlock(&g_chunkManager, BlockType::btAir, player.camera.pos, player.camera.front, 128);
+		PlaceBlockResult res = ChunkManagerDestroyBlock(&g_chunkManager, player.camera.pos, player.camera.front, g_maxInteractionDistance);
 		if (res.success) {
 			Item drop = {};
-			drop.type = res.typePrev;
+			drop.type = GetBlockInfo(res.typePrev)->itemType;
 			drop.pos = glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5);
 			drop.count = 1;
 			dbgprint("[DESTR] px%d py%d pz%d\n", res.pos.x, res.pos.y, res.pos.z);
@@ -864,6 +881,7 @@ void RenderGame(Input* input) {
 
 	// draw chunks & entities
 	int chunksRendered = 0;
+#if 1
 	{
 		// draw shadows
 		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
@@ -893,6 +911,7 @@ void RenderGame(Input* input) {
 		else 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+#endif
 
 	// draw dropped items
 	{
@@ -976,7 +995,7 @@ void RenderGame(Input* input) {
 		char buf[128];
 		sprintf(buf, "FPS: %d", (int)(1.0f / g_deltaTime));
 		UI::Text(buf);
-		sprintf(buf, "Frametime: %.3f", g_deltaTime);
+		sprintf(buf, "Frametime : %.3fms", g_deltaTime * 1000);
 		UI::Text(buf);
 		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
 		UI::Text(buf);
@@ -1009,17 +1028,10 @@ void RenderGame(Input* input) {
 	UI::SetMargin(false);
 	for (size_t i = 0; i < player.inventory.cellsCount; i++)
 	{
-		uiElemType uiElemType = uiStoneBlock;
 		InventoryCell* cell = &player.inventory.cells[i];
 
-		switch (cell->itemType)
-		{
-		case BlockType::btGround:	uiElemType = uiGroundBlock; break;
-		case BlockType::btStone:	uiElemType = uiStoneBlock;	break;
-		case BlockType::btSnow:		uiElemType = uiSnowBlock;	break;
-		default:
-			break;
-		}
+		uiElemType uiElemType = uiStoneBlock;
+		uiElemType = GetItemInfo(cell->itemType)->uiElement;
 
 		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiElemType].scale, uiUV[uiElemType].offset);
 
