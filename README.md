@@ -1,20 +1,21 @@
 # Воксельный движок
 ## Демонстрация
 
-https://github.com/user-attachments/assets/35f298a4-8a76-4e64-a970-c598b8c3997c
+https://github.com/user-attachments/assets/5dfcd4da-cff0-4c94-914e-232932cdc1f9
 
-UI
+https://github.com/user-attachments/assets/80436538-028f-4e06-ad10-60c00ef312c3
 
-https://github.com/user-attachments/assets/ce739cc9-bec5-4d53-82cf-cfc0ab4f9b1e
+https://github.com/user-attachments/assets/04efd079-b4c0-4832-9ef1-d756c85288c2
 
 ## О проекте
 - Удобство портирования: код, зависимый от ОС изолирован от остального кода 
 - Оптимизированные по памяти генерация и рендеринг чанков
 - Алгоритм Greedy Meshing для создания мэшей чанков
-- Frustum Culling
+- Frustum Culling для чанков
 - Изменение мира (добавление и удаление блоков игроком)
 - Асинхронная генерация мира на пуле потоков и очереди задач
 - Поддержка текстурных атласов
+- Подгрузка и рендеринг мешей из .obj формата
 - Освещение, рендеринг теней
 - Рендеринг текста, собственая реализация UI 
 ## Использованные библиотеки
