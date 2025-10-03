@@ -1,8 +1,5 @@
-#ifdef _WIN32
-
 #pragma region includes
 #include <iostream>
-#include <windows.h>
 #include <thread>
 
 #define GLFW_INCLUDE_NONE
@@ -88,11 +85,7 @@ void CloseWindow() {
     glfwSetWindowShouldClose(window, true);
 }
 
-int CALLBACK WinMain(
-    HINSTANCE Instance,
-    HINSTANCE PrevInstance,
-    LPSTR CommandLine,
-    int ShowCode)
+int main()
 {
 #pragma region GLFW
     if (!glfwInit())
@@ -201,5 +194,3 @@ int CALLBACK WinMain(
 
     return 0;
 }
-
-#endif

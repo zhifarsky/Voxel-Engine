@@ -117,7 +117,7 @@
     <ClCompile Include="src\Files.cpp" />
     <ClCompile Include="src\Input.cpp" />
     <ClCompile Include="src\Items.cpp" />
-    <ClCompile Include="src\win32_Main.cpp" />
+    <ClCompile Include="src\glfw_Main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
@@ -125,6 +125,7 @@
     <ClCompile Include="src\Tools.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="src\win32_DataStructures.cpp" />
+    <ClCompile Include="src\win32_Entrypoint.cpp" />
     <ClCompile Include="src\win32_Tools.cpp" />
     <ClCompile Include="src\World.cpp" />
   </ItemGroup>
