@@ -8,7 +8,10 @@ https://github.com/user-attachments/assets/80436538-028f-4e06-ad10-60c00ef312c3
 https://github.com/user-attachments/assets/04efd079-b4c0-4832-9ef1-d756c85288c2
 
 ## О проекте
-- Удобство портирования: код, зависимый от ОС изолирован от остального кода 
+### Архитектура
+- Удобство портирования: код, зависимый от ОС, изолирован от остального кода
+- Есть реализация на SDL и GLFW
+### Рендеринг и генерация мира
 - Оптимизированные по памяти генерация и рендеринг чанков
 - Алгоритм Greedy Meshing для создания мэшей чанков
 - Frustum Culling для чанков
@@ -23,6 +26,7 @@ https://github.com/user-attachments/assets/04efd079-b4c0-4832-9ef1-d756c85288c2
 - OpenGL
 - ImGui
 - GLFW
+- SDL
 - GLAD
 - stb_image, stb_truetype
 - GLM
