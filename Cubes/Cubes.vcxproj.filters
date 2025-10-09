@@ -78,6 +78,9 @@
     <ClCompile Include="src\win32_Entrypoint.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="src\SDL_Main.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Typedefs.h">
@@ -131,5 +134,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="TODO.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\deps\SDL3\lib\SDL3.dll" />
   </ItemGroup>
 </Project>

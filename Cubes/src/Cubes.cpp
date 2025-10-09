@@ -122,6 +122,8 @@ void RenderPauseMenu(Input* input);
 void RenderGame(Input* input);
 
 void GameInit() {
+	dbgprint("GL VERSION %s\n", glGetString(GL_VERSION));
+	
 	initShaders(); // компил€ци€ шейдеров
 	UI::Init();
 
@@ -593,6 +595,7 @@ void RenderGame(Input* input) {
 
 			double xpos, ypos;
 			GetCursorPos(&xpos, &ypos);
+			//dbgprint("CURSOR %.1f %.1f\n", xpos, ypos);
 
 			//if (cursorMode == true) {
 			//	ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);

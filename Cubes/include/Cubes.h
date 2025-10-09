@@ -1,4 +1,7 @@
 #pragma once
+
+#define PLATFORM_SDL // выбрать платформу: PLATFORM_GLFW или PLATFORM_SDL
+
 #include "Input.h"
 
 // platform layer

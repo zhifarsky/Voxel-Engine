@@ -1,3 +1,6 @@
+#include "Cubes.h"
+
+#ifdef PLATFORM_GLFW
 #pragma region includes
 #include <iostream>
 #include <thread>
@@ -10,7 +13,6 @@
 //#include <imgui_impl_opengl3.h>
 //#include <imgui_stdlib.h>
 
-#include "Cubes.h"
 #include "Renderer.h"
 #include "Mesh.h"
 #include "ui.h"
@@ -194,3 +196,4 @@ int main()
 
     return 0;
 }
+#endif
