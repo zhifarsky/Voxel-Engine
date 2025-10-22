@@ -42,6 +42,7 @@ struct Chunk {
 
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed);
 void ChunkGenerateMesh(Chunk* chunk);
+void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName);
 
 struct ChunkGenTask {
 	//int posx;
@@ -72,7 +73,7 @@ struct PeekBlockResult {
 	bool success;
 };
 
-void ChunkManagerCreate(u32 threadsCount);
+void ChunkManagerCreate(u32 threadsCount, int seed);
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
 void ChunkManagerReleaseChunks(ChunkManager* manager);
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ);

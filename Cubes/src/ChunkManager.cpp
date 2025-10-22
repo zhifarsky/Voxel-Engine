@@ -2,7 +2,11 @@
 #include <glad/glad.h>
 #include <glm.hpp>
 #include "ChunkManager.h"
+#include "World.h"
 #include "Tools.h"
+#include "Files.h"
+
+#define WORLD_NAME_STUB "myworld1"
 
 ChunkManager g_chunkManager;
 
@@ -252,6 +256,8 @@ void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
 			chunk->blocks[0][z][x].type = BlockType::btGround;
 		}
 	}
+
+	chunk->generated = true;
 }
 
 void ChunkGenerateMesh(Chunk* chunk) {
@@ -386,8 +392,8 @@ void ChunkGenerateMesh(Chunk* chunk) {
  
 u32 chunkGenThreadProc(WorkingThread* args);
 
-void ChunkManagerCreate(u32 threadsCount) {
-	g_chunkManager.seed = 0;
+void ChunkManagerCreate(u32 threadsCount, int seed) {
+	g_chunkManager.seed = seed;
 	g_chunkManager.workQueue = WorkQueueCreate(GetChunksCount(MAX_RENDER_DISTANCE));
 	g_chunkManager.chunkGenTasks = (ChunkGenTask*)calloc(GetChunksCount(MAX_RENDER_DISTANCE), sizeof(ChunkGenTask));
 	g_chunkManager.threads.alloc(threadsCount);
@@ -420,6 +426,71 @@ void ChunkManagerReleaseChunks(ChunkManager* manager) {
 
 }
 
+
+
+void GetChunkPath(char* buffer, const char* worldname, int posx, int posz) {
+	sprintf(buffer, "%s%s/%d %d", WORLDS_FOLDER, worldname, posx, posz);
+}
+
+// TDOO: асинхнонная загрузка и сохранение чанков
+
+void ChunkSaveToDisk(Chunk* chunk, const char* worldname) {
+	char filename[128];
+
+	{
+		CreateNewDirectory(WORLDS_FOLDER);
+		char worldpath[128];
+		GetWorldPath(worldpath, worldname);
+		CreateNewDirectory(worldpath);
+	}
+
+	GetChunkPath(filename, worldname, chunk->posx, chunk->posz);
+
+	FILE* f = fopen(filename, "wb");
+	if (f) {
+		dbgprint("[CHUNK SAVE] %s\n", filename);
+		fwrite(chunk->blocks, 1, sizeof(Block) * CHUNK_SIZE, f);
+		fclose(f);
+	}
+	else {
+		dbgprint("[CHUNK SAVE FAIL] %s\n", filename);
+	}
+}
+
+void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName) {
+	for (size_t i = 0; i < chunksCount; i++)
+	{
+		if (chunks[i].generated) {
+			ChunkSaveToDisk(&chunks[i], worldName);
+		}
+	}
+}
+
+bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) {
+	char filename[128];
+	GetChunkPath(filename, worldname, chunk->posx, chunk->posz);
+	if (IsFileExists(filename)) {
+		FILE* f = fopen(filename, "rb");
+		if (f) {
+			dbgprint("[CHUNK LOAD] %s\n", filename);
+			fread(chunk->blocks, 1, sizeof(Block) * CHUNK_SIZE, f);
+			fclose(f);
+			chunk->posx = posx;
+			chunk->posz = posz;
+			chunk->generated = true;
+			return true;
+		}
+		else {
+			dbgprint("[CHUNK LOAD FAIL] %s\n", filename);
+			return false;
+		}
+	}
+	else {
+		dbgprint("[CHUNK LOAD NOT FOUND] %s\n", filename);
+		return false;
+	}
+}
+
 // singlethreaded
 //void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ) {
 //	ChunkGenerateBlocks(&manager->chunks[index], posX, posZ, manager->seed);
@@ -446,7 +517,13 @@ u32 chunkGenThreadProc(WorkingThread* args) {
 
 			Chunk* chunk = &g_chunkManager.chunks[task->index];
 
-			ChunkGenerateBlocks(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
+			// try loading from disk
+			bool loadResult = ChunkLoadFromDisk(chunk, g_gameWorld.info.name, chunk->posx, chunk->posz);
+			// if not found, build
+			if (!loadResult) {
+				dbgprint("[CHUNK BUILD] %d %d\n", chunk->posx, chunk->posz);
+				ChunkGenerateBlocks(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
+			}
 			//ChunkGenerateBlocks_DEBUG(chunk, chunk->posx, chunk->posz, g_chunkManager.seed);
 			ChunkGenerateMesh(chunk);
 
@@ -460,7 +537,6 @@ u32 chunkGenThreadProc(WorkingThread* args) {
 	return 0;
 }
 
-// TODO: многопоточность
 void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ) {
 	static bool printed = false;
 	printed = false;
@@ -507,10 +583,20 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 					break;
 				}
 			}
-			if (chunkToReplaceIndex == -1)
-				continue;
+			if (chunkToReplaceIndex != -1)
+			{
+				// save chunk before replacing it
+				Chunk* chunkToReplace = &g_chunkManager.chunks[chunkToReplaceIndex];
+				if (chunkToReplace->generated) {
+					ChunkSaveToDisk(chunkToReplace, g_gameWorld.info.name);
+				}
 
-			ChunkManagerBuildChunk(manager, chunkToReplaceIndex, chunkPosX, chunkPosZ);
+				// replace chunk
+				ChunkManagerBuildChunk(manager, chunkToReplaceIndex, chunkPosX, chunkPosZ);
+			}
+			else {
+				continue;
+			}
 		}
 	}
 

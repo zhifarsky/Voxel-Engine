@@ -29,6 +29,8 @@ matrix = glm::rotate(matrix, glm::radians(x), glm::vec3(1.0, 0.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
 matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
+GameState gameState;
+
 // TDOO: bounding box вместо радиуса
 float chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
 
@@ -37,8 +39,6 @@ float cameraNearClip = 0.1f, cameraFarClip = 1000.0f;
 float near_plane = 0.1f, far_plane = 1000.0f;
 float projDim = 128;
 float shadowLightDist = 100;
-
-Player player;
 
 static bool g_vsyncOn = false;
 static bool g_GenChunks = true;
@@ -97,7 +97,7 @@ struct {
 	// рендерим в screenFBO с MSAA, копируем результат в intermediateFBO и делаем постобработку
 	FrameBuffer screenFBO, intermediateFBO; 
 	//Texture depthMap;
-	Font bigFont, regularFont;
+	Font* bigFont, *regularFont;
 } Assets;
 
 void InitFramebuffers(int width, int height, Renderer::MSAAFactor MSAAFactor) {
@@ -127,22 +127,10 @@ void GameInit() {
 	initShaders(); // компил€ци€ шейдеров
 	UI::Init();
 
-	Settings settings;
-	SettingsLoad(&settings);
-	g_shadowQuality = settings.shadowQuality;
-	g_MSAAFactor = (Renderer::MSAAFactor)settings.antiAliasingQuality;
-	g_vsyncOn = settings.vsync;
-	SetVsync(settings.vsync);
 
-	g_gameWorld.init(0, settings.renderDistance);
-	g_gameWorld.gameState = gsMainMenu;
 
-	player.camera.pos = glm::vec3(8, 30, 8);
-	player.camera.front = glm::vec3(0, 0, -1);
-	player.camera.up = glm::vec3(0, 1, 0);
-	player.camera.FOV = settings.FOV;
-	player.maxSpeed = 15;
-	player.inventory = InventoryCreate();
+	gameState = gsMainMenu;
+
 
 	// загрузка текстур
 	Assets.testTexture = Renderer::createTextureFromFile(TEX_FOLDER "uv.png", PixelFormat::RGBA);
@@ -244,6 +232,11 @@ void GameInit() {
 	}
 }
 
+void GameExit() {
+	ChunksSaveToDisk(g_chunkManager.chunks, g_chunkManager.chunksCount, g_gameWorld.info.name);
+	CloseWindow();
+}
+
 void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferInfo) {
 	g_time = time;
 	g_deltaTime = g_time - g_prevTime;
@@ -256,17 +249,17 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 	}
 
 	if (ButtonClicked(input->startGame)) {
-		if (g_gameWorld.gameState == gsMainMenu)
-			g_gameWorld.gameState = gsInGame;
+		if (gameState == gsMainMenu)
+			gameState = gsInGame;
 	}
 	if (ButtonClicked(input->switchExitMenu)) {
-		if (g_gameWorld.gameState == gsInGame)
-			g_gameWorld.gameState = gsExitMenu;
-		else if (g_gameWorld.gameState == gsExitMenu) {
+		if (gameState == gsInGame)
+			gameState = gsExitMenu;
+		else if (gameState == gsExitMenu) {
 			// save settings to file
 			{
 				Settings settings;
-				settings.FOV = player.camera.FOV;
+				settings.FOV = g_gameWorld.player.camera.FOV;
 				settings.shadowQuality = g_shadowQuality;
 				settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
 				settings.antiAliasingQuality = (int)g_MSAAFactor;
@@ -274,7 +267,7 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 				SettingsSave(&settings);
 			}
 
-			g_gameWorld.gameState = gsInGame;
+			gameState = gsInGame;
 		}
 	}
 	if (ButtonClicked(input->switchFullscreenMode)) {
@@ -299,7 +292,7 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 
 
 
-	switch (g_gameWorld.gameState)
+	switch (gameState)
 	{
 	case gsMainMenu:
 		SetCursorMode(true);
@@ -316,10 +309,10 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 	}
 
 	// в полноэкранном окне не отрисовываетс€ системный курсор, поэтому отрисовываем его самосто€тельно 
-	if (g_gameWorld.gameState == gsMainMenu || 
-		g_gameWorld.gameState == gsExitMenu)
+	if (gameState == gsMainMenu || 
+		gameState == gsExitMenu)
 	{
-		UI::Start(input, &Assets.regularFont, fbInfo);
+		UI::Start(input, Assets.regularFont, fbInfo);
 		double xpos = 0, ypos = 0;
 		GetCursorPos(&xpos, &ypos);
 		UI::SetOrigin(xpos, fbInfo->sizeY - ypos);
@@ -329,21 +322,99 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 }
 
 void RenderMainMenu(Input* input) {
+	enum class MainMenuState {
+		Main,
+		SelectWorld
+	};
+	static MainMenuState menuState = MainMenuState::Main;
+
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	UI::Start(input, &Assets.regularFont, fbInfo);
+	UI::Start(input, Assets.regularFont, fbInfo);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	UI::SetAdvanceMode(AdvanceMode::Down);
 	
-	const char* buttonText = "Start game";
-	UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
-	if (UI::Button("Start game", glm::vec2(0.0, 0.0))) {
-		g_gameWorld.gameState = gsInGame;
+	switch (menuState)
+	{
+	case MainMenuState::Main:
+	{
+		const char* buttonText = "Start game";
+		UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
+		if (UI::Button(buttonText, glm::vec2(0.0, 0.0))) {
+			menuState = MainMenuState::SelectWorld;
+		}
+	} break;
+	case MainMenuState::SelectWorld:
+	{
+		static DynamicArray<GameWorldInfo> worldsList = {0};
+		static bool updateWorldsList = true;
+		if (updateWorldsList) {
+			updateWorldsList = false;
+			worldsList.clear();
+			EnumerateWorlds(&worldsList);
+		}
+		if (UI::Button("Update")) {
+			updateWorldsList = true;
+		}
+
+		auto StartGame = [](GameWorldInfo* worldInfo) {
+			Settings settings;
+			SettingsLoad(&settings);
+			g_shadowQuality = settings.shadowQuality;
+			g_MSAAFactor = (Renderer::MSAAFactor)settings.antiAliasingQuality;
+			g_vsyncOn = settings.vsync;
+			SetVsync(settings.vsync);
+
+			Player& player = g_gameWorld.player;
+			player.camera.pos = glm::vec3(8, 30, 8);
+			player.camera.front = glm::vec3(0, 0, -1);
+			player.camera.up = glm::vec3(0, 1, 0);
+			player.camera.FOV = settings.FOV;
+			player.maxSpeed = 15;
+			player.inventory = InventoryCreate();
+
+			g_gameWorld.init(worldInfo, settings.renderDistance);
+
+			gameState = gsInGame;
+		};
+		
+		// load existing world
+		for (size_t i = 0; i < worldsList.count; i++)
+		{
+			if (UI::Button(worldsList[i].name)) {
+				StartGame(&worldsList.items[i]);
+			}
+		}
+
+		// create new world
+		const char* buttonText = "Start new world";
+		UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
+		if (UI::Button(buttonText, glm::vec2(0.0, 0.0))) {
+			GameWorldInfo worldInfo;
+			worldInfo.seed = 0;
+			
+			// find name for new world
+			{
+				char worldPath[256];
+				const char *newWorldNameBase = "New World";
+
+				int i = 1;
+				do {
+					sprintf(worldInfo.name, "%s %d", newWorldNameBase, i);
+					GetWorldPath(worldPath, worldInfo.name);
+					i++;
+				} while (IsFileExists(worldPath));
+			}
+
+			StartGame(&worldInfo);
+		}
+	} break;
 	}
+
 
 	const char* caption = "Main menu";
 	UI::SetAnchor(uiAnchor::Top, 100);
-	UI::UseFont(&Assets.bigFont);
+	UI::UseFont(Assets.bigFont);
 	UI::ShiftOrigin(-UI::GetTextWidth(caption) / 2, 0);
 	UI::Text(caption);
 	UI::End();
@@ -358,7 +429,7 @@ void RenderPauseMenu(Input* input) {
 
 	Renderer::clear(0.6, 0.6, 0.6);
 
-	UI::Start(input, &Assets.regularFont, fbInfo);
+	UI::Start(input, Assets.regularFont, fbInfo);
 	UI::SetAdvanceMode(AdvanceMode::Down);
 	float elemWidth = 400;
 
@@ -368,13 +439,13 @@ void RenderPauseMenu(Input* input) {
 		UI::SetAnchor(uiAnchor::Center, 0);
 		UI::ShiftOrigin(-elemWidth / 2, 0);
 		if (UI::Button("Return", glm::vec2(elemWidth, 0))) {
-			g_gameWorld.gameState = gsInGame;
+			gameState = gsInGame;
 		}
 		if (UI::Button("Settings", glm::vec2(elemWidth, 0))) {
 			menuState = PauseMenuState::SettingsMenu;
 		}
 		if (UI::Button("Exit", glm::vec2(elemWidth, 0))) {
-			CloseWindow();
+			GameExit();
 		}
 	} break;
 	case PauseMenuState::SettingsMenu: {
@@ -389,7 +460,7 @@ void RenderPauseMenu(Input* input) {
 				WindowSwitchMode(WindowMode::Windowed);
 		}
 
-		UI::SliderFloat("FOV", &player.camera.FOV, 40, 120, elemWidth);
+		UI::SliderFloat("FOV", &g_gameWorld.player.camera.FOV, 40, 120, elemWidth);
 
 		int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
 		if (UI::SliderInt("Render distance", &renderDistanceSlider, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE, elemWidth)) {
@@ -465,7 +536,7 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 }
 
 // draw to screen
-int DrawChunks(
+int DrawChunks_old(
 	Chunk* chunks, int chunksCount,
 	FrameBuffer* depthMapFBO, FrameBuffer* screenFBO,
 	Frustum *frustum,
@@ -510,6 +581,80 @@ int DrawChunks(
 			
 			Renderer::setUniformInt2(cubeInstancedShader, "chunkPos", chunk->posx, chunk->posz);
 			Renderer::setUniformInt2(cubeInstancedShader, "atlasSize", Assets.textureAtlas.width, Assets.textureAtlas.height);
+
+			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
+
+			chunksRendered++;
+		}
+	}
+
+	Renderer::unbindTexture(0);
+	Renderer::unbindTexture(1);
+	Renderer::unbindShader();
+
+	return chunksRendered;
+}
+// draw to screen
+int DrawChunks(
+	Chunk* chunks, int chunksCount,
+	FrameBuffer* depthMapFBO, FrameBuffer* screenFBO,
+	Frustum *frustum,
+	glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection, 
+	bool overrideColor = false) 
+{
+	Renderer::bindShader(cubeInstancedShader);
+	Renderer::bindTexture(&Assets.textureAtlas, 0);
+	Renderer::bindTexture(&depthMapFBO->textures[0], 1);
+
+#define InitUniform(name) glGetUniformLocation(cubeInstancedShader, name)
+	static u32 overrideColorUniform = InitUniform("overrideColor");
+	static u32 colorUniform = InitUniform("color");
+	static u32 sunDirUniform = InitUniform("sunDir");
+	static u32 sunColorUniform = InitUniform("sunColor");
+	static u32 ambientColorUniform = InitUniform("ambientColor");
+	static u32 viewProjectionUnifrom = InitUniform("viewProjection");
+	static u32 lightSpaceMatrixUniform = InitUniform("lightSpaceMatrix");
+	static u32 texture1Uniform = InitUniform("texture1");
+	static u32 shadowMapUniform = InitUniform("shadowMap");
+	static u32 chunkPosUniform = InitUniform("chunkPos");
+	static u32 atlasSizeUniform = InitUniform("atlasSize");
+#undef InitUniform(name)
+	{
+
+		if (!overrideColor) {
+			glUniform1i(overrideColorUniform, 0);
+		}
+		else {
+			glUniform1i(overrideColorUniform, 1);
+			glUniform3f(colorUniform, 0, 0, 0);
+		}
+
+		glUniform3f(sunDirUniform, directLightDir.x, directLightDir.y, directLightDir.z);
+		glUniform3f(sunColorUniform, directLightColor.x, directLightColor.y, directLightColor.z);
+		glUniform3f(ambientColorUniform, ambientLightColor.x, ambientLightColor.y, ambientLightColor.z);
+
+		
+		glUniformMatrix4fv(viewProjectionUnifrom, 1, false, glm::value_ptr(projection * view));
+		glUniformMatrix4fv(lightSpaceMatrixUniform, 1, false, glm::value_ptr(lightSpaceMatrix));
+
+		glUniform1i(texture1Uniform, 0);
+		glUniform1i(shadowMapUniform, 1);
+	}
+
+	int chunksRendered = 0;
+
+	for (size_t c = 0; c < chunksCount; c++)
+	{
+		Chunk* chunk = &chunks[c];
+		if (chunk->generated && !chunk->mesh.needUpdate) {
+			// frustum culling
+			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
+			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+				continue;
+			}
+			
+			glUniform2i(chunkPosUniform, chunk->posx, chunk->posz);
+			glUniform2i(atlasSizeUniform, Assets.textureAtlas.width, Assets.textureAtlas.height);
 
 			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 
@@ -586,6 +731,8 @@ void DrawEntities(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO,
 }
 
 void RenderGame(Input* input) {
+	Player& player = g_gameWorld.player;
+
 	{
 		// update player rotation
 		{
@@ -986,7 +1133,7 @@ void RenderGame(Input* input) {
 	}
 
 	// draw ui
-	UI::Start(input, &Assets.regularFont, fbInfo);
+	UI::Start(input, Assets.regularFont, fbInfo);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiUV[uiCross].scale, uiUV[uiCross].offset); // cursor
 
@@ -1038,11 +1185,11 @@ void RenderGame(Input* input) {
 
 		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1), uiUV[uiElemType].scale, uiUV[uiElemType].offset);
 
-		UI::ShiftOrigin(-Assets.regularFont.size / 2, 0);
+		UI::ShiftOrigin(-FontGetSize(Assets.regularFont) / 2, 0);
 		char buf[64];
 		sprintf(buf, "%d", cell->itemsCount);
 		UI::Text(buf);
-		UI::ShiftOrigin(Assets.regularFont.size / 2, 0);
+		UI::ShiftOrigin(FontGetSize(Assets.regularFont) / 2, 0);
 		
 		UI::ShiftOrigin(cellWidth, 0);
 	}

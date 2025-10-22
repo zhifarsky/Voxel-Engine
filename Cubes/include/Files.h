@@ -1,5 +1,6 @@
 #pragma once
 #include "Typedefs.h"
+#include "DataStructures.h"
 
 #pragma once
 #ifndef TEX_FOLDER
@@ -16,6 +17,10 @@
 
 #ifndef MESH_FOLDER
 #define MESH_FOLDER "res/meshes/"
+#endif
+
+#ifndef WORLDS_FOLDER
+#define WORLDS_FOLDER "worlds/"
 #endif
 
 enum class FileType {

@@ -4,6 +4,7 @@
 #include "FastNoiseLite.h"
 #include "ChunkManager.h"
 #include "Tools.h"
+#include "Files.h"
 
 GameWorld g_gameWorld;
 
@@ -127,8 +128,14 @@ void InventorySelectItem(Inventory* inventory, int index) {
 	inventory->selectedIndex = index;
 }
 
-void GameWorld::init(u32 seed, u32 renderDistance) {
-	ChunkManagerCreate(GetThreadsCount());
+void GetWorldPath(char* buffer, const char* worldname) {
+	sprintf(buffer, "%s%s", WORLDS_FOLDER, worldname);
+}
+
+void GameWorld::init(GameWorldInfo* info, u32 renderDistance) {
+	this->info = *info;
+	
+	ChunkManagerCreate(GetThreadsCount(), this->info.seed);
 	ChunkManagerAllocChunks(&g_chunkManager, renderDistance);
 
 	//inventory.clear();

@@ -4,21 +4,8 @@
 #include "Input.h"
 #include "Typedefs.h"
 #include "Renderer.h"
-#include <stb_truetype.h>
-
-// TODO: переименовать поля
-struct CharData {
-	u16 x0, y0, x1, y1;
-	float xoff, yoff, xadvance;
-};
-
-struct Font {
-	stbtt_fontinfo fontInfo;
-	Texture atlas;
-	CharData* charData;
-	u32 firstChar, charsCount;
-	float size; // pixel height
-};
+//#include <stb_truetype.h>
+#include "Font.h"
 
 enum class uiAnchor {
 	Center,
@@ -53,8 +40,6 @@ struct UiStyle {
 	float padding;	// внутренний отступ
 	float margin;	// внешний отступ
 };
-
-Font loadFont(const char* fontPath, float fontSize);
 
 namespace UI {
 	void Init();

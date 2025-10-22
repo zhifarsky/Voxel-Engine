@@ -33,6 +33,7 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <EnableUnitySupport>false</EnableUnitySupport>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_GLFW|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -40,6 +41,7 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <EnableUnitySupport>false</EnableUnitySupport>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_SDL|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -112,7 +114,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Imgui.lib;SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;Shlwapi.lib;opengl32.lib;Imgui.lib;SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)bin\Imgui\$(Platform)\$(Configuration);$(SolutionDir)deps\SDL3\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
@@ -130,12 +132,12 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\GLFWx64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp14</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Imgui.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;opengl32.lib;Imgui.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)bin\Imgui\$(Platform)\$(Configuration);$(SolutionDir)deps\GLFWx64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
@@ -162,7 +164,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Imgui.lib;SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;opengl32.lib;Imgui.lib;SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)bin\Imgui\$(Platform)\$(Configuration);$(SolutionDir)deps\SDL3\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <Profile>true</Profile>
     </Link>
@@ -189,7 +191,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Imgui.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;opengl32.lib;Imgui.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)bin\Imgui\$(Platform)\$(Configuration);$(SolutionDir)deps\GLFWx64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <Profile>true</Profile>
     </Link>
@@ -206,6 +208,7 @@
     <ClCompile Include="src\Cubes.cpp" />
     <ClCompile Include="src\DataStructures.cpp" />
     <ClCompile Include="src\Files.cpp" />
+    <ClCompile Include="src\Font.cpp" />
     <ClCompile Include="src\Input.cpp" />
     <ClCompile Include="src\Items.cpp" />
     <ClCompile Include="src\glfw_Main.cpp" />
@@ -220,6 +223,7 @@
     <ClCompile Include="src\win32_Entrypoint.cpp" />
     <ClCompile Include="src\win32_Tools.cpp" />
     <ClCompile Include="src\World.cpp" />
+    <ClCompile Include="win32_World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glad\include\glad\glad.h" />
@@ -228,6 +232,7 @@
     <ClInclude Include="include\Cubes.h" />
     <ClInclude Include="include\DataStructures.h" />
     <ClInclude Include="include\Files.h" />
+    <ClInclude Include="include\Font.h" />
     <ClInclude Include="include\Input.h" />
     <ClInclude Include="include\Items.h" />
     <ClInclude Include="include\Mesh.h" />

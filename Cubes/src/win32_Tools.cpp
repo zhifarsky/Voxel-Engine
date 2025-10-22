@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
 #include <windows.h>
+#include <shlwapi.h>
 #include <iostream>
 #include "Tools.h"
 
@@ -59,6 +60,15 @@ int GetThreadsCount() {
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);
 	return sysInfo.dwNumberOfProcessors;
+}
+
+bool IsFileExists(const char* filepath) {
+	BOOL res = PathFileExistsA(filepath);
+	return res;
+}
+
+bool CreateNewDirectory(const char* path) {
+	return CreateDirectoryA(path, NULL);
 }
 
 #endif
