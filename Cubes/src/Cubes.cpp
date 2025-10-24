@@ -618,7 +618,8 @@ int DrawChunks(
 	static u32 shadowMapUniform = InitUniform("shadowMap");
 	static u32 chunkPosUniform = InitUniform("chunkPos");
 	static u32 atlasSizeUniform = InitUniform("atlasSize");
-#undef InitUniform(name)
+#undef InitUniform
+
 	{
 
 		if (!overrideColor) {
@@ -1022,6 +1023,74 @@ void RenderGame(Input* input) {
 		drawSprite(Assets.moonSprite, Assets.textureAtlas.ID);
 		glDepthMask(GL_TRUE);
 	}
+
+	// TEST
+	{
+		useFlatShader(projection, view);
+
+		float epsilon = 1e-6;
+
+		auto RayIntersection = [](glm::vec3& rayOrigin, glm::vec3& rayDir, u32 plane, float planeOffset) -> glm::vec3 {
+			float epsilon = 1e-6;
+			if (plane > 2 ||
+				abs(rayDir[plane]) < epsilon)
+			{
+				return { 0,0,0 };
+			}
+
+			float t = -(rayOrigin[plane] - planeOffset) / rayDir[plane];
+			glm::vec3 res = rayOrigin + (t * rayDir);
+			res[plane] = planeOffset;
+
+			return res;
+			};
+
+		auto DrawDebugBox = [](glm::vec3& pos, glm::vec3 color) {
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, pos);
+			model = glm::scale(model, { 0.4, 0.4, 0.4 });
+			model = glm::translate(model, { -.5,-.5,-.5 });
+			glUniformMatrix4fv(glGetUniformLocation(flatShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+			drawFlat(&Assets.defaultBox, color, 1);
+			};
+
+		glm::vec3& rayDir = player.camera.front;
+		glm::vec3& rayOrigin = player.camera.pos;
+
+		for (size_t j = 0; j < 2; j++)
+		{
+			for (size_t i = 0; i < 3; i++)
+			{
+				glm::vec3 p = RayIntersection(rayOrigin, rayDir, i, j);
+				if (p.length() > 0) {
+					if (p.x >= 0 && p.x <= 1 &&
+						p.y >= 0 && p.y <= 1 &&
+						p.z >= 0 && p.z <= 1)
+					{
+						glm::vec3 color(0.0f);
+						color[i] = 1;
+						DrawDebugBox(p, color);
+					}
+				}
+			}
+		}
+
+		// cube
+		if (false)
+		{
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, { 0,0,0 });
+			model = glm::scale(model, { 1, 1, 1 });
+			glUniformMatrix4fv(glGetUniformLocation(flatShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+			drawFlat(&Assets.defaultBox, { 0.5f, 0.5f, 0.5f });
+		}
+
+		//player.camera.pos.x = 0;
+		//player.camera.pos.y = 0;
+
+		Renderer::unbindShader();
+	}
+	// TEST
 
 	Frustum frustum = FrustumCreate(
 		player.camera.pos, player.camera.front, player.camera.up,

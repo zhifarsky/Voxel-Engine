@@ -103,13 +103,14 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_SDL|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>PLATFORM_SDL;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp14</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -126,13 +127,14 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_GLFW|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>PLATFORM_GLFW;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\GLFWx64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,7 +151,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_SDL|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -158,6 +160,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp14</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -176,7 +179,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_GLFW|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -185,6 +188,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\GLFWx64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp14</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

@@ -125,8 +125,8 @@ void flatApplyTransform(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale) {
 	glUniformMatrix4fv(glGetUniformLocation(flatShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
 }
 
-void drawFlat(Geometry* mesh, glm::vec3 color) {
-	glUniform4f(glGetUniformLocation(flatShader, "color"), color.r, color.g, color.b, 1);
+void drawFlat(Geometry* mesh, glm::vec3 color, float alpha) {
+	glUniform4f(glGetUniformLocation(flatShader, "color"), color.r, color.g, color.b, alpha);
 
 	glBindVertexArray(mesh->VAO);
 	glDrawElements(GL_TRIANGLES, mesh->triangleCount * 3, GL_UNSIGNED_INT, 0);

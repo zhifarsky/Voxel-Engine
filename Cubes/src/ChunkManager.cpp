@@ -510,7 +510,7 @@ void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ
 }
 
 u32 chunkGenThreadProc(WorkingThread* args) {
-	for (;;) {
+	while (true) {
 		QueueTaskItem queueItem = WorkQueueGetNextTask(g_chunkManager.workQueue);
 		if (queueItem.valid) {
 			ChunkGenTask* task = &g_chunkManager.chunkGenTasks[queueItem.taskIndex];
@@ -613,31 +613,73 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 }
 
 
-// TDOO: временное решение, сделать лучше
-BlockSide CubeGetSideFromRay(glm::ivec3& cubePos, glm::vec3& rayPos, glm::vec3& rayDir) {
-	glm::vec3 localCameraPos = rayPos - (glm::vec3)cubePos;
+// TODO: улучшить решение
+BlockSide CubeGetSideFromRay(glm::ivec3& cubePos, glm::vec3& rayOrigin, glm::vec3& rayDir) {
+	auto RayIntersection = [](glm::vec3& rayOrigin, glm::vec3& rayDir, u32 plane, float planeOffset) -> glm::vec3 {
+		float epsilon = 1e-6;
+		if (plane > 2 ||
+			abs(rayDir[plane]) < epsilon)
+		{
+			return { 0,0,0 };
+		}
 
-	glm::vec3 fromCubeCenter = glm::normalize(localCameraPos - glm::vec3(0.5f));
+		float t = -(rayOrigin[plane] - planeOffset) / rayDir[plane];
+		glm::vec3 res = rayOrigin + (t * rayDir);
+		res[plane] = planeOffset;
 
-	float maxComponent = 0.0f;
-	int dominantAxis = -1;
+		return res;
+		};
 
-	for (int i = 0; i < 3; ++i) {
-		if (abs(fromCubeCenter[i]) > abs(maxComponent)) {
-			maxComponent = fromCubeCenter[i];
-			dominantAxis = i;
+	int j = 0, i = 0;
+	bool success = false;
+	for (j = 0; j < 2; j++)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			glm::vec3 rayOriginRelative = rayOrigin - glm::vec3(cubePos);
+			glm::vec3 p = RayIntersection(rayOriginRelative, rayDir, i, j);
+			if (p.length() > 0) {
+				if (j == 0 && rayOriginRelative[i] < 0 ||
+					j == 1 && rayOriginRelative[i] > 1)
+				{
+					if (p.x >= 0 && p.x <= 1 &&
+						p.y >= 0 && p.y <= 1 &&
+						p.z >= 0 && p.z <= 1)
+					{
+						success = true;
+						goto search_end;
+					}
+				}
+			}
 		}
 	}
 
-	if (dominantAxis == 0) { // X-axis
-		return maxComponent > 0 ? BlockSide::XPos : BlockSide::XNeg;
+search_end:
+
+	// dbgprint("[GETSIDE] success %d i %d j %d\n", success, i, j);
+
+	if (success) {
+		if (i == 0) {
+			if (j == 0)
+				return BlockSide::XNeg;
+			else if (j == 1)
+				return BlockSide::XPos;
+		}
+		else if (i == 1) {
+			if (j == 0)
+				return BlockSide::YNeg;
+			else if (j == 1)
+				return BlockSide::YPos;
+		}
+		else if (i == 2) {
+			if (j == 0)
+				return BlockSide::ZNeg;
+			else if (j == 1)
+				return BlockSide::ZPos;
+		}
 	}
-	else if (dominantAxis == 1) { // Y-axis
-		return maxComponent > 0 ? BlockSide::YPos : BlockSide::YNeg;
-	}
-	else { // Z-axis
-		return maxComponent > 0 ? BlockSide::ZPos : BlockSide::ZNeg;
-	}
+
+	return BlockSide::None;
 }
 
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex) {

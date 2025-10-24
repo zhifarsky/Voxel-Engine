@@ -24,4 +24,4 @@ void drawSprite(Sprite& sprite, GLuint texture);
 // FLAT
 void useFlatShader(glm::mat4 projection, glm::mat4 view);
 void flatApplyTransform(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale);
-void drawFlat(Geometry* mesh, glm::vec3 color);
+void drawFlat(Geometry* mesh, glm::vec3 color, float alpha = 1.0f);
