@@ -96,22 +96,24 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 	glBindVertexArray(0);
 }
 
-void deleteBlockMesh(BlockMesh* mesh) {
+void deleteBlockMesh(Chunk* chunk) {
+	BlockMesh* mesh = &chunk->mesh;
 	//glDeleteBuffers(1, &mesh->VBO);
 	glDeleteBuffers(1, &mesh->instanceVBO);
 	//glDeleteBuffers(1, &mesh->EBO);
 	glDeleteVertexArrays(1, &mesh->VAO);
 	mesh->EBO = mesh->VBO = mesh->instanceVBO = 0;
-	mesh->needUpdate = false;
+	chunk->status = ChunkStatus::None; // TODO: в каких случа€х удал€ем буферы и какой должен быть статус?
 }
 
 // обновить геометрию в √ѕ”
-static void updateBlockMesh(BlockMesh* mesh) {
+static void updateBlockMesh(Chunk* chunk) {
+	BlockMesh* mesh = &chunk->mesh;
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	mesh->needUpdate = false;
+	chunk->status = ChunkStatus::ReadyToRender;
 }
 
 //static FastNoiseLite noise; // TODO: должно быть по 1 на поток?
@@ -143,6 +145,8 @@ float PerlinNoise(int seed, glm::vec2 pos) {
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->posx = posx;
 	chunk->posz = posz;
+
+	dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
 
 	float noiseScale = 6.0f;
 	float caveNoiseScale = 5.0f;
@@ -211,8 +215,6 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 			}
 		}
 	}
-
-	chunk->generated = true;
 }
 
 void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
@@ -227,27 +229,29 @@ void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
 	
 
 	// столбы в углах
-	//for (size_t y = 0; y  < CHUNK_SY; y ++)
-	//{
-	//	chunk->blocks[y][0][CHUNK_SX - 1].type = BlockType::btGround;
-	//	chunk->blocks[y][CHUNK_SZ - 1][0].type = BlockType::btStone;
-	//	chunk->blocks[y][CHUNK_SZ - 1][CHUNK_SX - 1].type = BlockType::btSnow;
-	//}
+#if 0
+	for (size_t y = 0; y  < CHUNK_SY; y ++)
+	{
+		chunk->blocks[y][0][CHUNK_SX - 1].type = BlockType::btGround;
+		chunk->blocks[y][CHUNK_SZ - 1][0].type = BlockType::btStone;
+		chunk->blocks[y][CHUNK_SZ - 1][CHUNK_SX - 1].type = BlockType::btSnow;
+	}
 
-	//chunk->blocks[0][0][0].type = BlockType::btGround;
-	//chunk->blocks[0][0][1].type = BlockType::btGround;
-	//chunk->blocks[0][0][2].type = BlockType::btGround;
-	//chunk->blocks[0][0][3].type = BlockType::btStone;
-	//
-	//chunk->blocks[0][1][0].type = BlockType::btGround;
-	//chunk->blocks[0][1][1].type = BlockType::btGround;
-	//chunk->blocks[0][1][2].type = BlockType::btGround;
-	//chunk->blocks[0][1][3].type = BlockType::btStone;
+	chunk->blocks[0][0][0].type = BlockType::btGround;
+	chunk->blocks[0][0][1].type = BlockType::btGround;
+	chunk->blocks[0][0][2].type = BlockType::btGround;
+	chunk->blocks[0][0][3].type = BlockType::btStone;
+	
+	chunk->blocks[0][1][0].type = BlockType::btGround;
+	chunk->blocks[0][1][1].type = BlockType::btGround;
+	chunk->blocks[0][1][2].type = BlockType::btGround;
+	chunk->blocks[0][1][3].type = BlockType::btStone;
 
-	//chunk->blocks[0][2][0].type = BlockType::btStone;
-	//chunk->blocks[0][2][1].type = BlockType::btStone;
-	//chunk->blocks[0][2][2].type = BlockType::btStone;
-	//chunk->blocks[0][2][3].type = BlockType::btStone;
+	chunk->blocks[0][2][0].type = BlockType::btStone;
+	chunk->blocks[0][2][1].type = BlockType::btStone;
+	chunk->blocks[0][2][2].type = BlockType::btStone;
+	chunk->blocks[0][2][3].type = BlockType::btStone;
+#endif
 
 	for (size_t z = 0; z < CHUNK_SZ; z++)
 	{
@@ -257,7 +261,6 @@ void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
 		}
 	}
 
-	chunk->generated = true;
 }
 
 void ChunkGenerateMesh(Chunk* chunk) {
@@ -387,21 +390,23 @@ void ChunkGenerateMesh(Chunk* chunk) {
 	}
 
 	chunk->mesh.faceCount = faceCount;
-	chunk->mesh.needUpdate = true;
+	chunk->status = ChunkStatus::Generated;
 }
  
 u32 chunkGenThreadProc(WorkingThread* args);
 
-void ChunkManagerCreate(u32 threadsCount, int seed) {
+void ChunkManagerCreate(int seed) {
 	g_chunkManager.seed = seed;
-	g_chunkManager.workQueue = WorkQueueCreate(GetChunksCount(MAX_RENDER_DISTANCE));
-	g_chunkManager.chunkGenTasks = (ChunkGenTask*)calloc(GetChunksCount(MAX_RENDER_DISTANCE), sizeof(ChunkGenTask));
-	g_chunkManager.threads.alloc(threadsCount);
-	for (size_t i = 0; i < threadsCount; i++) 
-	{
-		WorkingThread* thread = WorkingThreadCreate(i, chunkGenThreadProc, &g_chunkManager.threads[i]);
-		g_chunkManager.threads.append(thread);
-	}
+	g_chunkManager.queue = new TaskQueue();
+
+	//g_chunkManager.workQueue = WorkQueueCreate(GetChunksCount(MAX_RENDER_DISTANCE));
+	//g_chunkManager.chunkGenTasks = (ChunkGenTask*)calloc(GetChunksCount(MAX_RENDER_DISTANCE), sizeof(ChunkGenTask));
+	//g_chunkManager.threads.alloc(threadsCount);
+	//for (size_t i = 0; i < threadsCount; i++) 
+	//{
+	//	WorkingThread* thread = WorkingThreadCreate(i, chunkGenThreadProc, &g_chunkManager.threads[i]);
+	//	g_chunkManager.threads.append(thread);
+	//}
 }
 
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
@@ -413,12 +418,18 @@ void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
 	{
 		setupBlockMesh(&manager->chunks[i].mesh, false);
 	}
+
+	manager->queue->Start(std::max(1, GetThreadsCount()));
+	//manager->queue->Start(1); // TEST
 }
 
 void ChunkManagerReleaseChunks(ChunkManager* manager) {
+	// дожидаемс€ выполнени€ всех задач, чтобы потоки не использовали освобожденную пам€ть
+	manager->queue->StopAndJoin(); 
+
 	for (size_t i = 0; i < manager->chunksCount; i++)
 	{
-		deleteBlockMesh(&manager->chunks[i].mesh);
+		deleteBlockMesh(&manager->chunks[i]);
 	}
 	free(manager->chunks);
 	manager->chunks = NULL;
@@ -460,11 +471,19 @@ void ChunkSaveToDisk(Chunk* chunk, const char* worldname) {
 void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName) {
 	for (size_t i = 0; i < chunksCount; i++)
 	{
-		if (chunks[i].generated) {
+		if (chunks[i].generationInProgress)
+			continue;
+
+		switch (chunks[i].status)
+		{
+		case ChunkStatus::Generated:
+		case ChunkStatus::ReadyToRender:
 			ChunkSaveToDisk(&chunks[i], worldName);
+			break;
 		}
 	}
 }
+
 
 bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) {
 	char filename[128];
@@ -477,7 +496,6 @@ bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) 
 			fclose(f);
 			chunk->posx = posx;
 			chunk->posz = posz;
-			chunk->generated = true;
 			return true;
 		}
 		else {
@@ -486,7 +504,7 @@ bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) 
 		}
 	}
 	else {
-		dbgprint("[CHUNK LOAD NOT FOUND] %s\n", filename);
+		//dbgprint("[CHUNK LOAD NOT FOUND] %s\n", filename);
 		return false;
 	}
 }
@@ -498,6 +516,7 @@ bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) 
 //	//updateBlockMesh(&manager->chunks[index].mesh);
 //}
 
+#if 0
 // multithreaded
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ) {
 	manager->chunks[index].generated = true; // чтобы несколько потоков не генерировали один и тот же чанк
@@ -536,8 +555,10 @@ u32 chunkGenThreadProc(WorkingThread* args) {
 
 	return 0;
 }
+#endif
 
-void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ) {
+#if 0
+void ChunkManagerBuildChunks_old(ChunkManager* manager, float playerPosX, float playerPosZ) {
 	static bool printed = false;
 	printed = false;
 	
@@ -611,6 +632,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 		}
 	}
 }
+#endif
 
 
 // TODO: улучшить решение
@@ -793,7 +815,7 @@ PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockTy
 				newBlock->type = blockType;
 
 				ChunkGenerateMesh(chunk);
-				updateBlockMesh(&chunk->mesh);
+				updateBlockMesh(chunk);
 
 				res.typePrev = peekRes.block->type;
 				res.typeNew = blockType;
@@ -822,11 +844,136 @@ PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, 
 		peekRes.block->type = BlockType::btAir;
 		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
 		ChunkGenerateMesh(chunk);
-		updateBlockMesh(&chunk->mesh);
+		updateBlockMesh(chunk);
 
 		return res;
 	}
 
 	res.success = false;
 	return res;
+}
+
+void TaskQueue_TEST() {
+	//TaskQueue* queue = new TaskQueue(4);
+
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	queue->AddTask([]() {dbgprint("thread %d running...\n", std::this_thread::get_id()); });
+	//}
+}
+
+void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ) {
+	static bool printed = false;
+	printed = false;
+
+	int centerPosX = (int)(playerPosX / CHUNK_SX) * CHUNK_SX;
+	int centerPosZ = (int)(playerPosZ / CHUNK_SZ) * CHUNK_SZ;
+	if (playerPosX < 0) centerPosX -= CHUNK_SX;
+	if (playerPosZ < 0) centerPosZ -= CHUNK_SZ;
+
+	s32 renderDistance = GetRenderDistance(manager->chunksCount);
+
+	for (int z = -renderDistance; z <= renderDistance; z++) 
+	{
+		for (int x = -renderDistance; x <= renderDistance; x++) 
+		{
+			int chunkPosX = centerPosX + x * CHUNK_SX;
+			int chunkPosZ = centerPosZ + z * CHUNK_SZ;
+
+			// check if already generated
+			bool alreadyGenerated = false;
+			for (size_t i = 0; i < manager->chunksCount; i++)
+			{
+				Chunk* chunk = &manager->chunks[i];
+				
+				if (chunk->generationInProgress == true)
+					continue;
+				if ((chunk->status == ChunkStatus::Generated || 
+					chunk->status == ChunkStatus::ReadyToRender) &&
+					chunk->posx == chunkPosX && chunk->posz == chunkPosZ)
+				{
+					alreadyGenerated = true;
+					break;
+				}
+			}
+			if (alreadyGenerated)
+				continue;
+
+			// find place for new chunk
+			int chunkToReplaceIndex = -1;
+			for (size_t i = 0; i < manager->chunksCount; i++)
+			{
+				Chunk* chunk = &manager->chunks[i];
+
+				if (chunk->generationInProgress)
+					continue;
+
+				// если чанк еще не сгенерирован
+				if (chunk->status == ChunkStatus::None) {
+					chunkToReplaceIndex = i;
+					break;
+				}
+
+				// если чанк за пределом видимости
+				if (abs(chunk->posx - centerPosX) > renderDistance * CHUNK_SX ||
+					abs(chunk->posz - centerPosZ) > renderDistance * CHUNK_SZ) {
+					//ChunkSaveToDisk(chunk, g_gameWorld.info.name);
+					chunkToReplaceIndex = i;
+					break;
+				}
+			}
+			if (chunkToReplaceIndex == -1)
+				continue;
+
+
+			//ChunkGenerateBlocks(&manager->chunks[chunkToReplaceIndex], chunkPosX, chunkPosZ, 0);
+			//ChunkGenerateMesh(&manager->chunks[chunkToReplaceIndex]);
+
+			// add to queue
+			Chunk* chunkToReplace = &manager->chunks[chunkToReplaceIndex];
+			//s32 oldChunkPosX = chunkToReplace->posx;
+			//s32 oldChunkPosZ = chunkToReplace->posz;
+			//chunkToReplace->posx = chunkPosX;
+			//chunkToReplace->posz = chunkPosZ;
+			chunkToReplace->generationInProgress = true;
+			bool saveBeforeReplacing =
+				(chunkToReplace->status == ChunkStatus::Generated ||
+					chunkToReplace->status == ChunkStatus::ReadyToRender);
+			chunkToReplace->status = ChunkStatus::None;
+			manager->queue->AddTask([saveBeforeReplacing, chunkToReplace, chunkPosX, chunkPosZ]() {
+#if 0
+				// save chunk before replacing
+				if (saveBeforeReplacing)
+				{
+					ChunkSaveToDisk(chunkToReplace, g_gameWorld.info.name);
+				}
+				// try loading from disk
+				if (!ChunkLoadFromDisk(chunkToReplace, g_gameWorld.info.name, chunkPosX, chunkPosZ)) {
+					// if failed, generate chunk
+					ChunkGenerateBlocks(chunkToReplace, chunkPosX, chunkPosZ, 0);
+				}
+#else
+				std::this_thread::sleep_for(std::chrono::milliseconds(100)); // test
+
+				ChunkGenerateBlocks(chunkToReplace, chunkPosX, chunkPosZ, 0);
+#endif
+				ChunkGenerateMesh(chunkToReplace);
+				chunkToReplace->generationInProgress = false;
+			});
+		}
+	}
+
+	//int updates = 0;
+	//int maxUpdates = 5;
+	for (size_t i = 0; i < manager->chunksCount; i++)
+	{
+		//if (updates > maxUpdates)
+		//	break;
+
+		Chunk* chunk = &manager->chunks[i];
+		if (!chunk->generationInProgress && chunk->status == ChunkStatus::Generated) {
+			updateBlockMesh(chunk);
+			//updates++;
+		}
+	}
 }

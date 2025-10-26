@@ -135,7 +135,7 @@ void GetWorldPath(char* buffer, const char* worldname) {
 void GameWorld::init(GameWorldInfo* info, u32 renderDistance) {
 	this->info = *info;
 	
-	ChunkManagerCreate(GetThreadsCount(), this->info.seed);
+	ChunkManagerCreate(this->info.seed);
 	ChunkManagerAllocChunks(&g_chunkManager, renderDistance);
 
 	//inventory.clear();

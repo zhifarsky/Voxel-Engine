@@ -122,6 +122,8 @@ void RenderPauseMenu(Input* input);
 void RenderGame(Input* input);
 
 void GameInit() {
+	TaskQueue_TEST();
+	
 	dbgprint("GL VERSION %s\n", glGetString(GL_VERSION));
 	
 	initShaders(); // компил€ци€ шейдеров
@@ -519,7 +521,7 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 	for (size_t c = 0; c < chunksCount; c++)
 	{
 		Chunk* chunk = &chunks[c];
-		if (chunk->generated && !chunk->mesh.needUpdate) {
+		if (chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
 			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
@@ -572,7 +574,7 @@ int DrawChunks_old(
 	for (size_t c = 0; c < chunksCount; c++)
 	{
 		Chunk* chunk = &chunks[c];
-		if (chunk->generated && !chunk->mesh.needUpdate) {
+		if (chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
 			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
@@ -647,7 +649,7 @@ int DrawChunks(
 	for (size_t c = 0; c < chunksCount; c++)
 	{
 		Chunk* chunk = &chunks[c];
-		if (chunk->generated && !chunk->mesh.needUpdate) {
+		if (!chunk->generationInProgress && chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
 			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
@@ -660,6 +662,20 @@ int DrawChunks(
 			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 
 			chunksRendered++;
+		}
+		// draw debug info
+		else {
+			Renderer::bindShader(flatShader);
+			flatApplyTransform({ chunk->posx, 0, chunk->posz }, { 0,0,0 }, { CHUNK_SX, CHUNK_SY, CHUNK_SZ });
+			//if (chunk->generationInProgress) {
+			if (chunk->status == ChunkStatus::ReadyToRender) {
+				drawFlat(&Assets.defaultBox, { 1,0,0 });
+			}
+			else if (chunk->status == ChunkStatus::Generated)
+				drawFlat(&Assets.defaultBox, { 0,1,0 });
+			else if (chunk->status == ChunkStatus::None)
+				drawFlat(&Assets.defaultBox, { 0,0,0 });
+			Renderer::bindShader(cubeInstancedShader);
 		}
 	}
 
@@ -1225,7 +1241,7 @@ void RenderGame(Input* input) {
 		int polyCount = 0;
 		for (size_t i = 0; i < g_chunkManager.chunksCount; i++) {
 			Chunk* chunk = &g_chunkManager.chunks[i];
-			if (chunk->generated && !chunk->mesh.needUpdate)
+			if (chunk->status == ChunkStatus::ReadyToRender)
 				polyCount += chunk->mesh.faceCount;
 		}
 		sprintf(buf, "Chunks polycount: %d", polyCount);
