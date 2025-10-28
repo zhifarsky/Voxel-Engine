@@ -19,10 +19,9 @@ extern ChunkManager g_chunkManager;
 
 struct Block {
 	BlockType type;
-	bool used;
 };
 
-enum class BlockSide {
+enum class BlockSide : u8 {
 	None = 0, YPos, YNeg, XPos, XNeg, ZPos, ZNeg
 };
 
@@ -49,7 +48,8 @@ struct BlockMesh {
 
 enum class ChunkStatus : u8
 {
-	None = 0,
+	Uninitalized = 0,
+	Initialized,
 	Generated,		// blocks and mesh generated
 	ReadyToRender	// sent to gpu memory
 };
@@ -99,28 +99,26 @@ struct TaskQueue {
 		cv.notify_one();
 	}
 
-	std::function<void()> GetTask() {
-		std::unique_lock<std::mutex> lock(mtx);
-
-		cv.wait(lock, [this]() {return stop || queue.size() > 0; });
-		if (stop)
-			return nullptr;
-
-		std::function<void()> res = queue.front();
-		queue.pop();
-		return res;
-	}
-	
 	void Start(int threadsCount) {
 		stop = false;
 		for (size_t i = 0; i < threadsCount; i++)
 		{
 			threads.emplace_back([this]() {
 				while (true) {
-					std::function<void()> task = GetTask();
-					if (stop)
-						break;
+					// get new task
+					std::function<void()> task;
+					{
+						std::unique_lock<std::mutex> lock(mtx);
+						cv.wait(lock, [this]() {return stop || queue.size() > 0; });
 
+						if (stop)
+							break;
+
+						task = std::move(queue.front());
+						queue.pop();
+					}
+
+					// execute task
 					task();
 				}
 				});
@@ -172,5 +170,4 @@ Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float pos
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist);
 PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
 PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
-
-void TaskQueue_TEST();
+glm::ivec2 PosToChunkPos(glm::vec3 pos);

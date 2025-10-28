@@ -578,10 +578,34 @@ Triangle::Triangle(int a, int b, int c) {
 	indices[2] = c;
 }
 
-BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeX, u8 sizeZ) {
+BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeA, u8 sizeB) {
 	this->pos = pos;
 	this->face = face;
 	this->textureID = textureID;
-	this->sizeX = sizeX;
-	this->sizeZ = sizeZ;
+	this->sizeA = sizeA;
+	this->sizeB = sizeB;
+}
+
+BlockFaceInstance::BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeY, u8 sizeZ, u8 sizeX) {
+	this->pos = pos;
+	this->face = face;
+	this->textureID = textureID;
+
+	switch (face)
+	{
+	case faceXNeg:
+	case faceXPos:
+		sizeA = sizeY; sizeB = sizeZ; break;
+		break;
+	case faceYNeg:
+	case faceYPos:
+		sizeA = sizeX; sizeB = sizeZ; break;
+		break;
+	case faceZNeg:
+	case faceZPos:
+		sizeA = sizeX; sizeB = sizeY; break;
+		break;
+	default:
+		sizeA = 0; sizeB = 0; break;
+	}
 }

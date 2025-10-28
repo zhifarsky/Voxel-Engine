@@ -82,7 +82,7 @@ struct GeometryInstanced {
 
 
 // в том же порядке, что и в атласе
-enum TextureID : u16 {
+enum TextureID : u8 {
 	tidGround,
 	tidStone,
 	tidSun,
@@ -94,12 +94,12 @@ enum TextureID : u16 {
 };
 
 enum BlockFace : u8 {
-	faceYPos = 0,
-	faceYNeg = 1,
-	faceXPos = 2,
-	faceXNeg = 3,
-	faceZPos = 4,
-	faceZNeg = 5,
+	faceXNeg = 0,
+	faceXPos = 1,
+	faceYNeg = 2,
+	faceYPos = 3,
+	faceZNeg = 4,
+	faceZPos = 5,
 	faceNone,
 };
 
@@ -108,11 +108,14 @@ struct BlockFaceInstance {
 	u16 pos;
 	TextureID textureID;
 	BlockFace face;
-	u8 sizeX, sizeZ;
+	// первая и вторая координата грани куба
+	// т.е. один из вариантов в зависимости от грани: XY/XZ/YZ
+	u8 sizeA, sizeB;
 
-	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeX = 1, u8 sizeZ = 1);
+	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeA = 1, u8 sizeB = 1);
+	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeY, u8 sizeZ, u8 sizeX);
 };
-#pragma pack(pop)
+#pragma pack(pop)    
 
 namespace Renderer {
 	typedef void* (*LoadProc)(const char* name);

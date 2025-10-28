@@ -216,13 +216,17 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 	Advance(scale.x, scale.y);
 }
 
-bool Button(const char* text, glm::vec2 size) {
+bool Button(const char* text, glm::vec2 size, bool centerX) {
 	float textWidth = GetTextWidth(text);
 	
 	if (size.x == 0)
 		size.x = textWidth + uiStyle.padding * 2;
 	if (size.y == 0)
 		size.y = FontGetSize(font) + uiStyle.padding * 2;
+
+	glm::vec2 pos = { originX, originY };
+	if (centerX)
+		pos.x -= size.x / 2;
 
 	ElementState state = {0};
 	if (elementsState.count(text))
@@ -234,9 +238,9 @@ bool Button(const char* text, glm::vec2 size) {
 	bool clicked = ButtonClicked(input->uiClick);
 	bool hovered = pointRectCollision(
 		px, py,
-		originX, originY, 
-		originX + size.x, 
-		originY + size.y);
+		pos.x, pos.y, 
+		pos.x + size.x, 
+		pos.y + size.y);
 
 	bool res = hovered && clicked && !state.wasActive;
 	state.wasActive = hovered && clicked;
@@ -250,7 +254,7 @@ bool Button(const char* text, glm::vec2 size) {
 
 	{
 		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
-		model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
+		model = glm::translate(model, glm::vec3(pos.x, pos.y, 0.0f));
 		model = glm::scale(model, glm::vec3(size, 1));
 
 		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
@@ -260,7 +264,7 @@ bool Button(const char* text, glm::vec2 size) {
 		Renderer::drawGeometry(&face);
 	}
 
-	TextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2);
+	TextInternal(text, pos.x - textWidth / 2 + size.x / 2, pos.y + size.y / 2);
 	Advance(size.x, size.y);
 
 	return res;
@@ -273,7 +277,7 @@ float GetButtonWidth(const char* text) {
 bool CheckBox(const char* text, bool* value, glm::vec2 size)
 {
 	if (size.x * size.y == 0)
-		size = glm::vec2(50, 50);
+		size = glm::vec2(FontGetSize(font), FontGetSize(font)) * 2.0f;
 
 	ElementState state = { 0 };
 	if (elementsState.count(text))
@@ -478,8 +482,12 @@ float TextInternal(const char* text, float posX, float posY) {
 	return x - posX;
 }
 
-void Text(const char* text) {
-	float width = TextInternal(text, originX, originY);
+void Text(const char* text, bool centerX) {
+	glm::vec2 pos(originX, originY);
+	if (centerX)
+		pos.x -= GetTextWidth(text) / 2; 
+	
+	float width = TextInternal(text, pos.x, pos.y);
 	Advance(width, FontGetSize(font));
 }
 

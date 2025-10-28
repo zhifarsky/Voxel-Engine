@@ -122,8 +122,6 @@ void RenderPauseMenu(Input* input);
 void RenderGame(Input* input);
 
 void GameInit() {
-	TaskQueue_TEST();
-	
 	dbgprint("GL VERSION %s\n", glGetString(GL_VERSION));
 	
 	initShaders(); // компиляция шейдеров
@@ -165,8 +163,8 @@ void GameInit() {
 	Assets.entityTexture = Renderer::createTextureFromFile(TEX_FOLDER "zombie_temp.png", PixelFormat::RGBA);
 
 	// загрузка шрифтов
-	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 30);
-	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 60);
+	Assets.regularFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 25);
+	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 50);
 
 	{
 		static Vertex vertices[] = {
@@ -340,9 +338,7 @@ void RenderMainMenu(Input* input) {
 	{
 	case MainMenuState::Main:
 	{
-		const char* buttonText = "Start game";
-		UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
-		if (UI::Button(buttonText, glm::vec2(0.0, 0.0))) {
+		if (UI::Button("Start game", {0,0}, true)) {
 			menuState = MainMenuState::SelectWorld;
 		}
 	} break;
@@ -355,7 +351,7 @@ void RenderMainMenu(Input* input) {
 			worldsList.clear();
 			EnumerateWorlds(&worldsList);
 		}
-		if (UI::Button("Update")) {
+		if (UI::Button("Update", {0,0}, true)) {
 			updateWorldsList = true;
 		}
 
@@ -374,6 +370,10 @@ void RenderMainMenu(Input* input) {
 			player.camera.FOV = settings.FOV;
 			player.maxSpeed = 15;
 			player.inventory = InventoryCreate();
+#if _DEBUG
+			InventoryAddItem(&player.inventory, ItemType::GroundBlock, 64);
+			InventoryAddItem(&player.inventory, ItemType::StoneBlock, 64);
+#endif
 
 			g_gameWorld.init(worldInfo, settings.renderDistance);
 
@@ -383,15 +383,13 @@ void RenderMainMenu(Input* input) {
 		// load existing world
 		for (size_t i = 0; i < worldsList.count; i++)
 		{
-			if (UI::Button(worldsList[i].name)) {
+			if (UI::Button(worldsList[i].name, {0,0}, true)) {
 				StartGame(&worldsList.items[i]);
 			}
 		}
 
 		// create new world
-		const char* buttonText = "Start new world";
-		UI::ShiftOrigin(-UI::GetButtonWidth(buttonText) / 2, 0);
-		if (UI::Button(buttonText, glm::vec2(0.0, 0.0))) {
+		if (UI::Button("Start new world", {0,0}, true)) {
 			GameWorldInfo worldInfo;
 			worldInfo.seed = 0;
 			
@@ -413,12 +411,9 @@ void RenderMainMenu(Input* input) {
 	} break;
 	}
 
-
-	const char* caption = "Main menu";
 	UI::SetAnchor(uiAnchor::Top, 100);
 	UI::UseFont(Assets.bigFont);
-	UI::ShiftOrigin(-UI::GetTextWidth(caption) / 2, 0);
-	UI::Text(caption);
+	UI::Text("Main menu", true);
 	UI::End();
 }
 
@@ -439,14 +434,13 @@ void RenderPauseMenu(Input* input) {
 	{
 	case PauseMenuState::MainMenu: {
 		UI::SetAnchor(uiAnchor::Center, 0);
-		UI::ShiftOrigin(-elemWidth / 2, 0);
-		if (UI::Button("Return", glm::vec2(elemWidth, 0))) {
+		if (UI::Button("Return", glm::vec2(elemWidth, 0), true)) {
 			gameState = gsInGame;
 		}
-		if (UI::Button("Settings", glm::vec2(elemWidth, 0))) {
+		if (UI::Button("Settings", glm::vec2(elemWidth, 0), true)) {
 			menuState = PauseMenuState::SettingsMenu;
 		}
-		if (UI::Button("Exit", glm::vec2(elemWidth, 0))) {
+		if (UI::Button("Exit", glm::vec2(elemWidth, 0), true)) {
 			GameExit();
 		}
 	} break;
@@ -663,6 +657,7 @@ int DrawChunks(
 
 			chunksRendered++;
 		}
+#if _DEBUG
 		// draw debug info
 		else {
 			Renderer::bindShader(flatShader);
@@ -673,11 +668,13 @@ int DrawChunks(
 			}
 			else if (chunk->status == ChunkStatus::Generated)
 				drawFlat(&Assets.defaultBox, { 0,1,0 });
-			else if (chunk->status == ChunkStatus::None)
+			else if (chunk->status == ChunkStatus::Initialized)
 				drawFlat(&Assets.defaultBox, { 0,0,0 });
 			Renderer::bindShader(cubeInstancedShader);
 		}
+#endif
 	}
+
 
 	Renderer::unbindTexture(0);
 	Renderer::unbindTexture(1);
@@ -1250,6 +1247,11 @@ void RenderGame(Input* input) {
 		UI::Text(buf);
 		sprintf(buf, "pos x%.2f y%.2f z%.2f",  player.camera.pos.x,  player.camera.pos.y,  player.camera.pos.z);
 		UI::Text(buf);
+		{
+			glm::ivec2 chunkPos = PosToChunkPos(player.camera.pos);
+			sprintf(buf, "current chunk x%d z%d", chunkPos.x, chunkPos.y);
+			UI::Text(buf);
+		}
 		sprintf(buf, "orient x%.2f y%.2f z%.2f",  player.camera.front.x,  player.camera.front.y,  player.camera.front.z);
 		UI::Text(buf);
 	}

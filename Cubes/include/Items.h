@@ -1,8 +1,9 @@
 #pragma once
 #include <glm.hpp>
 #include "Typedefs.h"
+#include "Renderer.h"
 
-enum class BlockType : u16 {
+enum class BlockType : u8 {
 	btAir = 0,
 	btGround,
 	btStone,
@@ -13,7 +14,7 @@ enum class BlockType : u16 {
 	btCOUNT
 };
 
-enum class ItemType : u16 {
+enum class ItemType : u8 {
 	None = 0,
 	GroundBlock,
 	StoneBlock,
@@ -22,7 +23,7 @@ enum class ItemType : u16 {
 	COUNT
 };
 
-enum uiElemType : u16 {
+enum uiElemType : u8 {
 	uiInventorySelectCell,
 	uiInventoryCell,
 	uiHeart,
@@ -42,6 +43,7 @@ struct ItemInfo {
 
 struct BlockInfo {
 	ItemType itemType;
+	TextureID textureID;
 };
 
 struct Item {
