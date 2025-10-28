@@ -1,5 +1,6 @@
 #pragma once
 #include "Typedefs.h"
+#include "Tools.h"
 
 template<typename T>
 struct Array {
@@ -56,9 +57,17 @@ struct DynamicArray {
 
 	void append(Type item) {
 		if (count >= capacity) {
-			if (capacity == 0) capacity = 256;
-			else capacity *= 2;
-			items = (Type*)realloc(items, capacity * sizeof(Type));
+			if (capacity == 0) 
+				capacity = 256;
+			else 
+				capacity *= 2;
+			Type* newItems = (Type*)realloc(items, capacity * sizeof(Type));
+			if (!newItems) {
+				FatalError("Alloc error");
+				return;
+			}
+			else
+				items = newItems;
 		}
 		items[count++] = item;
 	}

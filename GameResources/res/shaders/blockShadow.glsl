@@ -17,35 +17,50 @@ const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 24;
 void main() {
     vec3 pos = aPos;
 
-    // y+
+    // x-
     if (instanceFaceDirection == 0) {
-        pos.xz = pos.zx;
-        pos.x *= float(instanceSizeX);
-        pos.z *= float(instanceSizeZ);
-        pos.y++;
-    }
-    // x+
-    else if (instanceFaceDirection == 2) {
-        pos.xz = pos.zx;
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+
+        pos.xz = pos.zx; // переворачиваем полигон (для верной работы FACE_CULL)
         pos.xy = pos.yx;
     }
-    // x-
-    else if (instanceFaceDirection == 3) {
+    // x+
+    else if (instanceFaceDirection == 1) {
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+
         pos.xy = pos.yx;
         pos.x++;
     }
-    // z+
+    // y-
+    else if (instanceFaceDirection == 2){
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+    }
+    // y+
+    if (instanceFaceDirection == 3) {
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+
+        pos.xz = pos.zx; 
+        pos.y++;
+    }
+    // z-
     else if (instanceFaceDirection == 4) {
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+        
         pos.xz = pos.zx;
         pos.zy = pos.yz;
     }
-    // z-
+    // z+
     else if (instanceFaceDirection == 5) {
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+
         pos.zy = pos.yz;
         pos.z++;
-    }
-    // y-
-    else {
     }
     
     // распаковываем offset

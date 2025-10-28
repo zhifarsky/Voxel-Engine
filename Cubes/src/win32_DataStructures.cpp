@@ -40,6 +40,7 @@ void Arena::clear() {
 }
 
 
+// NOTE: возможно придется применить CRITICAL_SECTION в функциях для потокобезопасности
 struct WorkQueue {
 	int volatile taskCount;
 	int volatile nextTask;

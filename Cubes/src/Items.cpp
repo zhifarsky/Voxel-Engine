@@ -9,11 +9,11 @@ static ItemInfo itemInfoTable[] = {
 };
 
 static BlockInfo blockInfoTable[] = {
-	{ItemType::None},
-	{ItemType::GroundBlock},
-	{ItemType::StoneBlock},
-	{ItemType::SnowBlock},
-	{ItemType::IronOreBlock},
+	{ItemType::None, TextureID::tidAir},
+	{ItemType::GroundBlock, TextureID::tidGround},
+	{ItemType::StoneBlock, TextureID::tidStone},
+	{ItemType::SnowBlock, TextureID::tidSnow},
+	{ItemType::IronOreBlock, TextureID::tidIronOre},
 };
 
 const ItemInfo* GetItemInfo(ItemType item)

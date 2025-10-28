@@ -36,46 +36,80 @@ void main() {
     
     int texSize = 16;
 
-    // y+
+    float u = uvs[gl_VertexID].x;
+    float v = uvs[gl_VertexID].y;
+
+    // x-
     if (instanceFaceDirection == 0) {
-        pos.xz = pos.zx; // переворачиваем полигон (для верной работы FACE_CULL)
-        pos.x *= float(instanceSizeX);
-        pos.z *= float(instanceSizeZ);
-        pos.y++;
-        ourNormal = vec3(0,1,0);
-    }
-    // x+
-    else if (instanceFaceDirection == 2) {
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+
+        u *= float(instanceSizeX);
+        v *= float(instanceSizeZ);
+
         ourNormal = vec3(-1,0,0);
-        pos.xz = pos.zx;
+        pos.xz = pos.zx; // переворачиваем полигон (для верной работы FACE_CULL)
         pos.xy = pos.yx;
     }
-    // x-
-    else if (instanceFaceDirection == 3) {
+    // x+
+    else if (instanceFaceDirection == 1) {
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+
+        u *= float(instanceSizeZ);
+        v *= float(instanceSizeX);
+
         ourNormal = vec3(1,0,0);
         pos.xy = pos.yx;
         pos.x++;
     }
-    // z+
+    // y-
+    else if (instanceFaceDirection == 2){
+        ourNormal = vec3(0,-1,0);        
+
+        u *= float(instanceSizeZ);
+        v *= float(instanceSizeX);
+
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+    }
+    // y+
+    if (instanceFaceDirection == 3) {
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+
+        u *= float(instanceSizeX);
+        v *= float(instanceSizeZ);
+
+        ourNormal = vec3(0,1,0);
+        pos.xz = pos.zx; 
+        pos.y++;
+    }
+    // z-
     else if (instanceFaceDirection == 4) {
+        pos.x *= float(instanceSizeZ);
+        pos.z *= float(instanceSizeX);
+        
+         u *= float(instanceSizeX);
+        v *= float(instanceSizeZ);
+
         ourNormal = vec3(0,0,-1);
         pos.xz = pos.zx;
         pos.zy = pos.yz;
-        // pos.x *= float(instanceSizeX);
-        // pos.z *= float(instanceSizeZ);
     }
-    // z-
+    // z+
     else if (instanceFaceDirection == 5) {
+        pos.x *= float(instanceSizeX);
+        pos.z *= float(instanceSizeZ);
+    
+        u *= float(instanceSizeZ);
+        v *= float(instanceSizeX);
+
         ourNormal = vec3(0,0,1);
         pos.zy = pos.yz;
         pos.z++;
     }
-    // y-
-    else {
-        // pos.x *= float(instanceSizeX);
-        // pos.z *= float(instanceSizeZ);
-        ourNormal = vec3(0,-1,0);        
-    }
+
     
     // распаковываем offset
     vec3 offset = vec3(
@@ -95,8 +129,8 @@ void main() {
     texScale.y = 1.0f / uvSize;
     texOffset.x = (1.0 / uvSize) * float(instanceTextureID);
     texOffset.y = uvSize;
-    float u = uvs[gl_VertexID].x * instanceSizeX / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: доделать (сейчас максимум один ряд текстур)
-    float v = uvs[gl_VertexID].y * instanceSizeZ / uvSize;
+    u = u / uvSize + (1.0 / uvSize) * float(instanceTextureID); // TODO: доделать (сейчас максимум один ряд текстур)
+    v = v / uvSize;
     ourUV = vec2(u,v);
 
     vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);

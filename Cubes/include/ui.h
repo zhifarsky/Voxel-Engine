@@ -4,21 +4,8 @@
 #include "Input.h"
 #include "Typedefs.h"
 #include "Renderer.h"
-#include <stb_truetype.h>
-
-// TODO: переименовать поля
-struct CharData {
-	u16 x0, y0, x1, y1;
-	float xoff, yoff, xadvance;
-};
-
-struct Font {
-	stbtt_fontinfo fontInfo;
-	Texture atlas;
-	CharData* charData;
-	u32 firstChar, charsCount;
-	float size; // pixel height
-};
+//#include <stb_truetype.h>
+#include "Font.h"
 
 enum class uiAnchor {
 	Center,
@@ -54,8 +41,6 @@ struct UiStyle {
 	float margin;	// внешний отступ
 };
 
-Font loadFont(const char* fontPath, float fontSize);
-
 namespace UI {
 	void Init();
 	void Start(Input* input, Font* defaultFont, FrameBufferInfo* fbInfo);
@@ -65,13 +50,13 @@ namespace UI {
 
 	void UseFont(Font* font);
 	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
-	bool Button(const char* text, glm::vec2 size = { 0, 0 });
+	bool Button(const char* text, glm::vec2 size = { 0, 0 }, bool centerX = false);
 	float GetButtonWidth(const char* text);
 	bool CheckBox(const char* text, bool* value, glm::vec2 size = { 0,0 });
 	bool SliderFloat(const char* text, float* value, float minValue, float maxValue, float width = 0);
 	bool SliderInt(const char* text, int* value, int minValue, int maxValue, float width = 0);
 	float GetTextWidth(const char* text);
-	void Text(const char* text);
+	void Text(const char* text, bool centerX = false);
 
 	void SetAnchor(uiAnchor anchor, float offset);
 	void ShiftOrigin(float offsetX, float offsetY);

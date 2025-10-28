@@ -1,4 +1,3 @@
-#define STB_TRUETYPE_IMPLEMENTATION
 #include "ui.h"
 #include <unordered_map>
 #include <gtc/matrix_transform.hpp>
@@ -30,50 +29,6 @@ UiStyle uiStyle;
 bool marginEnabled;
 
 // TODO: кэширование атласа шрифта
-Font loadFont(const char* path, float fontSize) {
-	Font font = { 0 };
-
-	u32 fileSize = 0;
-	u8* fileBuffer = readEntireFile(path, &fileSize, FileType::binary);
-
-	u32 atlasWidth = 512, atlasHeight = 512;
-	u8* tempBitmap = (u8*)malloc(atlasWidth * atlasHeight);
-
-	u32 firstChar = ' ', lastChar = '~';
-	u32 charsCount = lastChar - firstChar + 1;
-
-	stbtt_bakedchar* charData = (stbtt_bakedchar*)malloc(charsCount * sizeof(stbtt_bakedchar));
-	
-	// render font to atlas
-	stbtt_BakeFontBitmap(fileBuffer, 0, fontSize, tempBitmap, atlasWidth, atlasHeight, firstChar, charsCount, charData);
-	// get font info
-	stbtt_InitFont(&font.fontInfo, fileBuffer, stbtt_GetFontOffsetForIndex(fileBuffer, 0));
-
-	u8* rgbaBitmap = (u8*)malloc(atlasWidth * atlasHeight * 4);
-	for (int i = 0; i < atlasWidth * atlasHeight; i++) {
-		rgbaBitmap[i * 4 + 0] = 255; // R
-		rgbaBitmap[i * 4 + 1] = 255; // G
-		rgbaBitmap[i * 4 + 2] = 255; // B
-		rgbaBitmap[i * 4 + 3] = tempBitmap[i]; // A
-	}
-
-	font.charData = (CharData*)charData;
-	font.firstChar = firstChar;
-	font.charsCount = charsCount;
-	font.size = fontSize;
-
-	font.atlas = Renderer::createTexture(
-		atlasWidth, atlasHeight, rgbaBitmap,
-		PixelFormat::RGBA, PixelFormat::RGBA,
-		TextureWrapping::ClampToEdge, TextureFiltering::Linear
-	);
-
-	//free(fileBuffer); // не освобождаем, так как используется в stbtt_fontinfo
-	free(tempBitmap);
-	free(rgbaBitmap);
-
-	return font;
-}
 
 namespace UI {
 	float TextInternal(const char* text, float posX, float posY);
@@ -261,13 +216,17 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 	Advance(scale.x, scale.y);
 }
 
-bool Button(const char* text, glm::vec2 size) {
+bool Button(const char* text, glm::vec2 size, bool centerX) {
 	float textWidth = GetTextWidth(text);
 	
 	if (size.x == 0)
 		size.x = textWidth + uiStyle.padding * 2;
 	if (size.y == 0)
-		size.y = font->size + uiStyle.padding * 2;
+		size.y = FontGetSize(font) + uiStyle.padding * 2;
+
+	glm::vec2 pos = { originX, originY };
+	if (centerX)
+		pos.x -= size.x / 2;
 
 	ElementState state = {0};
 	if (elementsState.count(text))
@@ -279,9 +238,9 @@ bool Button(const char* text, glm::vec2 size) {
 	bool clicked = ButtonClicked(input->uiClick);
 	bool hovered = pointRectCollision(
 		px, py,
-		originX, originY, 
-		originX + size.x, 
-		originY + size.y);
+		pos.x, pos.y, 
+		pos.x + size.x, 
+		pos.y + size.y);
 
 	bool res = hovered && clicked && !state.wasActive;
 	state.wasActive = hovered && clicked;
@@ -295,7 +254,7 @@ bool Button(const char* text, glm::vec2 size) {
 
 	{
 		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
-		model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
+		model = glm::translate(model, glm::vec3(pos.x, pos.y, 0.0f));
 		model = glm::scale(model, glm::vec3(size, 1));
 
 		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
@@ -305,7 +264,7 @@ bool Button(const char* text, glm::vec2 size) {
 		Renderer::drawGeometry(&face);
 	}
 
-	TextInternal(text, originX - textWidth / 2 + size.x / 2, originY + size.y / 2);
+	TextInternal(text, pos.x - textWidth / 2 + size.x / 2, pos.y + size.y / 2);
 	Advance(size.x, size.y);
 
 	return res;
@@ -318,7 +277,7 @@ float GetButtonWidth(const char* text) {
 bool CheckBox(const char* text, bool* value, glm::vec2 size)
 {
 	if (size.x * size.y == 0)
-		size = glm::vec2(50, 50);
+		size = glm::vec2(FontGetSize(font), FontGetSize(font)) * 2.0f;
 
 	ElementState state = { 0 };
 	if (elementsState.count(text))
@@ -359,7 +318,7 @@ bool CheckBox(const char* text, bool* value, glm::vec2 size)
 		Renderer::drawGeometry(&face);
 	}
 
-	TextInternal(text, originX + size.x + uiStyle.margin, originY + font->size / 2);
+	TextInternal(text, originX + size.x + uiStyle.margin, originY + FontGetSize(font) / 2);
 
 	Advance(size.x, size.y);
 
@@ -437,7 +396,7 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(knobModel));
 		Renderer::drawGeometry(&face);
 	}
-	Advance(barWidth, knobHeight + font->size);
+	Advance(barWidth, knobHeight + FontGetSize(font));
 	return res;
 }
 
@@ -464,18 +423,12 @@ float GetTextWidth(const char* text) {
 
 	for (size_t i = 0; i < len; i++)
 	{
-		CharData charData = font->charData[text[i] - font->firstChar];
+		CharData charData = FontGetCharData(font, text[i]);
 
 		width += charData.xoff + charData.xadvance;
 
 		if (i > 0) {
-			int glyph1 = stbtt_FindGlyphIndex(&font->fontInfo, text[i - 1]);
-			int glyph2 = stbtt_FindGlyphIndex(&font->fontInfo, text[i]);
-
-			int kern = stbtt_GetGlyphKernAdvance(&font->fontInfo, glyph1, glyph2);
-			float kernPixels = (float)kern * stbtt_ScaleForPixelHeight(&font->fontInfo, font->size);
-
-			width += kernPixels;
+			width += FontGetKernInPixels(font, text[i - 1], text[i]);;
 		}
 	}
 
@@ -485,32 +438,26 @@ float GetTextWidth(const char* text) {
 float TextInternal(const char* text, float posX, float posY) {
 	u32 len = strlen(text);
 	
-	Renderer::bindTexture(&font->atlas);
+	Renderer::bindTexture(FontGetTextureAtlas(font));
 	Renderer::setUniformFloat(uiShader, "colorWeight", 0);
 	float x = posX;
 
 	for (size_t i = 0; i < len; i++)
 	{
 		char c = text[i];
-		CharData charData = font->charData[c - font->firstChar];
+		CharData charData = FontGetCharData(font, c);
 
 		float cHeight = charData.y1 - charData.y0;
 		float cWidth = charData.x1 - charData.x0;
 		float cAspect = cWidth / cHeight;
-		float cHeightFactor = cHeight / font->size;
+		float cHeightFactor = cHeight / FontGetSize(font);
 		
 		float coordX = x + charData.xoff;
 		float coordY = posY - cHeight - charData.yoff;
 
 		// kerning
 		if (i > 0) {
-			int glyph1 = stbtt_FindGlyphIndex(&font->fontInfo, text[i - 1]);
-			int glyph2 = stbtt_FindGlyphIndex(&font->fontInfo, text[i]);
-
-			int kern = stbtt_GetGlyphKernAdvance(&font->fontInfo, glyph1, glyph2);
-			float kernPixels = (float)kern * stbtt_ScaleForPixelHeight(&font->fontInfo, font->size);
-
-			coordX += kernPixels;
+			coordX += FontGetKernInPixels(font, text[i-1], text[i]);
 		}
 
 		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
@@ -522,11 +469,11 @@ float TextInternal(const char* text, float posX, float posY) {
 		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
 
 		Renderer::setUniformFloat2(uiShader, "UVShift", 
-			(float)charData.x0 / font->atlas.width,
-			(float)charData.y1 / font->atlas.height);
+			(float)charData.x0 / FontGetTextureAtlas(font)->width,
+			(float)charData.y1 / FontGetTextureAtlas(font)->height);
 		Renderer::setUniformFloat2(uiShader, "UVScale", 
-			(float)(charData.x1 - charData.x0) / font->atlas.width, 
-			-(float)(charData.y1 - charData.y0) / font->atlas.height);
+			(float)(charData.x1 - charData.x0) / FontGetTextureAtlas(font)->width,
+			-(float)(charData.y1 - charData.y0) / FontGetTextureAtlas(font)->height);
 
 		Renderer::drawGeometry(&face);
 		
@@ -535,9 +482,13 @@ float TextInternal(const char* text, float posX, float posY) {
 	return x - posX;
 }
 
-void Text(const char* text) {
-	float width = TextInternal(text, originX, originY);
-	Advance(width, font->size);
+void Text(const char* text, bool centerX) {
+	glm::vec2 pos(originX, originY);
+	if (centerX)
+		pos.x -= GetTextWidth(text) / 2; 
+	
+	float width = TextInternal(text, pos.x, pos.y);
+	Advance(width, FontGetSize(font));
 }
 
 }

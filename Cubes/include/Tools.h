@@ -47,3 +47,6 @@ bool rectRectCollision(
 );
 
 int GetThreadsCount();
+
+bool IsFileExists(const char* filepath);
+bool CreateNewDirectory(const char* path);

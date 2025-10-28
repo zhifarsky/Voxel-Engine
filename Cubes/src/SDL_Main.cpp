@@ -22,11 +22,16 @@ void SetVsync(bool vsyncOn) {
 
 void GetCursorPos(double* xpos, double* ypos) {
     if (SDL_GetWindowRelativeMouseMode(window)) {
+        
         static float _xpos = 0, _ypos = 0;
-        float xdelta, ydelta;
-        SDL_GetRelativeMouseState(&xdelta, &ydelta);
-        _xpos += xdelta;
-        _ypos += ydelta;
+        if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) {
+            float xdelta, ydelta;
+
+            SDL_GetRelativeMouseState(&xdelta, &ydelta);
+            _xpos += xdelta;
+            _ypos += ydelta;
+        }
+
         *xpos = _xpos;
         *ypos = _ypos;
     }
@@ -79,7 +84,6 @@ WindowMode WindowGetCurrentMode() {
 void CloseWindow() {
     gameRunning = false;
 }
-
 int main () {
     if (!SDL_Init(SDL_INIT_VIDEO))
         return -1;

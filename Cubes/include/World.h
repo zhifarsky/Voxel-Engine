@@ -75,16 +75,25 @@ struct Player {
 	float maxSpeed;
 };
 
+struct GameWorldInfo {
+	char name[128];
+	int seed;
+};
+
+void GetWorldPath(char* buffer, const char* worldname);
+void EnumerateWorlds(DynamicArray<GameWorldInfo>* infos);
+
 struct GameWorld {
+	GameWorldInfo info;
 	DynamicArray<Entity> entities;
 	DynamicArray<Item> droppedItems;
+
+	Player player;
 
 	// TDOO: сделать обычным массивом, чтобы при инициализации игры 
 	// у инвентаря сразу был нужный размер
 	//DynamicArray<BlockType> inventory; 
 	//u32 inventoryIndex;
 
-	GameState gameState;
-
-	void init(u32 seed, u32 renderDistance);
+	void init(GameWorldInfo* info, u32 renderDistance);
 };
