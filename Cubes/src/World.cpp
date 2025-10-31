@@ -25,61 +25,6 @@ void Camera::update(float yaw, float pitch) {
 	front = glm::normalize(direction);
 }
 
-Frustum FrustumCreate(
-	glm::vec3 pos, glm::vec3 front, glm::vec3 up,
-	float aspect, float fovY, float zNear, float zFar)
-{
-	fovY = glm::radians(fovY);
-
-	front = glm::normalize(front);
-	glm::vec3 right = glm::normalize(glm::cross(front, {0,1,0}));
-	up = glm::normalize(glm::cross(right, front));
-
-	float halfVSide = tanf(fovY * .5f) * zFar;
-	float halfHSide = halfVSide * aspect;
-
-	Frustum f;
-
-	glm::vec3 farCenter = front * zFar; // центр дальней плоскости
-	glm::vec3 nearCenter = front * zNear; // центр ближней плоскости
-
-	f.nearFace.normal = front;
-	f.nearFace.d = -glm::dot(f.nearFace.normal, pos + nearCenter);
-
-	f.farFace.normal = -front;
-	f.farFace.d = -glm::dot(f.farFace.normal, pos + farCenter);
-	
-	glm::vec3 farRight = farCenter + right * halfHSide; // вектор к правому краю дальней плоскости
-	f.rightFace.normal = glm::normalize(glm::cross(up, farRight));
-	f.rightFace.d = -glm::dot(f.rightFace.normal, pos);
-
-	glm::vec3 farLeft = farCenter - right * halfHSide;
-	f.leftFace.normal = glm::normalize(glm::cross(farLeft, up));
-	f.leftFace.d = -glm::dot(f.leftFace.normal, pos);
-
-	glm::vec3 farTop = farCenter + up * halfVSide;
-	f.topFace.normal = glm::normalize(glm::cross(farTop, right));
-	f.topFace.d = -glm::dot(f.topFace.normal, pos);
-
-	glm::vec3 farBottom = farCenter - up * halfVSide;
-	f.bottomFace.normal = glm::normalize(glm::cross(right, farBottom));
-	f.bottomFace.d = -glm::dot(f.bottomFace.normal, pos);
-
-	return f;
-}
-
-float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float radius)
-{
-	for (size_t i = 0; i < 6; i++) {
-		if ((glm::dot(sphereCenter, frustum->planes[i].normal) + frustum->planes[i].d + radius) <= 0)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
 Inventory InventoryCreate() {
 	Inventory inventory = { 0 };
 	return inventory;
@@ -126,6 +71,21 @@ void InventorySelectItem(Inventory* inventory, int index) {
 		return;
 
 	inventory->selectedIndex = index;
+}
+
+InventoryCell InventoryGetCurrentItem(Inventory* inventory) {
+	return inventory->cells[inventory->selectedIndex];
+}
+
+int InventoryFindItem(Inventory* inventory, ItemType item) {
+	for (size_t i = 0; i < inventory->cellsCount; i++)
+	{
+		InventoryCell* cell = &inventory->cells[i];
+		if (cell->itemsCount > 0 && cell->itemType == item) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 void GetWorldPath(char* buffer, const char* worldname) {

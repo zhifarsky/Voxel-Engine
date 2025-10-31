@@ -12,7 +12,7 @@ uniform mat4 lightSpaceMatrix;
 
 uniform ivec2 chunkPos;
 
-const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 24;
+const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 48;
 
 void main() {
     vec3 pos = aPos;

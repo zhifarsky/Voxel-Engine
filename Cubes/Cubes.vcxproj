@@ -109,7 +109,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp14</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -133,7 +133,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\GLFWx64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -159,7 +159,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp14</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -187,7 +187,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\glad\include;$(SolutionDir)deps\soil\include;$(SolutionDir)Imgui\include;$(SolutionDir)deps\other;$(SolutionDir)deps\glm;$(ProjectDir)\include;$(SolutionDir)deps\GLFWx64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp14</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -227,7 +227,7 @@
     <ClCompile Include="src\win32_Entrypoint.cpp" />
     <ClCompile Include="src\win32_Tools.cpp" />
     <ClCompile Include="src\World.cpp" />
-    <ClCompile Include="win32_World.cpp" />
+    <ClCompile Include="src\win32_World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glad\include\glad\glad.h" />

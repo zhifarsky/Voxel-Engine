@@ -5,6 +5,7 @@
 #include "Mesh.h"
 #include "Files.h"
 #include "Tools.h"
+#include "Cubes.h"
 
 Shader
 	cubeInstancedShader = NULL,
@@ -90,7 +91,7 @@ void spriteApplyTransform(glm::vec3 pos, float scale, bool spherical) {
 
 	glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
 	model = glm::translate(model, pos);
-	model = glm::scale(model, glm::vec3(scale, scale, scale));
+	model = glm::scale(model, glm::vec3(scale));
 	glUniformMatrix4fv(glGetUniformLocation(spriteShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
 }
 

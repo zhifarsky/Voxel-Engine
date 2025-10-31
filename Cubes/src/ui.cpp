@@ -41,6 +41,12 @@ void Init() {
 	//	Vertex(0.5, 0.5,0, 1,1),
 	//	Vertex(-0.5,0.5,0, 0,1),
 	//};
+	//static Vertex faceVerts[] = {
+	//	Vertex(0,0,0, 0,0),
+	//	Vertex(1,0,0, 1,0),
+	//	Vertex(1,1,0, 1,1),
+	//	Vertex(0,1,0, 0,1),
+	//};	
 	static Vertex faceVerts[] = {
 		Vertex(0,0,0, 0,0),
 		Vertex(1,0,0, 1,0),
@@ -200,10 +206,13 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 	model = glm::translate(model, glm::vec3(originX, originY, 0));
 	model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0, 0.0, 0.0));
 	model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0, 1.0, 0.0));
-	model = glm::rotate(model, glm::radians(rot.z+180), glm::vec3(0.0, 0.0, 1.0)); // +180 так как элемент отрисовывался вверх ногами
 	model = glm::scale(model, scale);
 	model = glm::translate(model, glm::vec3(-.5, -.5, 0)); // отцентровывание
 	
+	// т.к. текстура была перевернута
+	uvShift.y += uvScale.y;
+	uvScale.y = -uvScale.y;
+
 	Renderer::setUniformMatrix4(uiShader, "model", value_ptr(model));
 	Renderer::setUniformFloat2(uiShader, "UVScale", uvScale.x, uvScale.y);
 	Renderer::setUniformFloat2(uiShader, "UVShift", uvShift.x, uvShift.y);

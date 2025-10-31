@@ -2,7 +2,6 @@
 #include "Typedefs.h"
 #include "DataStructures.h"
 
-#pragma once
 #ifndef TEX_FOLDER
 #define TEX_FOLDER "res/textures/"
 #endif

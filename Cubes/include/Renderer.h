@@ -4,6 +4,30 @@
 
 #define FRAMEBUFFER_MAX_TEXTURES 1
 
+struct Plane {
+	glm::vec3 normal;
+	float d;
+};
+
+struct Frustum {
+	union {
+		struct {
+			Plane
+				topFace, bottomFace,
+				rightFace, leftFace,
+				farFace, nearFace;
+		};
+		Plane planes[6];
+	};
+};
+
+Frustum FrustumCreate(
+	glm::vec3 pos, glm::vec3 front, glm::vec3 up,
+	float aspect, float fovY, float zNear, float zFar);
+
+// true если сфера внутри frustum
+float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float radius);
+
 enum class PixelFormat {
 	RGB, RGBA, Grayscale, DepthMap,
 	COUNT
@@ -89,6 +113,8 @@ enum TextureID : u8 {
 	tidMoon,
 	tidSnow,
 	tidIronOre,
+	tidWood,
+	tidLeaves,
 	tidAir,
 	tidCount
 };

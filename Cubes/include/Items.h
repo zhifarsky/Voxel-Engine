@@ -9,6 +9,8 @@ enum class BlockType : u8 {
 	btStone,
 	btSnow,
 	btIronOre,
+	btWood,
+	btLeaves,
 	texSun,
 	texMoon,
 	btCOUNT
@@ -20,6 +22,12 @@ enum class ItemType : u8 {
 	StoneBlock,
 	SnowBlock,
 	IronOreBlock,
+	WoodBlock,
+	LeavesBlock,
+	
+	Pickaxe,
+	Sword,
+	
 	COUNT
 };
 
@@ -32,18 +40,28 @@ enum uiElemType : u8 {
 	uiStoneBlock,
 	uiSnowBlock,
 	uiIronOreBlock,
+	uiSword,
+	uiPickaxe,
+	uiWoodBlock,
+	uiLeavesBlock,
 	uiNone,
 	uiCOUNT
 };
 
 struct ItemInfo {
+	const char* name;
+	ItemType itemType;
 	BlockType blockType;
 	uiElemType uiElement;
+	float blockDamage;
+	bool craftable;
+	ItemType craftScheme[9];
 };
 
 struct BlockInfo {
 	ItemType itemType;
 	TextureID textureID;
+	float hardness;
 };
 
 struct Item {
@@ -52,5 +70,7 @@ struct Item {
 	ItemType type;
 };
 
+extern ItemInfo itemInfoTable[(int)ItemType::COUNT];
+extern BlockInfo blockInfoTable[(int)BlockType::btCOUNT];
 const ItemInfo* GetItemInfo(ItemType item);
 const BlockInfo* GetBlockInfo(BlockType item);

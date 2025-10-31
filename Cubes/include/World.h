@@ -26,30 +26,6 @@ struct Camera {
 	void update(float yaw, float pitch);
 };
 
-struct Plane {
-	glm::vec3 normal;
-	float d;
-};
-
-struct Frustum {
-	union {
-		struct {
-			Plane
-				topFace, bottomFace,
-				rightFace, leftFace,
-				farFace, nearFace;
-		};
-		Plane planes[6];
-	};
-};
-
-Frustum FrustumCreate(
-	glm::vec3 pos, glm::vec3 front, glm::vec3 up,
-	float aspect, float fovY, float zNear, float zFar);
-
-// true если сфера внутри frustum
-float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float radius);
-
 struct InventoryCell {
 	u32 itemsCount;
 	ItemType itemType;
@@ -66,7 +42,9 @@ struct Inventory {
 Inventory InventoryCreate();
 void InventoryAddItem(Inventory* inventory, ItemType type, int count);
 void InventorySelectItem(Inventory* inventory, int index);
+InventoryCell InventoryGetCurrentItem(Inventory* inventory);
 void InventoryDropItem(Inventory* inventory, int index, int count);
+int InventoryFindItem(Inventory* inventory, ItemType item);
 
 struct Player {
 	Inventory inventory;

@@ -6,8 +6,10 @@
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_mouse.h>
+#include <stb_image.h>
 #include "Renderer.h"
 #include "Tools.h"
+#include "Files.h"
 
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720
@@ -109,6 +111,16 @@ int main () {
         return -1;
     }
 
+    // set window icon
+    {
+        int w, h;
+        u8* pixels = stbi_load(TEX_FOLDER"icon.png", &w, &h, NULL, 4);
+        SDL_Surface* surface = SDL_CreateSurface(w, h, SDL_PixelFormat::SDL_PIXELFORMAT_ABGR8888);
+        surface->pixels = pixels;
+        SDL_SetWindowIcon(window, surface);
+        stbi_image_free(pixels);
+    }
+
     context = SDL_GL_CreateContext(window);
     if (!context) {
         SDL_DestroyWindow(window);
@@ -179,6 +191,7 @@ int main () {
 
 #if _DEBUG
             ProcessButtonInput(&oldInput->rebuildShaders, &newInput->rebuildShaders, IsKeyReleased(window, SDL_SCANCODE_R));
+            ProcessButtonInput(&oldInput->regenerateChunks, &newInput->regenerateChunks, IsKeyReleased(window, SDL_SCANCODE_G));
 #endif
         }
 

@@ -5,8 +5,10 @@
 
 #define CHUNK_SX 16
 #define CHUNK_SZ 16
-#define CHUNK_SY 24
+#define CHUNK_SY 48
 #define CHUNK_SIZE (CHUNK_SX * CHUNK_SZ * CHUNK_SY)
+// TDOO: bounding box גלוסעמ נאהטףסא
+
 #define MIN_RENDER_DISTANCE 1
 #define MAX_RENDER_DISTANCE 24
 #define GetChunksSideCount(renderDistance) (renderDistance * 2 + 1)
@@ -15,7 +17,7 @@
 
 struct ChunkManager;
 extern ChunkManager g_chunkManager;
-
+extern float g_chunkRadius;
 
 struct Block {
 	BlockType type;
@@ -165,7 +167,7 @@ void ChunkManagerCreate(int seed);
 void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
 void ChunkManagerReleaseChunks(ChunkManager* manager);
 void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ);
-void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ);
+void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist);
 PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);

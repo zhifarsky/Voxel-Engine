@@ -29,7 +29,7 @@ const vec2 uvs[4] = vec2[4](
     vec2(1.0,  0.0)
 );
 
-const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 24;
+const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 48;
 
 void main() {
     vec3 pos = aPos;
@@ -194,7 +194,7 @@ float ShadowCalculationSmooth(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir
     float currentDepth = projCoords.z;
     // check whether current frag pos is in shadow
     //float bias = 0.005;
-    float bias = max(0.01 * (1.0 - dot(normal, lightDir)), 0.0002);  
+    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.0002);
     
 	int shadowBlur = 1;
 	
@@ -219,16 +219,15 @@ void main() {
     }
    
     vec2 uv = vec2(texOffset.x + mod(ourUV.x, texScale.x), texOffset.y + mod(ourUV.y, texScale.y));
-    //vec2 uv = ourUV;
     vec4 texColor = texture(texture1, uv);
-	//vec4 texColor = texture(texture1, ourUV);
+	if (texColor.a < 0.5)
+		discard;
 
 	vec3 norm = normalize(ourNormal);
 	vec3 lightDir = normalize(sunDir);
 	float diff = max(dot(norm, lightDir), 0.0);
 	vec3 diffuse = diff * sunColor;
 
-    //float shadow = ShadowCalculation(FragPosLightSpace, norm, sunDir);
     float shadow = ShadowCalculationSmooth(FragPosLightSpace, norm, sunDir);
 
 	vec3 result = (ambientColor + diffuse * (1.0 - shadow)) * vec3(texColor.r, texColor.g, texColor.b);

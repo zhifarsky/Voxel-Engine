@@ -7,8 +7,10 @@
 #include "Files.h"
 
 #define DEBUG_CHUNKS 0
+#define DEBUG_GENERATION 0
 
 ChunkManager g_chunkManager;
+float g_chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
 
 float Remap(float value, float oldMin, float oldMax, float newMin, float newMax) {
 	return newMin + (value - oldMin) * (newMax - newMin) / (oldMax - oldMin);
@@ -149,6 +151,13 @@ bool inline IsBlockIndexValid(glm::ivec3& index) {
 		index.z >= 0 && index.z < CHUNK_SZ);
 }
 
+bool inline IsBlockIndexValid(int y, int z, int x) {
+	return (
+		x >= 0 && x < CHUNK_SX &&
+		y >= 0 && y < CHUNK_SY &&
+		z >= 0 && z < CHUNK_SZ);
+}
+
 #define ChunkGetBlock(chunk, index) (chunk->blocks[index.y][index.z][index.x])
 
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
@@ -223,6 +232,54 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 			}
 		}
 	}
+
+	//
+	// Trees generation
+	//
+	int treeCount = rand() % 2;
+	int treeHeight = std::min(rand() % 7, 4);
+	
+	for (size_t i = 0; i < treeCount; i++)
+	{
+		int trunkStartX = rand() % CHUNK_SX;
+		int trunkStartZ = rand() % CHUNK_SZ;
+		int trunkStartY = CHUNK_SY - 1;
+		bool found = false;
+
+		for (; trunkStartY >= 0; trunkStartY--)
+		{
+			if (blocks[trunkStartY][trunkStartZ][trunkStartX].type == BlockType::btGround) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found) {
+			int trunkY = trunkStartY;
+			for (; trunkY - trunkStartY < treeHeight; trunkY++)
+			{
+				if (IsBlockIndexValid(trunkY, trunkStartZ, trunkStartX)) {
+					blocks[trunkY][trunkStartZ][trunkStartX].type = BlockType::btWood;
+				}
+			}
+
+			int trunkEndY = trunkY;
+			int treeLeavesRadius = 2;
+			int treeLeavesHeight = 4;
+			for (int leavesY = trunkEndY; leavesY - trunkEndY < treeLeavesHeight; leavesY++) {
+				for (int z = -treeLeavesRadius; z <= treeLeavesRadius; z++)
+				{
+					for (int x = -treeLeavesRadius; x <= treeLeavesRadius; x++)
+						if (IsBlockIndexValid(leavesY, trunkStartZ + z, trunkStartX + x)) {
+							blocks[leavesY][trunkStartZ + z][trunkStartX + x].type = BlockType::btLeaves;
+						}
+					}
+				if (leavesY - trunkEndY >= treeLeavesHeight - 2) {
+					treeLeavesRadius--;
+				}
+			}
+		}
+	}
 }
 
 void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
@@ -266,23 +323,32 @@ void ChunkGenerateBlocks_DEBUG(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->blocks[0][1][1].type = BlockType::btAir;
 }
 
+bool IsBlockTransparent(BlockType blockType) {
+	switch (blockType) {
+	case BlockType::btAir:
+	//case BlockType::btLeaves:
+		return true;
+	}
+	return false;
+}
+
 bool IsXPosFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return x == CHUNK_SX - 1 || blocks[y][z][x + 1].type == BlockType::btAir;
+	return x == CHUNK_SX - 1 || IsBlockTransparent(blocks[y][z][x + 1].type);
 }
 bool IsXNegFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return x == 0 || blocks[y][z][x - 1].type == BlockType::btAir;
+	return x == 0 || IsBlockTransparent(blocks[y][z][x - 1].type);
 }
 bool IsYPosFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return y == CHUNK_SY - 1 || blocks[y + 1][z][x].type == BlockType::btAir;
+	return y == CHUNK_SY - 1 || IsBlockTransparent(blocks[y + 1][z][x].type);
 }
 bool IsYNegFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return y == 0 || blocks[y - 1][z][x].type == BlockType::btAir;
+	return y == 0 || IsBlockTransparent(blocks[y - 1][z][x].type);
 }
 bool IsZPosFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return z == CHUNK_SZ - 1 || blocks[y][z + 1][x].type == BlockType::btAir;
+	return z == CHUNK_SZ - 1 || IsBlockTransparent(blocks[y][z + 1][x].type);
 }
 bool IsZNegFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z, int x) {
-	return z == 0 || blocks[y][z - 1][x].type == BlockType::btAir;
+	return z == 0 || IsBlockTransparent(blocks[y][z - 1][x].type);
 }
 
 void ChunkGenerateMesh(Chunk* chunk) {
@@ -510,7 +576,7 @@ void GetChunkPath(char* buffer, const char* worldname, int posx, int posz) {
 // TDOO: асинхнонная загрузка и сохранение чанков
 
 void ChunkSaveToDisk(Chunk* chunk, const char* worldname, int posx, int posz) {
-#if DEBUG_CHUNKS
+#if DEBUG_CHUNKS || DEBUG_GENERATION
 	return;
 #endif
 
@@ -554,7 +620,7 @@ void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName) {
 
 
 bool ChunkLoadFromDisk(Chunk* chunk, const char* worldname, int posx, int posz) {
-#if DEBUG_CHUNKS
+#if DEBUG_CHUNKS || DEBUG_GENERATION
 	return false;
 #endif
 	
@@ -798,7 +864,7 @@ glm::ivec2 PosToChunkPos(glm::vec3 pos)
 	};
 }
 
-void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float playerPosZ) {
+void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float playerPosX, float playerPosZ) {
 	static bool printed = false;
 	printed = false;
 
@@ -831,6 +897,14 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 			}
 			if (alreadyGenerated)
 				continue;
+
+#if 0
+			// check if chunk inside frustum
+			glm::vec3 chunkCenter(chunkPosX + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunkPosZ + CHUNK_SZ / 2.0f);
+			if (!FrustumSphereIntersection(frustum, chunkCenter, g_chunkRadius)) {
+				continue;
+			}
+#endif
 
 			// find place for new chunk
 			int chunkToReplaceIndex = -1;
@@ -889,18 +963,15 @@ void ChunkManagerBuildChunks(ChunkManager* manager, float playerPosX, float play
 				// try loading from disk
 				if (!ChunkLoadFromDisk(chunkToReplace, g_gameWorld.info.name, chunkPosX, chunkPosZ)) {
 #if !DEBUG_CHUNKS
-
 					// if failed, generate chunk
 					ChunkGenerateBlocks(chunkToReplace, chunkPosX, chunkPosZ, 0);
 #else
 					ChunkGenerateBlocks_DEBUG(chunkToReplace, chunkPosX, chunkPosZ, 0);
 #endif
-
 				}
 
 				//std::this_thread::sleep_for(std::chrono::milliseconds(200)); // test
 
-				//ChunkGenerateBlocks(chunkToReplace, chunkPosX, chunkPosZ, 0);
 				ChunkGenerateMesh(chunkToReplace);
 				chunkToReplace->generationInProgress = false;
 			});

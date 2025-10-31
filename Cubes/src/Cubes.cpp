@@ -31,9 +31,6 @@ matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
 GameState gameState;
 
-// TDOO: bounding box вместо радиуса
-float chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
-
 float cameraNearClip = 0.1f, cameraFarClip = 1000.0f;
 
 float near_plane = 0.1f, far_plane = 1000.0f;
@@ -45,7 +42,7 @@ static bool g_GenChunks = true;
 static int g_maxInteractionDistance = 12;
 
 static DynamicArray<Entity> entities;
-
+bool g_inventoryOpened = false;
 
 struct UVOffset {
 	glm::vec2 offset;
@@ -91,7 +88,7 @@ static float texVSize;
 
 struct {
 	Texture testTexture, textureAtlas, uiAtlas, entityTexture;
-	Geometry screenQuad, defaultBox, entityMesh;
+	Geometry screenQuad, defaultQuad, defaultBox, entityMesh;
 	Sprite sunSprite, moonSprite;
 	FrameBuffer depthMapFBO;
 	// рендерим в screenFBO с MSAA, копируем результат в intermediateFBO и делаем постобработку
@@ -138,10 +135,10 @@ void GameInit() {
 	{
 		texUSize = 16.0 / (float)Assets.textureAtlas.width;
 		texVSize = 16.0 / (float)Assets.textureAtlas.height;
-		blocksUV[(int)BlockType::btGround].offset = { 0, 0 };
-		blocksUV[(int)BlockType::btGround].scale = { texUSize, texVSize };
-		blocksUV[(int)BlockType::btStone].offset = { texUSize, 0 };
-		blocksUV[(int)BlockType::btStone].scale = { texUSize, texVSize };
+		//blocksUV[(int)BlockType::btGround].offset = { 0, 0 };
+		//blocksUV[(int)BlockType::btGround].scale = { texUSize, texVSize };
+		//blocksUV[(int)BlockType::btStone].offset = { texUSize, 0 };
+		//blocksUV[(int)BlockType::btStone].scale = { texUSize, texVSize };
 		blocksUV[(int)BlockType::texSun].offset = { texUSize * 2, 0 };
 		blocksUV[(int)BlockType::texSun].scale = { texUSize, texVSize };
 		blocksUV[(int)BlockType::texMoon].offset = { texUSize * 3, 0 };
@@ -152,11 +149,15 @@ void GameInit() {
 	{
 		glm::vec2 tileSize(16.0f / (float)Assets.uiAtlas.width, 16.0f / (float)Assets.uiAtlas.height);
 		glm::vec2 tileOrigin(0, 0);
-
-		for (uiElemType elemType : {uiInventorySelectCell, uiInventoryCell, uiHeart, uiCross, uiGroundBlock, uiStoneBlock, uiSnowBlock, uiIronOreBlock})
+		u32 tilesInRow = Assets.uiAtlas.width / 16;
+		for (size_t i = 0; i < uiCOUNT; i++)
 		{
-			uiUV[elemType] = UVOffset(tileOrigin, tileSize);
+			uiUV[i] = UVOffset(tileOrigin, tileSize);
 			tileOrigin.x += tileSize.x;
+			if (i % tilesInRow == tilesInRow - 1) {
+				tileOrigin.x = 0;
+				tileOrigin.y += tileSize.y;
+			}
 		}
 	}
 
@@ -167,7 +168,7 @@ void GameInit() {
 	Assets.bigFont = loadFont(FONT_FOLDER "DigitalPixel.otf", 50);
 
 	{
-		static Vertex vertices[] = {
+		Vertex boxVerts[] = {
 			Vertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
 			Vertex(1.0f, 0.0f, 0.0f, 1.0f, 0.0f),
 			Vertex(1.0f, 1.0f, 0.0f, 1.0f, 1.0f),
@@ -180,9 +181,9 @@ void GameInit() {
 		};
 		for (size_t i = 0; i < 8; i++)
 		{
-			vertices[i].normal = { 0,1,0 };
+			boxVerts[i].normal = { 0,1,0 };
 		}
-		static Triangle triangles[] = {
+		Triangle boxTris[] = {
 			Triangle(0, 2, 1), Triangle(0, 3, 2),
 			Triangle(4, 5, 7), Triangle(5, 6, 7),
 			Triangle(0, 4, 3), Triangle(4, 7, 3),
@@ -190,8 +191,20 @@ void GameInit() {
 			Triangle(2, 3, 6), Triangle(3, 7, 6),
 			Triangle(0, 1, 4), Triangle(1, 5, 4)
 		};
+		Assets.defaultBox = Renderer::createGeometry(boxVerts, 8, boxTris, 12);
 
-		Assets.defaultBox = Renderer::createGeometry(vertices, 8, triangles, 12);
+		Vertex quadVerts[] = {
+			Vertex(0,0,0, 0,0),
+			Vertex(1,0,0, 1,0),
+			Vertex(1,1,0, 1,1),
+			Vertex(0,1,0, 0,1),
+		};
+		Triangle quadTris[] = {
+			Triangle(0,1,2),
+			Triangle(0,2,3)
+		};
+		Assets.defaultQuad = Renderer::createGeometry(quadVerts, 4, quadTris, 2);
+
 		Assets.entityMesh = Renderer::createGeometryFromFile(MESH_FOLDER "zombie.mesh");
 
 		createSprite(Assets.sunSprite, 1, 1, blocksUV[(int)BlockType::texSun].offset, texUSize, texVSize);
@@ -199,13 +212,13 @@ void GameInit() {
 	}
 
 	{
-		static Vertex vertices[] = {
+		Vertex vertices[] = {
 			Vertex(-1,-1, 0, 0,0),
 			Vertex(1,-1, 0, 1,0),
 			Vertex(1, 1, 0, 1,1),
 			Vertex(-1, 1, 0, 0,1),
 		};
-		static Triangle triangles[] = {
+		Triangle triangles[] = {
 			Triangle(0,1,2),
 			Triangle(0,2,3)
 		};
@@ -237,6 +250,7 @@ void GameExit() {
 	CloseWindow();
 }
 
+// time - время в секундах
 void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferInfo) {
 	g_time = time;
 	g_deltaTime = g_time - g_prevTime;
@@ -290,8 +304,6 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 		g_ShowDebugInfo = !g_ShowDebugInfo;
 	}
 
-
-
 	switch (gameState)
 	{
 	case gsMainMenu:
@@ -303,7 +315,6 @@ void GameUpdateAndRender(float time, Input* input, FrameBufferInfo* frameBufferI
 		RenderPauseMenu(input);
 		break;
 	case gsInGame:
-		SetCursorMode(false);
 		RenderGame(input);
 		break;
 	}
@@ -373,6 +384,8 @@ void RenderMainMenu(Input* input) {
 #if _DEBUG
 			InventoryAddItem(&player.inventory, ItemType::GroundBlock, 64);
 			InventoryAddItem(&player.inventory, ItemType::StoneBlock, 64);
+			InventoryAddItem(&player.inventory, ItemType::Sword, 64);
+			InventoryAddItem(&player.inventory, ItemType::Pickaxe, 64);
 #endif
 
 			g_gameWorld.init(worldInfo, settings.renderDistance);
@@ -518,7 +531,7 @@ void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, 
 		if (chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
-			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+			if (!FrustumSphereIntersection(frustum, chunkCenter, g_chunkRadius)) {
 				continue;
 			}
 			
@@ -571,7 +584,7 @@ int DrawChunks_old(
 		if (chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
-			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+			if (!FrustumSphereIntersection(frustum, chunkCenter, g_chunkRadius)) {
 				continue;
 			}
 			
@@ -646,7 +659,7 @@ int DrawChunks(
 		if (!chunk->generationInProgress && chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
-			if (!FrustumSphereIntersection(frustum, chunkCenter, chunkRadius)) {
+			if (!FrustumSphereIntersection(frustum, chunkCenter, g_chunkRadius)) {
 				continue;
 			}
 			
@@ -748,7 +761,15 @@ void RenderGame(Input* input) {
 	Player& player = g_gameWorld.player;
 
 	{
+		if (g_inventoryOpened) {
+			SetCursorMode(true);
+		}
+		else {
+			SetCursorMode(false);
+		}
+
 		// update player rotation
+		if (!g_inventoryOpened)
 		{
 			static float lastX = 0, lastY = 0; // позиция курсора
 			static float yaw = 0, pitch = 0;
@@ -851,6 +872,10 @@ void RenderGame(Input* input) {
 
 		// player inventory
 		{
+			if (ButtonClicked(input->openInventory)) {
+				g_inventoryOpened = !g_inventoryOpened;
+			}
+
 			for (size_t i = 0; i < INVENTORY_MAX_SIZE; i++)
 			{
 				if (ButtonClicked(input->inventorySlots[i])) {
@@ -859,10 +884,10 @@ void RenderGame(Input* input) {
 			}
 
 			if (ButtonClicked(input->scrollUp)) {
-				InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
+				InventorySelectItem(&player.inventory, player.inventory.selectedIndex - 1);
 			}
 			if (ButtonClicked(input->scrollDown)) {
-				InventorySelectItem(&player.inventory, player.inventory.selectedIndex - 1);
+				InventorySelectItem(&player.inventory, player.inventory.selectedIndex + 1);
 			}
 		}
 
@@ -908,6 +933,11 @@ void RenderGame(Input* input) {
 		}
 	}
 
+	Frustum frustum = FrustumCreate(
+		player.camera.pos, player.camera.front, player.camera.up,
+		(float)fbInfo->sizeX / fbInfo->sizeY,
+		player.camera.FOV,
+		cameraNearClip, cameraFarClip);
 
 	int currentChunkPosX = (int)(player.camera.pos.x / CHUNK_SX) * CHUNK_SX;
 	int currentChunkPosZ = (int)(player.camera.pos.z / CHUNK_SZ) * CHUNK_SZ;
@@ -917,10 +947,23 @@ void RenderGame(Input* input) {
 		currentChunkPosZ -= CHUNK_SZ;
 
 	if (g_GenChunks) {
-		ChunkManagerBuildChunks(&g_chunkManager, player.camera.pos.x, player.camera.pos.z);
+		if (ButtonClicked(input->regenerateChunks)) {
+			g_chunkManager.queue->StopAndJoin();
+			for (size_t i = 0; i < g_chunkManager.chunksCount; i++)
+			{
+				g_chunkManager.chunks[i].status = ChunkStatus::Uninitalized;
+			}
+			g_chunkManager.queue->Start(std::max(1, GetThreadsCount()));
+		}
+
+		ChunkManagerBuildChunks(&g_chunkManager, &frustum, player.camera.pos.x, player.camera.pos.z);
 	}
 
-	// destroying / building blocks
+	//
+	// building / destruction
+	//
+
+	// place block
 	if (ButtonClicked(input->placeBlock)) {
 		InventoryCell *cell = &player.inventory.cells[player.inventory.selectedIndex];
 		if (cell->itemsCount > 0) {
@@ -931,16 +974,38 @@ void RenderGame(Input* input) {
 			}
 		}
 	}
-	else if (ButtonClicked(input->attack)) {
-		PlaceBlockResult res = ChunkManagerDestroyBlock(&g_chunkManager, player.camera.pos, player.camera.front, g_maxInteractionDistance);
-		if (res.success) {
-			Item drop = {};
-			drop.type = GetBlockInfo(res.typePrev)->itemType;
-			drop.pos = glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5);
-			drop.count = 1;
-			dbgprint("[DESTR] px%d py%d pz%d\n", res.pos.x, res.pos.y, res.pos.z);
-			dbgprint("[DROP] px%.1f py%.1f pz%.1f\n", drop.pos.x, drop.pos.y, drop.pos.z);
-			g_gameWorld.droppedItems.append(drop);
+	// destroy block
+	else if (ButtonHeldDown(input->attack)) {
+		{
+			PeekBlockResult res = ChunkManagerPeekBlockFromRay(&g_chunkManager, player.camera.pos, player.camera.front, g_maxInteractionDistance);
+			if (res.success) {
+				static glm::ivec3 lastBlokPos(0);
+				static float startTime = g_time;
+				glm::ivec3 blockPos = res.blockPos;
+				if (blockPos == lastBlokPos) {
+					float blockHardness = GetBlockInfo(res.block->type)->hardness;
+					float itemDamage = GetItemInfo(InventoryGetCurrentItem(&player.inventory).itemType)->blockDamage;
+					float timeToDestroyBlock = blockHardness / itemDamage;
+
+					if (g_time - startTime > timeToDestroyBlock) {
+						PlaceBlockResult res = ChunkManagerDestroyBlock(&g_chunkManager, player.camera.pos, player.camera.front, g_maxInteractionDistance);
+						if (res.success) {
+							Item drop = { 
+								.pos = glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5, res.pos.z + 0.5), 
+								.count = 1, 
+								.type = GetBlockInfo(res.typePrev)->itemType 
+							};
+							g_gameWorld.droppedItems.append(drop);
+
+						}
+						startTime = g_time;
+					}
+				}
+				else {
+					startTime = g_time;
+				}
+				lastBlokPos = blockPos;
+			}
 		}
 	}
 
@@ -1104,12 +1169,6 @@ void RenderGame(Input* input) {
 		Renderer::unbindShader();
 	}
 	// TEST
-
-	Frustum frustum = FrustumCreate(
-		player.camera.pos, player.camera.front, player.camera.up,
-		(float)fbInfo->sizeX / fbInfo->sizeY,
-		player.camera.FOV,
-		cameraNearClip, cameraFarClip);
 
 	// draw chunks & entities
 	int chunksRendered = 0;
@@ -1305,6 +1364,58 @@ void RenderGame(Input* input) {
 	{
 		UI::DrawElement(&Assets.uiAtlas, glm::vec3(0, 0, 0), glm::vec3(heartWidth, heartWidth, 1), uiUV[uiHeart].scale, uiUV[uiHeart].offset); // health bar
 	}
+
+	if (g_inventoryOpened) {
+		UI::SetMargin(true);
+		UI::SetAnchor(uiAnchor::Center, 0);
+		UI::ShiftOrigin(100, 0);
+		UI::SetAdvanceMode(AdvanceMode::Up);
+		UI::Text("Craft items");
+		for (size_t i = 0; i < ArraySize(itemInfoTable); i++)
+		{
+
+			ItemInfo* itemInfo = &itemInfoTable[i];
+
+			if (!itemInfo->craftable)
+				continue;
+
+			Inventory inventoryCopy = player.inventory;
+			bool canCraft = true;
+
+			for (size_t j = 0; j < ArraySize(itemInfo->craftScheme); j++)
+			{
+				if (itemInfo->craftScheme[j] == ItemType::None)
+					continue;
+
+				int cellIndex = InventoryFindItem(&inventoryCopy, itemInfo->craftScheme[j]);
+				if (cellIndex != -1) {
+					InventoryDropItem(&inventoryCopy, cellIndex, 1);
+				}
+				else {
+					canCraft = false;
+					break;
+				}
+			}
+
+			if (canCraft) {
+				char craftButtonText[128];
+				sprintf(craftButtonText, "Craft %s", itemInfo->name);
+				if (UI::Button(craftButtonText)) {
+					player.inventory = inventoryCopy;
+					InventoryAddItem(&player.inventory, itemInfo->itemType, 1);
+				}
+			}
+		}
+	}
+
+	// debug textures
+#if 0
+	UI::SetAnchor(uiAnchor::Center, 0);
+	UI::ShiftOrigin(-400, 0);
+	UI::DrawElement(&Assets.uiAtlas, { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
+	UI::DrawElement(&Assets.textureAtlas, { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
+	UI::DrawElement(FontGetTextureAtlas(Assets.regularFont), { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
+#endif
 
 	// shadows debug
 #if 0

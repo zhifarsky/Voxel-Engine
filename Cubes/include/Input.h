@@ -33,6 +33,7 @@ struct Input {
 
 	// DEBUG
 	ButtonState rebuildShaders;
+	ButtonState regenerateChunks;
 	ButtonState showDebugInfo;
 };
 

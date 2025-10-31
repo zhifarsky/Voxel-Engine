@@ -13,11 +13,13 @@
 //#include <imgui_impl_opengl3.h>
 //#include <imgui_stdlib.h>
 
+#include "stb_image.h"
 #include "Renderer.h"
 #include "Mesh.h"
 #include "ui.h"
 #include "Input.h"
 #include "Tools.h"
+#include "Files.h"
 #pragma endregion
 
 #define DEFAULT_WIDTH 1280
@@ -108,6 +110,14 @@ int main()
         return -1;
     }
 
+    // set window icon
+    {
+        GLFWimage image;
+        image.pixels = stbi_load(TEX_FOLDER"icon.png", &image.width, &image.height, NULL, 4);
+        glfwSetWindowIcon(window, 1, &image);
+        stbi_image_free(image.pixels);
+    }
+
     //WindowSwitchMode(WindowMode::Windowed); // оконный при запуске
 
     glfwMakeContextCurrent(window);
@@ -172,6 +182,7 @@ int main()
 
 #if _DEBUG
             ProcessButtonInput(&oldInput->rebuildShaders, &newInput->rebuildShaders, IsKeyReleased(window, GLFW_KEY_R));
+            ProcessButtonInput(&oldInput->regenerateChunks, &newInput->regenerateChunks, IsKeyReleased(window, GLFW_KEY_G));
 #endif
         }
 

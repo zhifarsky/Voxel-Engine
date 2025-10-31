@@ -93,29 +93,28 @@ struct Arena {
 	void clear();
 };
 
-struct QueueTaskItem {
-	int taskIndex;
-	bool valid;
-};
+//struct QueueTaskItem {
+//	int taskIndex;
+//	bool valid;
+//};
 
-#define WAIT_INFINITE 0xFFFFFFFF
-
-struct WorkQueue;
-
-WorkQueue* WorkQueueCreate(u32 maxSemaphore);
-
-void WorkQueueAddTask(WorkQueue* queue); // добавить задачу
-void WorkQueueClearTasks(WorkQueue* queue);
-
-int WorkQueueGetTasksCount(WorkQueue* queue);
-QueueTaskItem WorkQueueGetNextTask(WorkQueue* queue); 	// получить индекс задачи, которую нужно выполнить
-void WorkQueueSetTaskCompleted(WorkQueue* queue); // выполнение задачи закончено
-
-void WorkQueueThreadWaitForNextTask(WorkQueue* queue, u32 timeMilliseconds);
-void WorkQueueWaitAndClear(WorkQueue* queue); // ожидание выполнения всех задач
-bool WorkQueueWorkStillInProgress(WorkQueue* queue);
-
-struct WorkingThread;
-
-WorkingThread* WorkingThreadCreate(int id, void* routine, void* argument);
-void WorkingThreadRelease(WorkingThread* thread);
+//#define WAIT_INFINITE 0xFFFFFFFF
+//struct WorkQueue;
+//
+//WorkQueue* WorkQueueCreate(u32 maxSemaphore);
+//
+//void WorkQueueAddTask(WorkQueue* queue); // добавить задачу
+//void WorkQueueClearTasks(WorkQueue* queue);
+//
+//int WorkQueueGetTasksCount(WorkQueue* queue);
+//QueueTaskItem WorkQueueGetNextTask(WorkQueue* queue); 	// получить индекс задачи, которую нужно выполнить
+//void WorkQueueSetTaskCompleted(WorkQueue* queue); // выполнение задачи закончено
+//
+//void WorkQueueThreadWaitForNextTask(WorkQueue* queue, u32 timeMilliseconds);
+//void WorkQueueWaitAndClear(WorkQueue* queue); // ожидание выполнения всех задач
+//bool WorkQueueWorkStillInProgress(WorkQueue* queue);
+//
+//struct WorkingThread;
+//
+//WorkingThread* WorkingThreadCreate(int id, void* routine, void* argument);
+//void WorkingThreadRelease(WorkingThread* thread);
