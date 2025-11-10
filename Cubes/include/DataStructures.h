@@ -1,6 +1,20 @@
 #pragma once
+#include <assert.h>
 #include "Typedefs.h"
 #include "Tools.h"
+
+// арена, расширяющаяся при помощи коммитов ранее зарезервинованной памяти
+// capacity округляется до размера страницы памяти
+struct Arena {
+	u8* mem;
+	u64 size, capacity, reserved;
+
+	void alloc(u64 capacity, u64 reserveCapacity = 128ULL * 1024 * 1024 * 1024);
+	void release();
+	// возвращает указатель на зануленную память
+	void* push(u64 size);
+	void clear();
+};
 
 template<typename T>
 struct Array {
@@ -17,6 +31,12 @@ struct Array {
 		items = (T*)calloc(sizeof(T), capacity);
 	}
 
+	void alloc(Arena* storage, u32 capacity) {
+		count = 0;
+		this->capacity = capacity;
+		items = (T*)storage->push(sizeof(T) * capacity);
+	}
+
 	void release() {
 		free(items);
 		items = NULL;
@@ -26,15 +46,19 @@ struct Array {
 	void append(T value) {
 		if (count < capacity)
 			items[count++] = value;
+		else
+			assert(false);
 	}
 
 	void insert(T value, u32 pos) {
-		if (count < capacity) {
+		if (count < capacity && pos <= count) {
 			for (s32 i = count; i > pos; i--)
 				items[i] = items[i - 1];
 			items[pos] = value;
 			count++;
 		}
+		else
+			assert(false);
 	}
 
 	void remove(u32 pos) {
@@ -43,6 +67,8 @@ struct Array {
 				items[i] = items[i + 1];
 			count--;
 		}
+		else
+			assert(false);
 	}
 
 	void clear() {
@@ -76,21 +102,15 @@ struct DynamicArray {
 		count = 0;
 	}
 
+	void free() {
+		free(items);
+		items = 0;
+		count = capacity = 0;
+	}
+
 	Type operator[](int index) {
 		return items[index];
 	}
-};
-
-// арена, расширяющаяся при помощи коммитов ранее зарезервинованной памяти
-// capacity округляется до размера страницы памяти
-struct Arena {
-	u8* mem;
-	u64 size, capacity;
-
-	void alloc(u64 capacity, u64 reserveCapacity = 128ULL * 1024 * 1024 * 1024);
-	void release();
-	void* push(u64 size);
-	void clear();
 };
 
 //struct QueueTaskItem {

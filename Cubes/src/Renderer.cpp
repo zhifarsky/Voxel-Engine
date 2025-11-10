@@ -6,11 +6,12 @@
 #include "Tools.h"
 #include "Files.h"
 
+#define MAX_AA_SAMPLES 8
+
 const char* VertexShaderToken = "#type vertex";
 const char* FragmentShaderToken = "#type fragment";
 
 using namespace Renderer;
-
 
 const GLenum PixelFormatTable[] = {
 	GL_RGB, GL_RGBA, GL_RED, GL_DEPTH_COMPONENT
@@ -78,6 +79,23 @@ float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float 
 	}
 
 	return true;
+}
+
+UV GetUVFromAtlas(Texture* atlas, s32 tileIndex, glm::ivec2 tileSize)
+{
+	s32 tilesInRow = atlas->width / tileSize.x;
+	s32 tilesInCol = atlas->height / tileSize.y;
+	
+	glm::vec2 uvScale = { 1.0f / tilesInRow, 1.0f / tilesInCol };
+	glm::vec2 uvOffset = {
+		uvScale.x * (tileIndex % tilesInRow),
+		uvScale.y * (tileIndex / tilesInRow)
+	};
+
+	return {
+		.offset = uvOffset,
+		.scale = uvScale
+	};
 }
 
 
@@ -170,26 +188,10 @@ namespace Renderer {
 		return shaderProgram;
 	}
 
-	Shader createShaderFromFile(const char* vertexShaderFilename, const char* fragmentShaderFilename) {
-		u32 vFileSize = 0, fFileSize = 0;
-		char* vertexSource = (char*)readEntireFile(vertexShaderFilename, &vFileSize, FileType::text);
-		char* fragmentSource = (char*)readEntireFile(fragmentShaderFilename, &fFileSize, FileType::text);
-		if (vertexSource == 0 || fragmentSource == 0) {
-			FatalError("Error on loading shaders from disk");
-		}
-
-		Shader shaderProgram = Renderer::createShader(vertexSource, fragmentSource);
-
-		free(vertexSource);
-		free(fragmentSource);
-
-		return shaderProgram;
-	}
-
-	Shader Renderer::createShaderFromFile(const char* fileName)
+	Shader Renderer::createShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader)
 	{
 		u32 vFileSize = 0, fFileSize = 0;
-		char* source = (char*)readEntireFile(fileName, &vFileSize, FileType::text);
+		char* source = (char*)readEntireFile(tempStorage, fileName, &vFileSize, FileType::text);
 		if (!source) {
 			FatalError("Error on loading shaders from disk");
 		}
@@ -208,7 +210,15 @@ namespace Renderer {
 
 		Shader shader = Renderer::createShader(vertexSource, fragmentSource);
 
-		free(source);
+		if (oldShader != 0)
+		{
+			if (shader) {
+				deleteShader(oldShader);
+				return shader;
+			}
+			else
+				return oldShader;
+		}
 
 		return shader;
 	}
@@ -217,8 +227,9 @@ namespace Renderer {
 		glDeleteProgram(shader);
 	}
 
-	void bindShader(Shader shader) {
-		glUseProgram(shader);
+	void bindShader(Asset* shader)
+	{
+		glUseProgram(shader->shader);
 	}
 
 	void unbindShader() {
@@ -227,50 +238,54 @@ namespace Renderer {
 
 	// TODO: сделать setUniform макросами?
 
-	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose) {
-		glUniformMatrix4fv(glGetUniformLocation(shader, name), 1, transpose, values);
+	void setUniformMatrix4(Asset* shader, const char* name, float* values, bool transpose) {
+		glUniformMatrix4fv(glGetUniformLocation(shader->shader, name), 1, transpose, values);
 	}
 
-	void setUniformInt(Shader shader, const char* name, int x) {
-		glUniform1i(glGetUniformLocation(shader, name), x);
+	void setUniformInt(Asset* shader, const char* name, int x) {
+		glUniform1i(glGetUniformLocation(shader->shader, name), x);
 	}
 
-	void setUniformInt2(Shader shader, const char* name, int x, int y) {
-		glUniform2i(glGetUniformLocation(shader, name), x, y);
+	void setUniformInt2(Asset* shader, const char* name, int x, int y) {
+		glUniform2i(glGetUniformLocation(shader->shader, name), x, y);
+	}
+	
+	void setUniformFloat(Asset* shader, const char* name, float x) {
+		glUniform1f(glGetUniformLocation(shader->shader, name), x);
 	}
 
-	void setUniformFloat(Shader shader, const char* name, float x) {
-		glUniform1f(glGetUniformLocation(shader, name), x);
+	void setUniformFloat2(Asset* shader, const char* name, float x, float y) {
+		glUniform2f(glGetUniformLocation(shader->shader, name), x, y);
 	}
 
-	void setUniformFloat2(Shader shader, const char* name, float x, float y) {
-		glUniform2f(glGetUniformLocation(shader, name), x, y);
+	void setUniformFloat3(Asset* shader, const char* name, float x, float y, float z) {
+		glUniform3f(glGetUniformLocation(shader->shader, name), x, y, z);
+	}
+	
+	void setUniformFloat4(Asset* shader, const char* name, glm::vec4 v) {
+		glUniform4f(glGetUniformLocation(shader->shader, name), v.x, v.y, v.z, v.w);
 	}
 
-	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z) {
-		glUniform3f(glGetUniformLocation(shader, name), x, y, z);
+	int GetMaxAASamples() {
+		GLint maxSamples = 0;
+		glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+		return std::min(MAX_AA_SAMPLES, maxSamples);
 	}
 
-	void setUniformFloat4(Shader shader, const char* name, float x, float y, float z, float w) {
-		glUniform4f(glGetUniformLocation(shader, name), x, y, z, w);
-	}
-	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v) {
-		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
-	}
+	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount) {
+		int maxSamples = GetMaxAASamples();
+		samplesCount = std::max(1, std::min(samplesCount, maxSamples));
 
-	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, MSAAFactor samplesCount) {
 		*fb = {0};
 		Texture* texture = &fb->textures[0];
 
-		u32 samples = (u32)samplesCount;
-		
 		glGenFramebuffers(1, &fb->ID);
 		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 
 		// текстура для RGB буфера
 		glGenTextures(1, &fb->textures[0].ID);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture->ID);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samplesCount, GL_RGB, width, height, GL_TRUE);
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
@@ -280,7 +295,7 @@ namespace Renderer {
 		// RBO для Detph и Stencil буферов
 		glGenRenderbuffers(1, &fb->RBO);
 		glBindRenderbuffer(GL_RENDERBUFFER, fb->RBO);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samplesCount, GL_DEPTH24_STENCIL8, width, height);
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 		
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb->RBO);
@@ -435,10 +450,13 @@ namespace Renderer {
 
 	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount) {
 		Geometry geo;
-		geo.vertexCapacity = geo.vertexCount = verticesCount;
-		geo.triangleCapacity = geo.triangleCount = triangleCount;
-		geo.vertices = vertices;
-		geo.triangles = triangles;
+		//geo.vertexCapacity = geo.vertexCount = verticesCount;
+		//geo.triangleCapacity = geo.triangleCount = triangleCount;
+		//geo.vertices = vertices;
+		//geo.triangles = triangles;
+
+		geo.triangleCount = triangleCount;
+		geo.vertexCount = verticesCount;
 
 		glGenVertexArrays(1, &geo.VAO);
 		glGenBuffers(1, &geo.VBO);
@@ -467,7 +485,7 @@ namespace Renderer {
 	/* работает только с .obj форматом
 	работает только с триангулированными мешами 
 	TODO: загрузка нормалей */
-	Geometry createGeometryFromFile(const char* fileName) {
+	Geometry createGeometryFromFile(GameMemory* memory, const char* fileName) {
 		struct Face {
 			int vertex[4];
 			int uv[4];
@@ -496,10 +514,10 @@ namespace Renderer {
 			}
 		}
 
-		glm::vec3* positions = (glm::vec3*)malloc(sizeof(glm::vec3) * vCount);
-		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * uvCount);
-		glm::vec3* normals = (glm::vec3*)malloc(sizeof(glm::vec3) * normalCount);
-		Face* faces = (Face*)malloc(sizeof(Face) * faceCount);
+		glm::vec3* positions = (glm::vec3*)memory->tempStorage.push(sizeof(glm::vec3)* vCount);
+		glm::vec2* uvs = (glm::vec2*)memory->tempStorage.push(sizeof(glm::vec2) * uvCount);
+		glm::vec3* normals = (glm::vec3*)memory->tempStorage.push(sizeof(glm::vec3) * normalCount);
+		Face* faces = (Face*)memory->tempStorage.push(sizeof(Face) * faceCount);
 
 		rewind(file);
 
@@ -543,8 +561,8 @@ namespace Renderer {
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)calloc(sizeof(Vertex), faceCount * 3);
-		Triangle* tris = (Triangle*)calloc(sizeof(Triangle), faceCount);
+		Vertex* vertices = (Vertex*)memory->tempStorage.push(sizeof(Vertex) * faceCount * 3);
+		Triangle* tris = (Triangle*)memory->tempStorage.push(sizeof(Triangle) * faceCount);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)
@@ -557,10 +575,6 @@ namespace Renderer {
 			}
 		}
 		
-		free(uvs);
-		free(faces);
-		free(positions);
-		free(normals);
 		fclose(file);
 
 		return createGeometry(vertices, faceCount * 3, tris, faceCount);;

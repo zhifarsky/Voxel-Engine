@@ -42,9 +42,6 @@
     <ClCompile Include="src\World.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\DataStructures.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="src\Renderer.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>

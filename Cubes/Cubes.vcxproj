@@ -210,7 +210,6 @@
     <ClCompile Include="src\AssetManager.cpp" />
     <ClCompile Include="src\ChunkManager.cpp" />
     <ClCompile Include="src\Cubes.cpp" />
-    <ClCompile Include="src\DataStructures.cpp" />
     <ClCompile Include="src\Files.cpp" />
     <ClCompile Include="src\Font.cpp" />
     <ClCompile Include="src\Input.cpp" />

@@ -92,11 +92,11 @@ void GetWorldPath(char* buffer, const char* worldname) {
 	sprintf(buffer, "%s%s", WORLDS_FOLDER, worldname);
 }
 
-void GameWorld::init(GameWorldInfo* info, u32 renderDistance) {
+void GameWorld::init(GameMemory* memory, GameWorldInfo* info, u32 renderDistance) {
 	this->info = *info;
 	
 	ChunkManagerCreate(this->info.seed);
-	ChunkManagerAllocChunks(&g_chunkManager, renderDistance);
+	ChunkManagerAllocChunks(memory, &g_chunkManager, renderDistance);
 
 	//inventory.clear();
 	//this->inventory.append(BlockType::btGround);

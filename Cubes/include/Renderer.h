@@ -1,6 +1,7 @@
 #pragma once
 #include <glm.hpp>
 #include "Typedefs.h"
+#include "Cubes.h"
 
 #define FRAMEBUFFER_MAX_TEXTURES 1
 
@@ -81,12 +82,13 @@ struct Triangle {
 };
 
 struct Geometry {
-	Vertex* vertices;
-	Triangle* triangles;
+	//Vertex* vertices;
+	//Triangle* triangles;
 
-	u32 vertexCapacity, vertexCount;
-	u32 triangleCapacity, triangleCount;
+	//u32 vertexCapacity, vertexCount;
+	//u32 triangleCapacity, triangleCount;
 
+	u32 vertexCount, triangleCount;
 	u32 VAO, VBO, EBO;
 };
 
@@ -102,21 +104,6 @@ struct GeometryInstanced {
 	u32 instanceCount;
 
 	u32 VAO, VBO, instanceVBO, EBO;
-};
-
-
-// в том же порядке, что и в атласе
-enum TextureID : u8 {
-	tidGround,
-	tidStone,
-	tidSun,
-	tidMoon,
-	tidSnow,
-	tidIronOre,
-	tidWood,
-	tidLeaves,
-	tidAir,
-	tidCount
 };
 
 enum BlockFace : u8 {
@@ -143,36 +130,92 @@ struct BlockFaceInstance {
 };
 #pragma pack(pop)    
 
+struct UV {
+	glm::vec2 offset;
+	glm::vec2 scale;
+};
+
+UV GetUVFromAtlas(Texture* atlas, s32 tileIndex, glm::ivec2 tileSize);
+
+//
+// Asset Management
+//
+
+enum class AssetType : u8 {
+	Shader, Texture, Mesh
+};
+
+enum class AssetID : u8 {
+	CubeShader, CubeShadowShader,
+	PolymeshShader, PolymeshShadowShader,
+	FlatShader,
+	SpriteShader,
+	UIShader,
+	ScreenShader,
+
+	EnvTexture,
+	UITexture,
+	EntityTexture,
+	TestTexture,
+
+	EntityMesh,
+	DefaultBox,
+
+	COUNT
+};
+
+struct Asset {
+	const char* path;
+	AssetType type;
+	AssetID id;
+
+	bool IsInitialized;
+
+	union {
+		Texture texture;
+		Shader shader;
+		Geometry mesh;
+	};
+};
+
+void InvalidateShaders();
+
+Asset* GetAsset(AssetID id);
+
+//
+// Renderer
+//
+
 namespace Renderer {
 	typedef void* (*LoadProc)(const char* name);
-	enum class MSAAFactor { NONE = 1, X2 = 2, X4 = 4, X8 = 8, X16 = 16 };
-
 
 	//bool init(void* (*loadProc)(const char* name));
 	// возвращает true, если успешно
 	bool init(LoadProc);
 
+	void Begin(Arena* tempStorage);
+	
 	void clear(float r, float g, float b, float a = 1);
 
 	void setViewportDimensions(int width, int height, int x = 0, int y = 0);
 
 	Shader createShader(const char* vertexSource, const char* fragmentSource);
-	Shader createShaderFromFile(const char* vertexShaderFilename, const char* fragmentShaderFilename);
-	Shader createShaderFromFile(const char* fileName);
+	// oldShader можно использовать для рекомпиляции шейдера
+	Shader createShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader = 0);
 	void deleteShader(Shader shader);	
-	void bindShader(Shader shader);
+	void bindShader(Asset* shader);
 	void unbindShader();
 
-	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose = false);
-	void setUniformInt(Shader shader, const char* name, int x);
-	void setUniformInt2(Shader shader, const char* name, int x, int y);
-	void setUniformFloat(Shader shader, const char* name, float x);
-	void setUniformFloat2(Shader shader, const char* name, float x, float y);
-	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z);
-	void setUniformFloat4(Shader shader, const char* name, float x, float y, float z, float w);
-	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v);
+	void setUniformMatrix4(Asset* shader, const char* name, float* values, bool transpose = false);
+	void setUniformInt(Asset* shader, const char* name, int x);
+	void setUniformInt2(Asset* shader, const char* name, int x, int y);
+	void setUniformFloat(Asset* shader, const char* name, float x);
+	void setUniformFloat2(Asset* shader, const char* name, float x, float y);
+	void setUniformFloat3(Asset* shader, const char* name, float x, float y, float z);
+	void setUniformFloat4(Asset* shader, const char* name, glm::vec4 v);
 
-	void createMSAAFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height, MSAAFactor samplesCount);
+	int GetMaxAASamples();
+	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount);
 	void createColorFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height);
 	void createDepthMapFrameBuffer(FrameBuffer* frameBuffer, u32 size);
 	
@@ -198,7 +241,7 @@ namespace Renderer {
 	void unbindTexture(int textureSlot = 0);
 
 	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount);
-	Geometry createGeometryFromFile(const char* fileName);
+	Geometry createGeometryFromFile(GameMemory* memory, const char* fileName);
 	void deleteGeometry(Geometry* geo);
 	void drawGeometry(Geometry* geo);
 	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount);

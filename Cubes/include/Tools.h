@@ -2,8 +2,6 @@
 #include <chrono>
 #include "Typedefs.h"
 
-#define ArraySize(a) (sizeof(a) / sizeof(*a))
-
 void FatalError(const char* msg, int exitCode = 1);
 
 void dbgprint(const wchar_t* str, ...);
@@ -50,3 +48,4 @@ int GetThreadsCount();
 
 bool IsFileExists(const char* filepath);
 bool CreateNewDirectory(const char* path);
+

@@ -7,7 +7,7 @@
 #include "Files.h"
 
 #define DEBUG_CHUNKS 0
-#define DEBUG_GENERATION 0
+#define DEBUG_GENERATION 1
 
 ChunkManager g_chunkManager;
 float g_chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
@@ -164,7 +164,7 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->posx = posx;
 	chunk->posz = posz;
 
-	dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
+	//dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
 
 	float noiseScale = 6.0f;
 	float caveNoiseScale = 5.0f;
@@ -351,7 +351,7 @@ bool IsZNegFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z,
 	return z == 0 || IsBlockTransparent(blocks[y][z - 1][x].type);
 }
 
-void ChunkGenerateMesh(Chunk* chunk) {
+void ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk) {
 	static int layerStride = CHUNK_SX * CHUNK_SZ;
 	static int stride = CHUNK_SX;
 	int faceCount = 0;
@@ -365,12 +365,12 @@ void ChunkGenerateMesh(Chunk* chunk) {
 #define GREEDY 1
 
 #if GREEDY == 1
-	bool usedXPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedXNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedYPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedYNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedZPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedZNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
+	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
 #endif
 
 	memset(faces, 0, sizeof(chunk->mesh.faces));
@@ -533,12 +533,11 @@ void ChunkGenerateMesh(Chunk* chunk) {
 
 void ChunkManagerCreate(int seed) {
 	g_chunkManager.seed = seed;
-	g_chunkManager.queue = new TaskQueue();
 }
 
-void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
+void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance) {
 	int chunksCount = GetChunksCount(renderDistance);
-	manager->chunks = (Chunk*)calloc(chunksCount, sizeof(Chunk));
+	manager->chunks = (Chunk*)memory->chunkStorage.push(chunksCount * sizeof(Chunk));
 	manager->chunksCount = chunksCount;
 
 	for (size_t i = 0; i < chunksCount; i++)
@@ -547,21 +546,30 @@ void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
 	}
 
 #if (!DEBUG_CHUNKS)
-	manager->queue->Start(std::max(1, GetThreadsCount()));
+	g_chunkManager.queue = new TaskQueue(GetThreadsCount());
 #else
-	manager->queue->Start(1);
+	g_chunkManager.queue = new TaskQueue(1);
 #endif
+
+//#if (!DEBUG_CHUNKS)
+//	manager->queue->Start(std::max(1, GetThreadsCount()));
+//#else
+//	manager->queue->Start(1);
+//#endif
 }
 
-void ChunkManagerReleaseChunks(ChunkManager* manager) {
+void ChunkManagerReleaseChunks(GameMemory* memory, ChunkManager* manager) {
 	// дожидаемся выполнения всех задач, чтобы потоки не использовали освобожденную память
-	manager->queue->StopAndJoin(); 
+	delete manager->queue;
+	//manager->queue->StopAndJoin(); 
 
 	for (size_t i = 0; i < manager->chunksCount; i++)
 	{
 		deleteBlockMesh(&manager->chunks[i]);
 	}
-	free(manager->chunks);
+
+	memory->chunkStorage.clear();
+
 	manager->chunks = NULL;
 	manager->chunksCount = 0;
 
@@ -778,7 +786,7 @@ PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 ra
 	return res;
 }
 
-PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+PlaceBlockResult ChunkManagerPlaceBlock(Arena* tempStorage, ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
 	PlaceBlockResult res = { };
 	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
 	if (peekRes.success) {
@@ -817,7 +825,7 @@ PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockTy
 			if (newBlock->type == BlockType::btAir) {
 				newBlock->type = blockType;
 
-				ChunkGenerateMesh(chunk);
+				ChunkGenerateMesh(tempStorage, chunk);
 				updateBlockMesh(chunk);
 
 				res.typePrev = peekRes.block->type;
@@ -835,7 +843,7 @@ PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockTy
 	return res;
 }
 
-PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+PlaceBlockResult ChunkManagerDestroyBlock(Arena* tempStorage, ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
 	PlaceBlockResult res = {};
 	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
 	if (peekRes.success) {
@@ -846,7 +854,7 @@ PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, 
 
 		peekRes.block->type = BlockType::btAir;
 		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
-		ChunkGenerateMesh(chunk);
+		ChunkGenerateMesh(tempStorage, chunk);
 		updateBlockMesh(chunk);
 
 		return res;
@@ -954,7 +962,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float play
 			chunkToReplace->posx = chunkPosX;
 			chunkToReplace->posz = chunkPosZ;
 
-			manager->queue->AddTask([saveBeforeReplacing, chunkToReplace, oldChunkPosX, oldChunkPosZ, chunkPosX, chunkPosZ]() {
+			manager->queue->AddTask([saveBeforeReplacing, chunkToReplace, oldChunkPosX, oldChunkPosZ, chunkPosX, chunkPosZ](ThreadState* state) {
 				// save chunk before replacing
 				if (saveBeforeReplacing)
 				{
@@ -972,7 +980,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float play
 
 				//std::this_thread::sleep_for(std::chrono::milliseconds(200)); // test
 
-				ChunkGenerateMesh(chunkToReplace);
+				ChunkGenerateMesh(&state->tempStorage, chunkToReplace);
 				chunkToReplace->generationInProgress = false;
 			});
 		}

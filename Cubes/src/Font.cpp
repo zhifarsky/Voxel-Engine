@@ -13,22 +13,22 @@ struct Font {
 	float size; // pixel height
 };
 
-Font* loadFont(const char* path, float fontSize) {
+Font* loadFont(GameMemory* memory, const char* path, float fontSize) {
 	Font* font = (Font*)calloc(1, sizeof(Font));
 
 	u32 fileSize = 0;
 	// не освобождаем fileBuffer, так как его использует stbtt
-	font->fileBuffer = readEntireFile(path, &fileSize, FileType::binary);
+	font->fileBuffer = readEntireFile(&memory->permStorage, path, &fileSize, FileType::binary);
 
 	u32 atlasWidth = 512, atlasHeight = 512;
-	u8* tempBitmap = (u8*)malloc(atlasWidth * atlasHeight);
+	u8* tempBitmap = (u8*)memory->tempStorage.push(atlasWidth * atlasHeight);
 
 	font->size = fontSize;
 	font->firstChar = ' '; 
 	char lastChar = '~';
 	font->charsCount = lastChar - font->firstChar + 1;
 
-	font->charData = (CharData*)malloc(font->charsCount * sizeof(stbtt_bakedchar));
+	font->charData = (CharData*)memory->permStorage.push(font->charsCount * sizeof(stbtt_bakedchar));
 
 	// render font to atlas
 	stbtt_BakeFontBitmap(
@@ -46,7 +46,7 @@ Font* loadFont(const char* path, float fontSize) {
 		font->fileBuffer, 
 		stbtt_GetFontOffsetForIndex(font->fileBuffer, 0));
 
-	u8* rgbaBitmap = (u8*)malloc(atlasWidth * atlasHeight * 4);
+	u8* rgbaBitmap = (u8*)memory->tempStorage.push(atlasWidth * atlasHeight * 4);
 	for (int i = 0; i < atlasWidth * atlasHeight; i++) {
 		rgbaBitmap[i * 4 + 0] = 255; // R
 		rgbaBitmap[i * 4 + 1] = 255; // G
@@ -60,16 +60,7 @@ Font* loadFont(const char* path, float fontSize) {
 		TextureWrapping::ClampToEdge, TextureFiltering::Linear
 	);
 
-	free(tempBitmap);
-	free(rgbaBitmap);
-
 	return font;
-}
-
-void FontRelease(Font* font) {
-	free(font->fileBuffer);
-	free(font->charData);
-	free(font);
 }
 
 float FontGetSize(Font* font) {

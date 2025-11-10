@@ -66,7 +66,7 @@ struct Chunk {
 };
 
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed);
-void ChunkGenerateMesh(Chunk* chunk);
+void ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk);
 void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName);
 
 #include <queue>
@@ -74,41 +74,33 @@ void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName);
 #include <functional>
 #include <condition_variable>
 
+struct ThreadState {
+	Arena tempStorage;
+};
+
+// TODO: переписать и упростить
 struct TaskQueue {
-	std::queue <std::function<void()>> queue;
+	std::queue <std::function<void(ThreadState*)>> queue;
 	std::vector<std::thread> threads;
+	Array<ThreadState> threadsState;
 	std::mutex mtx;
 	std::condition_variable cv;
 	bool stop;
 
-	TaskQueue() {
-		stop = true;
-	}
+	TaskQueue(int threadsCount) {
+		threadsState.alloc(threadsCount);
 
-	~TaskQueue() {
-		stop = true;
-		cv.notify_all();
-
-		for (size_t i = 0; i < threads.size(); i++)
-		{
-			threads[i].join();
-		}
-	}
-
-	void AddTask(std::function<void()>&& task) {
-		std::lock_guard<std::mutex> lock(mtx);
-		queue.push(std::move(task));
-		cv.notify_one();
-	}
-
-	void Start(int threadsCount) {
 		stop = false;
 		for (size_t i = 0; i < threadsCount; i++)
 		{
-			threads.emplace_back([this]() {
+			threadsState.append({ 0 });
+			ThreadState* state = &threadsState[i];
+			state->tempStorage.alloc(Megabytes(16), Gigabytes(1));
+
+			threads.emplace_back([this, state]() {
 				while (true) {
 					// get new task
-					std::function<void()> task;
+					std::function<void(ThreadState*)> task;
 					{
 						std::unique_lock<std::mutex> lock(mtx);
 						cv.wait(lock, [this]() {return stop || queue.size() > 0; });
@@ -121,29 +113,58 @@ struct TaskQueue {
 					}
 
 					// execute task
-					task();
+					task(state); // TODO: передавать в задачу id потока для доступа к состоянию потока threadsState[threadID]
+					// arena cleanup
+					state->tempStorage.clear();
 				}
 				});
 		}
 	}
 
-	void StopAndJoin() {
+	~TaskQueue() {
 		stop = true;
 		cv.notify_all();
+
 		for (size_t i = 0; i < threads.size(); i++)
 		{
 			threads[i].join();
 		}
-		threads.clear();
+
+		for (size_t i = 0; i < threadsState.count; i++)
+		{
+			threadsState[i].tempStorage.release();
+		}
+		threadsState.release();
 	}
+
+	void AddTask(std::function<void(ThreadState*)>&& task) {
+		std::lock_guard lock(mtx);
+		queue.push(std::move(task));
+		cv.notify_one();
+	}
+
+	void Clear() {
+		std::lock_guard lock(mtx);
+		while (!queue.empty()) {
+			queue.pop();
+		}
+	}
+
+	//void StopAndJoin() {
+	//	stop = true;
+	//	cv.notify_all();
+	//	for (size_t i = 0; i < threads.size(); i++)
+	//	{
+	//		threads[i].join();
+	//	}
+	//	threads.clear();
+	//	threadsState.clear();
+	//}
 };
 
 
 struct ChunkManager {
 	Chunk* chunks;
-	//ChunkGenTask* chunkGenTasks;
-	//Array<WorkingThread*> threads;
-	//WorkQueue* workQueue;
 	TaskQueue* queue;
 	int chunksCount;
 	int seed;
@@ -164,12 +185,11 @@ struct PeekBlockResult {
 };
 
 void ChunkManagerCreate(int seed);
-void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance);
-void ChunkManagerReleaseChunks(ChunkManager* manager);
-void ChunkManagerBuildChunk(ChunkManager* manager, int index, int posX, int posZ);
+void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance);
+void ChunkManagerReleaseChunks(GameMemory* memory, ChunkManager* manager);
 void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist);
-PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
-PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
+PlaceBlockResult ChunkManagerPlaceBlock(Arena* tempStorage, ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
+PlaceBlockResult ChunkManagerDestroyBlock(Arena* tempStorage, ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist);
 glm::ivec2 PosToChunkPos(glm::vec3 pos);

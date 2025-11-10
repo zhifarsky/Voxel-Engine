@@ -18,6 +18,12 @@ SDL_GLContext context;
 bool gameRunning;
 double g_MouseScrollYOffset;
 
+bool GetVsync() {
+    int interval;
+    SDL_GL_GetSwapInterval(&interval);
+    return interval == 1 ? true : false;
+}
+
 void SetVsync(bool vsyncOn) {
     SDL_GL_SetSwapInterval(vsyncOn);
 }
@@ -130,13 +136,15 @@ int main () {
 
     Renderer::init((Renderer::LoadProc)SDL_GL_GetProcAddress);;
 
-    GameInit();
-
+    GameMemory memory = { 0 };
+    memory.permStorage.alloc(Megabytes(128), Gigabytes(1));
+    memory.tempStorage.alloc(Megabytes(128), Gigabytes(1));
+    memory.chunkStorage.alloc(Gigabytes(2), Gigabytes(4));
+    
     Input inputs[2] = { 0 };
     Input* oldInput = &inputs[0];
     Input* newInput = &inputs[1];
 
-    
     gameRunning = true;
     while (gameRunning) {
 
@@ -182,7 +190,7 @@ int main () {
             ProcessButtonInput(&oldInput->placeBlock, &newInput->placeBlock, IsMouseButtonReleased(window, SDL_BUTTON_RIGHT));
 
             ProcessButtonInput(&oldInput->openInventory, &newInput->openInventory, IsKeyReleased(window, SDL_SCANCODE_TAB));
-            for (size_t i = 0; i < ArraySize(oldInput->inventorySlots); i++)
+            for (size_t i = 0; i < ArrayCount(oldInput->inventorySlots); i++)
             {
                 ProcessButtonInput(&oldInput->inventorySlots[i], &newInput->inventorySlots[i], IsKeyReleased(window, SDL_SCANCODE_1 + i));
             }
@@ -199,12 +207,15 @@ int main () {
         FrameBufferInfo fbInfo;
         SDL_GetWindowSize(window, &fbInfo.sizeX, &fbInfo.sizeY);
 
-        GameUpdateAndRender(time / 1000.0f, newInput, &fbInfo);
+        GameUpdateAndRender(&memory, time / 1000.0f, newInput, &fbInfo);
 
         // swap old and new inputs
         Input* tempInput = oldInput;
         oldInput = newInput;
         newInput = tempInput;
+
+        // clear temporal memory
+        memory.tempStorage.clear();
 
         SDL_GL_SwapWindow(window);
     }

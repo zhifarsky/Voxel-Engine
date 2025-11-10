@@ -59,7 +59,7 @@ void syserrprint(const char* msg) {
 int GetThreadsCount() {
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);
-	return sysInfo.dwNumberOfProcessors;
+	return max(1, sysInfo.dwNumberOfProcessors);
 }
 
 bool IsFileExists(const char* filepath) {
