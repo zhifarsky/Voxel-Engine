@@ -617,31 +617,31 @@ int DrawChunks(Chunk* chunks,
 	return chunksRendered;
 }
 
-void DrawEntitiesShadow(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
-	//glCullFace(GL_FRONT);
-
-	Shader shader = GetShader(AssetID::PolymeshShadowShader);
-	Geometry* mesh = GetMesh(AssetID::EntityMesh);
-
-	Renderer::bindShader(shader);
-	Renderer::setUniformMatrix4(shader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-
-	for (size_t i = 0; i < entitiesCount; i++)
-	{
-		glm::mat4 model(1); // единичная матрица (1 по диагонали)
-		model = glm::translate(model, entities[i].pos);
-		model = glm::rotate(model, glm::radians(entities[i].rot.x), glm::vec3(1.0, 0.0, 0.0));
-		model = glm::rotate(model, glm::radians(entities[i].rot.y), glm::vec3(0.0, 1.0, 0.0));
-		model = glm::rotate(model, glm::radians(entities[i].rot.z), glm::vec3(0.0, 0.0, 1.0));
-		model = glm::scale(model, glm::vec3(1, 1, 1));
-		Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
-
-		// TODO: биндить нужный мэш в зависимости от типа entity
-		Renderer::drawGeometry(mesh);
-	}
-
-	//glCullFace(GL_BACK);
-}
+//void DrawEntitiesShadow(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
+//	//glCullFace(GL_FRONT);
+//
+//	Shader shader = GetShader(AssetID::PolymeshShadowShader);
+//	Geometry* mesh = GetMesh(AssetID::EntityMesh);
+//
+//	Renderer::bindShader(shader);
+//	Renderer::setUniformMatrix4(shader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+//
+//	for (size_t i = 0; i < entitiesCount; i++)
+//	{
+//		glm::mat4 model(1); // единичная матрица (1 по диагонали)
+//		model = glm::translate(model, entities[i].pos);
+//		model = glm::rotate(model, glm::radians(entities[i].rot.x), glm::vec3(1.0, 0.0, 0.0));
+//		model = glm::rotate(model, glm::radians(entities[i].rot.y), glm::vec3(0.0, 1.0, 0.0));
+//		model = glm::rotate(model, glm::radians(entities[i].rot.z), glm::vec3(0.0, 0.0, 1.0));
+//		model = glm::scale(model, glm::vec3(1, 1, 1));
+//		Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
+//
+//		// TODO: биндить нужный мэш в зависимости от типа entity
+//		Renderer::drawGeometry(mesh);
+//	}
+//
+//	//glCullFace(GL_BACK);
+//}
 
 void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	Player& player = g_gameWorld.player;
@@ -986,10 +986,10 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	//
 
 	RenderQueue renderQueue;
-	RenderQueueInit(&renderQueue, memory->tempStorage.push(Megabytes(1)), Megabytes(1));
+	RenderQueueInit(&renderQueue, memory->tempStorage.push(Megabytes(1)), Megabytes(1), &Assets.screenFBO, &Assets.depthMapFBO);
 	{
 		RenderEntryCamera cameraEntry = { .view = view, .projection = projection };
-		RenderQueuePushCamera(&renderQueue, &cameraEntry);
+		RenderQueuePush(&renderQueue, &cameraEntry);
 	}
 	{
 		RenderEntryLighting lightingEntry = {
@@ -998,7 +998,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 			.directLightColor = lighting.directLightColor,
 			.ambientLightColor = lighting.ambientLightColor
 		};
-		RenderQueuePushLighting(&renderQueue, &lightingEntry);
+		RenderQueuePush(&renderQueue, &lightingEntry);
 	}
 
 	// draw sun and moon
@@ -1091,22 +1091,38 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	// TEST
 
 	// draw chunks & entities
-	int chunksRendered = 0;
+	u32 chunksRendered = 0;
+	u32 renderCommandsExecuted = 0;
 #if 1
 	{
 		// draw shadows
 		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
 		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
 		DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &frustum, lightSpaceMatrix);
-		DrawEntitiesShadow(gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
+		//DrawEntitiesShadow(gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
 
-
-		// draw to screen
 		Renderer::bindFrameBuffer(&Assets.screenFBO);
 		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
-		chunksRendered = DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection, false);
 		
 		// draw entities
+		// TODO: почему тени не отрисовываются?
+		// TODO: объеденить
+		{
+			Shader shader = GetShader(AssetID::PolymeshShadowShader);
+			Geometry* mesh = GetMesh(AssetID::EntityMesh);
+
+			for (size_t i = 0; i < gameState->entities.count; i++)
+			{
+				Entity* e = &gameState->entities[i];
+
+				RenderEntryMeshShadow entry = {};
+				entry.geometry = mesh;
+				entry.shader = shader;
+				entry.transform = GetTransform(e->pos, e->rot);
+
+				RenderQueuePush(&renderQueue, &entry);
+			}
+		}
 		{
 			Shader shader = GetShader(AssetID::PolymeshShader);
 			Geometry* mesh = GetMesh(AssetID::EntityMesh);
@@ -1123,8 +1139,54 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 				entry.shadowMap = &Assets.depthMapFBO.textures[0];
 				entry.transform = GetTransform(e->pos, e->rot);
 
-				RenderQueuePushTexturedMesh(&renderQueue, &entry);
+				RenderQueuePush(&renderQueue, &entry);
 			}
+		}
+
+		// draw chunks
+		{
+#if 1
+			Shader shader = GetShader(AssetID::CubeShader);
+			Shader flatShader = GetShader(AssetID::FlatShader);
+			Texture* texture = GetTexture(AssetID::EnvTexture);
+
+			for (size_t i = 0; i < g_chunkManager.chunksCount; i++)
+			{
+				Chunk* chunk = &g_chunkManager.chunks[i];
+				if (!chunk->generationInProgress && chunk->status == ChunkStatus::ReadyToRender) {
+					RenderEntryTexturedMeshInstanced entry = {};
+					entry.shader = shader;
+					entry.texture = texture;
+					entry.geometry.VAO = chunk->mesh.VAO;
+					entry.geometry.triangleCount = 2;
+					entry.geometry.instanceCount = chunk->mesh.faceCount;
+					entry.shadowMap = &Assets.depthMapFBO.textures[0];
+					entry.transform = GetTransform({ chunk->posx, 0, chunk->posz });
+
+					RenderQueuePush(&renderQueue, &entry);
+				}
+#if _DEBUG
+				// draw debug info
+				else {
+					Renderer::bindShader(flatShader);
+
+					glm::mat4 model = GetTransform({ chunk->posx, 0, chunk->posz }, glm::vec3(0), { CHUNK_SX, CHUNK_SY, CHUNK_SZ });
+
+					if (chunk->status == ChunkStatus::ReadyToRender) {
+						DrawFlat(Assets.defaultBox, flatShader, { 1, 0, 0 }, 1, model, view, projection);
+					}
+					else if (chunk->status == ChunkStatus::Generated) {
+						DrawFlat(Assets.defaultBox, flatShader, { 0, 1, 0 }, 1, model, view, projection);
+					}
+					else if (chunk->status == ChunkStatus::Initialized) {
+						DrawFlat(Assets.defaultBox, flatShader, { 0, 0, 0 }, 1, model, view, projection);
+					}
+				}
+#endif
+			}
+#else
+			DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection);
+#endif
 		}
 
 		// draw wireframe
@@ -1173,15 +1235,9 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
 			entry.transform = model;
 
-			RenderQueuePushTexturedMesh(&renderQueue, &entry);
+			RenderQueuePush(&renderQueue, &entry);
 		}
 	}
-
-	//
-	// Render Queue
-	//
-
-	RenderQueueExecute(&renderQueue);
 
 	// draw debug geometry
 	{
@@ -1213,6 +1269,13 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		DrawFlat(Assets.defaultBox, flatShader, glm::vec3(0, 1, 0), 1, modelY, view, projection);
 		DrawFlat(Assets.defaultBox, flatShader, glm::vec3(0, 0, 1), 1, modelZ, view, projection);
 	}
+
+	//
+	// Render Queue
+	//
+
+	renderCommandsExecuted = 
+		RenderQueueExecute(&renderQueue);
 
 	// post processing & draw to default buffer
 	{
@@ -1251,7 +1314,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		UI::Text(buf);
 		sprintf(buf, "%d chunks", g_chunkManager.chunksCount);
 		UI::Text(buf);
-		sprintf(buf, "%d chunks rendered", chunksRendered);
+		sprintf(buf, "%d render commands", renderCommandsExecuted);
 		UI::Text(buf);
 		sprintf(buf, "%d blocks", g_chunkManager.chunksCount * CHUNK_SX * CHUNK_SY * CHUNK_SZ);
 		UI::Text(buf);

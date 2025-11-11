@@ -30,6 +30,36 @@ const ItemInfo* GetItemInfo(ItemType item)
 	return &itemInfoTable[(int)item];
 }
 
+ItemInfo test_GetItemInfo(ItemType item) {
+	ItemInfo info = { 0 };
+	
+	switch (item)
+	{
+	case ItemType::None:
+		break;
+	case ItemType::GroundBlock:
+		break;
+	case ItemType::StoneBlock:
+		break;
+	case ItemType::SnowBlock:
+		break;
+	case ItemType::IronOreBlock:
+		break;
+	case ItemType::WoodBlock:
+		break;
+	case ItemType::LeavesBlock:
+		break;
+	case ItemType::Pickaxe:
+		break;
+	case ItemType::Sword:
+		break;
+	case ItemType::COUNT:
+		break;
+	default:
+		break;
+	}
+}
+
 const BlockInfo* GetBlockInfo(BlockType item)
 {
 	return &blockInfoTable[(int)item];

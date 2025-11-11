@@ -13,6 +13,12 @@ struct RenderEntryLighting {
 		ambientLightColor;
 };
 
+struct RenderEntryMeshShadow {
+	glm::mat4 transform;
+	Geometry* geometry;
+	Shader shader;
+};
+
 struct RenderEntryTexturedMesh {
 	glm::mat4 transform;
 	glm::vec3 color;
@@ -24,8 +30,26 @@ struct RenderEntryTexturedMesh {
 	bool overrideColor;
 };
 
+struct RenderEntryTexturedMeshInstanced {
+	glm::mat4 transform;
+	glm::vec3 color;
+
+	Texture* texture, * shadowMap;
+	GeometryInstanced geometry;
+	Shader shader;
+
+	bool overrideColor;
+};
+
+struct RenderGroup {
+	u8* mem;
+	u64 size, capacity;
+};
+
 struct RenderQueue {
 	struct {
+		FrameBuffer* screenFBO, * depthMapFBO;
+
 		glm::mat4 projection, view, lightSpaceMatrix;
 
 		glm::vec3
@@ -36,12 +60,19 @@ struct RenderQueue {
 
 	u8* mem;
 	u64 size, capacity;
+
+	// TODO: доделать
+	RenderGroup initPass;
+	RenderGroup shadowPass;
+	RenderGroup mainPass;
 };
 
-void RenderQueueInit(RenderQueue* queue, void* memory, u64 capacity);
-void RenderQueueExecute(RenderQueue* queue);
+void RenderQueueInit(RenderQueue* queue, void* memory, u64 capacity, FrameBuffer* screenFBO, FrameBuffer* depthMapFBO);
+u32 RenderQueueExecute(RenderQueue* queue);
 void RenderQueueClear(RenderQueue* queue);
 
-void RenderQueuePushCamera(RenderQueue* queue, RenderEntryCamera* command);
-void RenderQueuePushLighting(RenderQueue* queue, RenderEntryLighting* command);
-void RenderQueuePushTexturedMesh(RenderQueue* queue, RenderEntryTexturedMesh* command);
+void RenderQueuePush(RenderQueue* queue, RenderEntryCamera* command);
+void RenderQueuePush(RenderQueue* queue, RenderEntryLighting* command);
+void RenderQueuePush(RenderQueue* queue, RenderEntryMeshShadow* command);
+void RenderQueuePush(RenderQueue* queue, RenderEntryTexturedMesh* command);
+void RenderQueuePush(RenderQueue* queue, RenderEntryTexturedMeshInstanced* command);

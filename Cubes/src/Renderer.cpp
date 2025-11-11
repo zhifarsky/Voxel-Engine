@@ -249,36 +249,46 @@ namespace Renderer {
 
 	// TODO: сделать setUniform макросами?
 
+	inline s32 GetUniformLocation(Shader shader, const char* name) {
+		GLint loc = glGetUniformLocation(shader, name);
+#if _DEBUG
+		if (loc == -1) {
+			dbgprint("[SHADER] shader %d: no uniform named \"%s\"\n", shader, name);
+		}
+#endif
+		return loc;
+	}
+
 	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose) {
-		glUniformMatrix4fv(glGetUniformLocation(shader, name), 1, transpose, values);
+		glUniformMatrix4fv(GetUniformLocation(shader, name), 1, transpose, values);
 	}
 
 	void setUniformInt(Shader shader, const char* name, int x) {
-		glUniform1i(glGetUniformLocation(shader, name), x);
+		glUniform1i(GetUniformLocation(shader, name), x);
 	}
 
 	void setUniformInt2(Shader shader, const char* name, int x, int y) {
-		glUniform2i(glGetUniformLocation(shader, name), x, y);
+		glUniform2i(GetUniformLocation(shader, name), x, y);
 	}
 	
 	void setUniformFloat(Shader shader, const char* name, float x) {
-		glUniform1f(glGetUniformLocation(shader, name), x);
+		glUniform1f(GetUniformLocation(shader, name), x);
 	}
 
 	void setUniformFloat2(Shader shader, const char* name, float x, float y) {
-		glUniform2f(glGetUniformLocation(shader, name), x, y);
+		glUniform2f(GetUniformLocation(shader, name), x, y);
 	}
 
 	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z) {
-		glUniform3f(glGetUniformLocation(shader, name), x, y, z);
+		glUniform3f(GetUniformLocation(shader, name), x, y, z);
 	}	
 
 	void setUniformFloat3(Shader shader, const char* name, const glm::vec3& v) {
-		glUniform3f(glGetUniformLocation(shader, name), v.x, v.y, v.z);
+		glUniform3f(GetUniformLocation(shader, name), v.x, v.y, v.z);
 	}
 	
 	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v) {
-		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
+		glUniform4f(GetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
 	}
 
 	int GetMaxAASamples() {
@@ -293,6 +303,8 @@ namespace Renderer {
 
 		*fb = {0};
 		Texture* texture = &fb->textures[0];
+		texture->width = width;
+		texture->height = height;
 
 		glGenFramebuffers(1, &fb->ID);
 		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
