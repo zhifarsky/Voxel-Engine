@@ -365,12 +365,12 @@ void ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk) {
 #define GREEDY 1
 
 #if GREEDY == 1
-	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->push(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
 #endif
 
 	memset(faces, 0, sizeof(chunk->mesh.faces));
@@ -537,7 +537,7 @@ void ChunkManagerCreate(int seed) {
 
 void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance) {
 	int chunksCount = GetChunksCount(renderDistance);
-	manager->chunks = (Chunk*)memory->chunkStorage.push(chunksCount * sizeof(Chunk));
+	manager->chunks = (Chunk*)memory->chunkStorage.pushZero(chunksCount * sizeof(Chunk));
 	manager->chunksCount = chunksCount;
 
 	for (size_t i = 0; i < chunksCount; i++)

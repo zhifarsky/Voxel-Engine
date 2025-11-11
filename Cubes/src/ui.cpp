@@ -17,7 +17,7 @@ std::unordered_map<std::string, ElementState> elementsState;
 static Sprite face;
 
 Font* g_Font;
-Asset* g_UIShader;
+Shader g_UIShader;
 
 Input* input;
 float originX = 0, originY = 0;
@@ -86,7 +86,7 @@ UiStyle* GetStyle() {
 
 void UI::Begin(Arena* tempStorage, Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
 	g_Font = defaultFont;
-	g_UIShader = GetAsset(AssetID::UIShader);
+	g_UIShader = GetShader(AssetID::UIShader);
 
 	//window = currentWindow;
 	input = currentInput;

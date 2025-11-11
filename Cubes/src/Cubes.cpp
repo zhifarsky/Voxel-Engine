@@ -1,7 +1,5 @@
 #pragma region external dependencies
 #include <glm.hpp>
-#include <gtc/matrix_transform.hpp>
-#include <gtc/type_ptr.hpp>
 #include <gtc/noise.hpp>
 //#include <imgui.h>
 //#include <imgui_impl_glfw.h>
@@ -22,12 +20,8 @@
 #include "Renderer.h"
 #include "ChunkManager.h"
 #include "Settings.h"
+#include "RenderQueue.h"
 #pragma endregion
-
-#define rotateXYZ(matrix, x, y, z)\
-matrix = glm::rotate(matrix, glm::radians(x), glm::vec3(1.0, 0.0, 0.0));\
-matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
-matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
 // TDOO: перенести глобальные переменные
 
@@ -49,7 +43,7 @@ struct SceneLighting {
 };
 
 struct {
-	Geometry screenQuad, defaultQuad, defaultBox, entityMesh;
+	Geometry screenQuad, defaultQuad, defaultBox;
 	Sprite sunSprite, moonSprite;
 	FrameBuffer depthMapFBO;
 	FrameBuffer screenFBO, intermediateFBO; // рендерим в screenFBO с MSAA, копируем результат в intermediateFBO и делаем постобработку
@@ -124,10 +118,8 @@ void GameInit(GameState* gameState, GameMemory* memory) {
 		};
 		Assets.defaultQuad = Renderer::createGeometry(quadVerts, 4, quadTris, 2);
 
-		Assets.entityMesh = Renderer::createGeometryFromFile(memory, MESH_FOLDER "zombie.mesh");
-
-		UV sunUV = GetUVFromAtlas(&GetAsset(AssetID::EnvTexture)->texture, tidSun, {16,16});
-		UV moonUV = GetUVFromAtlas(&GetAsset(AssetID::EnvTexture)->texture, tidMoon, { 16,16 });
+		UV sunUV = GetUVFromAtlas(GetTexture(AssetID::EnvTexture), tidSun, {16,16});
+		UV moonUV = GetUVFromAtlas(GetTexture(AssetID::EnvTexture), tidMoon, { 16,16 });
 		Assets.sunSprite = createSprite(1, 1, sunUV);
 		Assets.moonSprite = createSprite(1, 1, moonUV);
 	}
@@ -158,6 +150,9 @@ void GameInit(GameState* gameState, GameMemory* memory) {
 		entity.state = entityStateIdle;
 		entity.pos = { 5, CHUNK_SY - 2, 5 };
 		gameState->entities.append(entity);
+		
+		entity.pos = { -15, CHUNK_SY - 2, -15 };
+		gameState->entities.append(entity);
 	}
 
 	{
@@ -178,7 +173,7 @@ void GameUpdateAndRender(GameMemory* memory, float time, Input* input, FrameBuff
 	//
 
 	if (!memory->isInitialized) {
-		GameState* gameState = (GameState*)memory->permStorage.push(sizeof(GameState));
+		GameState* gameState = (GameState*)memory->permStorage.pushZero(sizeof(GameState));
 
 		gameState->time = time;
 
@@ -281,7 +276,7 @@ void GameUpdateAndRender(GameMemory* memory, float time, Input* input, FrameBuff
 		double xpos = 0, ypos = 0;
 		GetCursorPos(&xpos, &ypos);
 		UI::SetOrigin(xpos, fbInfo->sizeY - ypos);
-		UI::DrawElement(&GetAsset(AssetID::UITexture)->texture, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiCross, {16, 16});
+		UI::DrawElement(GetTexture(AssetID::UITexture), glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiCross, {16, 16});
 		UI::End();
 	}
 }
@@ -468,12 +463,12 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
 	UI::End();
 }
 
-void DrawSprite(Sprite& sprite, Asset* shader, Texture& texture,
+void DrawSprite(Sprite& sprite, Shader shader, Texture* texture,
 	glm::mat4& projection, glm::mat4& view,
 	glm::vec3& pos, float scale, bool spherical)
 {
 	Renderer::bindShader(shader);
-	Renderer::bindTexture(&texture);
+	Renderer::bindTexture(texture);
 
 	Renderer::setUniformMatrix4(shader, "view", glm::value_ptr(view));
 	Renderer::setUniformMatrix4(shader, "projection", glm::value_ptr(projection));
@@ -491,7 +486,7 @@ void DrawSprite(Sprite& sprite, Asset* shader, Texture& texture,
 	Renderer::unbindTexture();
 }
 
-void DrawFlat(Geometry& mesh, Asset* shader,
+void DrawFlat(Geometry& mesh, Shader shader,
 	glm::vec3 color, float alpha,
 	glm::mat4& model,
 	glm::mat4& view, glm::mat4& projection) {
@@ -506,10 +501,8 @@ void DrawFlat(Geometry& mesh, Asset* shader,
 	Renderer::drawGeometry(&mesh);
 }
 
-void DrawChunksShadow(GameMemory* memory, Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, Frustum* frustum, glm::mat4& lightSpaceMatrix) {
-	//glCullFace(GL_FRONT);
-
-	Asset* shader = GetAsset(AssetID::CubeShadowShader);
+void DrawChunksShadow(Chunk* chunks, int chunksCount, FrameBuffer* depthMapFBO, Frustum* frustum, glm::mat4& lightSpaceMatrix) {
+	Shader shader = GetShader(AssetID::CubeShadowShader);
 	
 	Renderer::bindShader(shader);
 	Renderer::setUniformMatrix4(shader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
@@ -517,75 +510,62 @@ void DrawChunksShadow(GameMemory* memory, Chunk* chunks, int chunksCount, FrameB
 	for (size_t c = 0; c < chunksCount; c++)
 	{
 		Chunk* chunk = &chunks[c];
-		if (chunk->status == ChunkStatus::ReadyToRender) {
+		if (!chunk->generationInProgress && chunk->status == ChunkStatus::ReadyToRender) {
 			// frustum culling
 			glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
 			if (!FrustumSphereIntersection(frustum, chunkCenter, g_chunkRadius)) {
 				continue;
 			}
 			
-			Renderer::setUniformInt2(shader, "chunkPos", chunk->posx, chunk->posz);
+			glm::mat4 model(1);
+			model = glm::translate(model, { chunk->posx, 0, chunk->posz });
+			Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
 
 			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 		}
 	}
-	
-	//glCullFace(GL_BACK);
 }
 
+// TODO:
+// можно убрать атрибут "chunkPos" и использовать viewProjectionModel матрицу
+// таким образом отрисовка чанка будет не будет отличаться от отрисовки инстанцированного меша
+// можно будет отправлять в RenderQueue наряду с другими объектами
+
 // draw to screen
-int DrawChunks(
-	GameMemory* memory,
-	Chunk* chunks, int chunksCount,
-	FrameBuffer* depthMapFBO, FrameBuffer* screenFBO,
-	SceneLighting* lighting,
-	Frustum *frustum,
-	glm::mat4 &lightSpaceMatrix, glm::mat4 &view, glm::mat4 &projection, 
-	bool overrideColor = false) 
+int DrawChunks(Chunk* chunks,
+	int chunksCount, FrameBuffer* depthMapFBO,
+	FrameBuffer* screenFBO, SceneLighting* lighting,
+	Frustum* frustum,
+	glm::mat4& lightSpaceMatrix,
+	glm::mat4& view, glm::mat4& projection, bool overrideColor = false)
 {
-	Asset* cubeShader = GetAsset(AssetID::CubeShader);
-	Asset* flatShader = GetAsset(AssetID::FlatShader);
-	Texture* texture = &GetAsset(AssetID::EnvTexture)->texture;
+	Shader cubeShader = GetShader(AssetID::CubeShader);
+	Shader flatShader = GetShader(AssetID::FlatShader);
+	Texture* texture = GetTexture(AssetID::EnvTexture);
 
 	Renderer::bindShader(cubeShader);
-	//Renderer::bindTexture(&Assets.textureAtlas, 0);
-	Renderer::bindTexture(&GetAsset(AssetID::EnvTexture)->texture, 0);
+	Renderer::bindTexture(texture, 0);
 	Renderer::bindTexture(&depthMapFBO->textures[0], 1);
 
-#define InitUniform(name) glGetUniformLocation(cubeShader->shader, name)
-	static u32 overrideColorUniform = InitUniform("overrideColor");
-	static u32 colorUniform = InitUniform("color");
-	static u32 sunDirUniform = InitUniform("sunDir");
-	static u32 sunColorUniform = InitUniform("sunColor");
-	static u32 ambientColorUniform = InitUniform("ambientColor");
-	static u32 viewProjectionUnifrom = InitUniform("viewProjection");
-	static u32 lightSpaceMatrixUniform = InitUniform("lightSpaceMatrix");
-	static u32 texture1Uniform = InitUniform("texture1");
-	static u32 shadowMapUniform = InitUniform("shadowMap");
-	static u32 chunkPosUniform = InitUniform("chunkPos");
-	static u32 atlasSizeUniform = InitUniform("atlasSize");
-#undef InitUniform
-
 	{
-
 		if (!overrideColor) {
-			glUniform1i(overrideColorUniform, 0);
+			Renderer::setUniformInt(cubeShader, "overrideColor", 0);
 		}
 		else {
-			glUniform1i(overrideColorUniform, 1);
-			glUniform3f(colorUniform, 0, 0, 0);
+			Renderer::setUniformInt(cubeShader, "overrideColor", 1);
+			Renderer::setUniformFloat3(cubeShader, "color", 0, 0, 0);
 		}
 
-		glUniform3f(sunDirUniform, lighting->directLightColor.x, lighting->directLightColor.y, lighting->directLightColor.z);
-		glUniform3f(sunColorUniform, lighting->directLightColor.x, lighting->directLightColor.y, lighting->directLightColor.z);
-		glUniform3f(ambientColorUniform, lighting->ambientLightColor.x, lighting->ambientLightColor.y, lighting->ambientLightColor.z);
-
+		Renderer::setUniformFloat3(cubeShader, "sunDir", lighting->directLightDirection.x, lighting->directLightDirection.y, lighting->directLightDirection.z);
+		Renderer::setUniformFloat3(cubeShader, "sunColor", lighting->directLightColor.x, lighting->directLightColor.y, lighting->directLightColor.z);
+		Renderer::setUniformFloat3(cubeShader, "ambientColor", lighting->ambientLightColor.x, lighting->ambientLightColor.y, lighting->ambientLightColor.z);
 		
-		glUniformMatrix4fv(viewProjectionUnifrom, 1, false, glm::value_ptr(projection * view));
-		glUniformMatrix4fv(lightSpaceMatrixUniform, 1, false, glm::value_ptr(lightSpaceMatrix));
+		glm::mat4 viewProjection = projection * view;
+		Renderer::setUniformMatrix4(cubeShader, "viewProjection", glm::value_ptr(viewProjection));
+		Renderer::setUniformMatrix4(cubeShader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
 
-		glUniform1i(texture1Uniform, 0);
-		glUniform1i(shadowMapUniform, 1);
+		Renderer::setUniformInt(cubeShader, "texture1", 0);
+		Renderer::setUniformInt(cubeShader, "shadowMap", 1);
 	}
 
 	int chunksRendered = 0;
@@ -602,8 +582,8 @@ int DrawChunks(
 
 			Renderer::bindShader(cubeShader);
 
-			glUniform2i(chunkPosUniform, chunk->posx, chunk->posz);
-			glUniform2i(atlasSizeUniform, texture->width, texture->height);
+			glm::mat4 model = glm::translate(glm::mat4(1), {chunk->posx, 0, chunk->posz});
+			Renderer::setUniformMatrix4(cubeShader, "model", glm::value_ptr(model));
 
 			Renderer::drawInstancedGeo(chunk->mesh.VAO, 6, chunk->mesh.faceCount);
 
@@ -615,9 +595,7 @@ int DrawChunks(
 			
 			Renderer::bindShader(flatShader);
 			
-			glm::mat4 model(1);
-			model = glm::translate(model, { chunk->posx, 0, chunk->posz });
-			model = glm::scale(model, { CHUNK_SX, CHUNK_SY, CHUNK_SZ });
+			glm::mat4 model = GetTransform({ chunk->posx, 0, chunk->posz }, glm::vec3(0), { CHUNK_SX, CHUNK_SY, CHUNK_SZ });
 			
 			if (chunk->status == ChunkStatus::ReadyToRender) {
 				DrawFlat(Assets.defaultBox, flatShader, { 1, 0, 0 }, 1, model, view, projection);
@@ -639,10 +617,11 @@ int DrawChunks(
 	return chunksRendered;
 }
 
-void DrawEntitiesShadow(GameMemory* memory, Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
+void DrawEntitiesShadow(Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, glm::mat4& lightSpaceMatrix) {
 	//glCullFace(GL_FRONT);
 
-	Asset* shader = GetAsset(AssetID::PolymeshShadowShader);
+	Shader shader = GetShader(AssetID::PolymeshShadowShader);
+	Geometry* mesh = GetMesh(AssetID::EntityMesh);
 
 	Renderer::bindShader(shader);
 	Renderer::setUniformMatrix4(shader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
@@ -654,57 +633,15 @@ void DrawEntitiesShadow(GameMemory* memory, Entity* entities, int entitiesCount,
 		model = glm::rotate(model, glm::radians(entities[i].rot.x), glm::vec3(1.0, 0.0, 0.0));
 		model = glm::rotate(model, glm::radians(entities[i].rot.y), glm::vec3(0.0, 1.0, 0.0));
 		model = glm::rotate(model, glm::radians(entities[i].rot.z), glm::vec3(0.0, 0.0, 1.0));
-		model = glm::scale(model, glm::vec3(1, 2, 1));
+		model = glm::scale(model, glm::vec3(1, 1, 1));
 		Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
 
 		// TODO: биндить нужный мэш в зависимости от типа entity
-		Renderer::drawGeometry(&Assets.entityMesh);
+		Renderer::drawGeometry(mesh);
 	}
 
 	//glCullFace(GL_BACK);
 }
-
-// draw to screen
-void DrawEntities(GameMemory* memory, Entity* entities, int entitiesCount, FrameBuffer* depthMapFBO, FrameBuffer* screenFBO, SceneLighting* lighting, glm::mat4& lightSpaceMatrix, glm::mat4& view, glm::mat4& projection) {
-	Asset* shader = GetAsset(AssetID::PolymeshShader);
-	Renderer::bindShader(shader);
-	Renderer::bindTexture(&GetAsset(AssetID::EntityTexture)->texture, 0);
-	Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
-
-	{
-		Renderer::setUniformFloat3(shader, "sunDir", lighting->directLightDirection.x, lighting->directLightDirection.y, lighting->directLightDirection.z);
-		Renderer::setUniformFloat3(shader, "sunColor", lighting->directLightColor.x, lighting->directLightColor.y, lighting->directLightColor.z);
-		Renderer::setUniformFloat3(shader, "ambientColor", lighting->ambientLightColor.x, lighting->ambientLightColor.y, lighting->ambientLightColor.z);
-
-		Renderer::setUniformMatrix4(shader, "projection", glm::value_ptr(projection));
-		Renderer::setUniformMatrix4(shader, "view", glm::value_ptr(view));
-		Renderer::setUniformMatrix4(shader, "lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
-
-		Renderer::setUniformInt(shader, "texture1", 0);
-		Renderer::setUniformInt(shader, "shadowMap", 1);
-
-		Renderer::setUniformFloat(shader, "lightingFactor", 1.0f);
-	}
-
-	for (size_t i = 0; i < entitiesCount; i++)
-	{
-		Entity* e = &entities[i];
-		glm::mat4 model(1); // единичная матрица (1 по диагонали)
-		model = glm::translate(model, e->pos);
-		rotateXYZ(model, e->rot.x, e->rot.y, e->rot.z);
-		model = glm::scale(model, { 1,1,1 });
-		Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
-
-		Renderer::drawGeometry(&Assets.entityMesh);
-	}
-
-	Renderer::unbindTexture(0);
-	Renderer::unbindTexture(1);
-	Renderer::unbindShader();
-}
-
-
-
 
 void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	Player& player = g_gameWorld.player;
@@ -1044,10 +981,30 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		lightSpaceMatrix = lightProjection * lightView;
 	}
 
+	//
+	// init render queue
+	//
+
+	RenderQueue renderQueue;
+	RenderQueueInit(&renderQueue, memory->tempStorage.push(Megabytes(1)), Megabytes(1));
+	{
+		RenderEntryCamera cameraEntry = { .view = view, .projection = projection };
+		RenderQueuePushCamera(&renderQueue, &cameraEntry);
+	}
+	{
+		RenderEntryLighting lightingEntry = {
+			.lightSpaceMatrix = lightSpaceMatrix,
+			.directLightDirection = lighting.directLightDirection,
+			.directLightColor = lighting.directLightColor,
+			.ambientLightColor = lighting.ambientLightColor
+		};
+		RenderQueuePushLighting(&renderQueue, &lightingEntry);
+	}
+
 	// draw sun and moon
 	{
-		Asset* spriteShader = GetAsset(AssetID::SpriteShader);
-		Texture& texture = GetAsset(AssetID::EnvTexture)->texture;
+		Shader spriteShader = GetShader(AssetID::SpriteShader);
+		Texture* texture = GetTexture(AssetID::EnvTexture);
 
 		glm::vec3 sunPos = player.camera.pos + gameState->sunDirection;
 		glm::vec3 moonPos = player.camera.pos + moonDir;
@@ -1064,7 +1021,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	 
 	// TEST
 	{
-		Asset* flatShader = GetAsset(AssetID::FlatShader);
+		Shader flatShader = GetShader(AssetID::FlatShader);
 		
 		Renderer::bindShader(flatShader);
 		Renderer::setUniformMatrix4(flatShader, "projection", glm::value_ptr(projection));
@@ -1140,15 +1097,35 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		// draw shadows
 		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
 		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
-		DrawChunksShadow(memory, g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &frustum, lightSpaceMatrix);
-		DrawEntitiesShadow(memory, gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
+		DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &frustum, lightSpaceMatrix);
+		DrawEntitiesShadow(gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
 
 
 		// draw to screen
 		Renderer::bindFrameBuffer(&Assets.screenFBO);
 		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
-		chunksRendered = DrawChunks(memory, g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection);
-		DrawEntities(memory, gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, lightSpaceMatrix, view, projection);
+		chunksRendered = DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection, false);
+		
+		// draw entities
+		{
+			Shader shader = GetShader(AssetID::PolymeshShader);
+			Geometry* mesh = GetMesh(AssetID::EntityMesh);
+			Texture* texture = GetTexture(AssetID::EntityTexture);
+
+			for (size_t i = 0; i < gameState->entities.count; i++)
+			{
+				Entity* e = &gameState->entities[i];
+
+				RenderEntryTexturedMesh entry = {};
+				entry.shader = shader;
+				entry.geometry = mesh;
+				entry.texture = texture;
+				entry.shadowMap = &Assets.depthMapFBO.textures[0];
+				entry.transform = GetTransform(e->pos, e->rot);
+
+				RenderQueuePushTexturedMesh(&renderQueue, &entry);
+			}
+		}
 
 		// draw wireframe
 		if (g_RenderWireframe) {
@@ -1156,7 +1133,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 			glDepthFunc(GL_LEQUAL);
 			glLineWidth(2);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			DrawChunks(memory, g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection, true);
+			DrawChunks(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &Assets.screenFBO, &lighting, &frustum, lightSpaceMatrix, view, projection, true);
 			glDepthMask(GL_TRUE);
 			glDepthFunc(GL_LESS);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1164,18 +1141,16 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		else 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+
+
+
 #endif
 
 	// draw dropped items
 	{
-		Asset* polymeshShader = GetAsset(AssetID::PolymeshShader);
-		Texture* texture = &GetAsset(AssetID::TestTexture)->texture;
 
-		Renderer::bindShader(polymeshShader);
-
-		Renderer::bindShader(polymeshShader);
-		Renderer::bindTexture(texture, 0);
-		Renderer::bindTexture(&Assets.depthMapFBO.textures[0], 1);
+		Shader shader = GetShader(AssetID::PolymeshShader);
+		Texture* texture = GetTexture(AssetID::TestTexture);
 
 		for (size_t i = 0; i < gameState->droppedItems.count; i++)
 		{
@@ -1183,26 +1158,34 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 			if (item->count < 1)
 				continue;
 
+			RenderEntryTexturedMesh entry = {};
+			entry.shader = shader;
+			entry.geometry = &Assets.defaultBox;
+			entry.texture = texture;
+			entry.shadowMap = &Assets.depthMapFBO.textures[0];
+			
 			glm::mat4 model(1);
-			model = glm::translate(model, {0.0f, sin(gameState->time) * 0.3, 0.0f});
+			model = glm::translate(model, { 0.0f, sin(gameState->time) * 0.3, 0.0f });
 			model = glm::translate(model, item->pos);
 			rotateXYZ(model, 0.0f, gameState->time * 30, 0.0f);
-			model = glm::scale(model, { 0.3, 0.3, 0.3 });
-			model = glm::translate(model, {-0.5, -0.5, -0.5}); // center
-			Renderer::setUniformMatrix4(polymeshShader, "model", glm::value_ptr(model));
-			//Renderer::setUniformMatrix4(shader, "model", glm::value_ptr(model));
+			model = glm::scale(model, glm::vec3(0.3));
+			model = glm::translate(model, glm::vec3(-0.5)); // center
 
-			Renderer::drawGeometry(&Assets.defaultBox);
+			entry.transform = model;
+
+			RenderQueuePushTexturedMesh(&renderQueue, &entry);
 		}
-
-		Renderer::unbindShader();
-		Renderer::unbindTexture(0);
-		Renderer::unbindTexture(1);
 	}
+
+	//
+	// Render Queue
+	//
+
+	RenderQueueExecute(&renderQueue);
 
 	// draw debug geometry
 	{
-		Asset* flatShader = GetAsset(AssetID::FlatShader);
+		Shader flatShader = GetShader(AssetID::FlatShader);
 		Renderer::bindShader(flatShader);
 		Renderer::setUniformMatrix4(flatShader, "projection", glm::value_ptr(projection));
 		Renderer::setUniformMatrix4(flatShader, "view", glm::value_ptr(view));
@@ -1234,7 +1217,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	// post processing & draw to default buffer
 	{
 		Renderer::switchDepthTest(false);
-		Renderer::bindShader(GetAsset(AssetID::ScreenShader));
+		Renderer::bindShader(GetShader(AssetID::ScreenShader));
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, Assets.screenFBO.ID);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Assets.intermediateFBO.ID);
@@ -1250,7 +1233,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
 	// draw ui
 	UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
-	Texture* uiAtlas = &GetAsset(AssetID::UITexture)->texture;
+	Texture* uiAtlas = GetTexture(AssetID::UITexture);
 	UI::SetAnchor(uiAnchor::Center, 0);
 	{
 		UI::DrawElement(uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiCross, {16,16}); // cursor
@@ -1290,6 +1273,8 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 			UI::Text(buf);
 		}
 		sprintf(buf, "orient x%.2f y%.2f z%.2f",  player.camera.front.x,  player.camera.front.y,  player.camera.front.z);
+		UI::Text(buf);
+		sprintf(buf, "light dir x%.2f y%.2f z%.2f", lighting.directLightDirection.x, lighting.directLightDirection.y, lighting.directLightDirection.z);
 		UI::Text(buf);
 		sprintf(buf, "memory perm %.1f/%.1fMB, temp %.1f/%.1fMB, chunks %.1f/%.1fMB", 
 			(float)memory->permStorage.size / Megabytes(1),
@@ -1404,7 +1389,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	UI::DrawElement(FontGetTextureAtlas(Assets.regularFont), { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
 #endif
 
-	// shadows debug
+	// debug shadows
 #if 0
 	UI::SetAnchor(uiAnchor::Top, 200);
 	UI::DrawElement(&Assets.depthMapFBO.textures[0], { 0,0,0, }, { 400, 400, 1 }, { 1,1 }, { 0,0 });

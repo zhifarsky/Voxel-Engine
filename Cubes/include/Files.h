@@ -32,5 +32,7 @@ u8* readEntireFile(Arena* storage, const char* path, u32* outBufferSize, FileTyp
 // NOTE: выделенную функцией память необходимо освободить при помощи free()
 u8* readEntireFile(const char* path, u32* outBufferSize, FileType fileType);
 
+u64 GetFileWriteTime(const char* path);
+
 #define SerializeVariable(fileStream, var) fwrite(&var, sizeof(var), 1, fileStream);
 #define DeserializeVariable(fileStream, var) fread(&var, sizeof(var), 1, fileStream);

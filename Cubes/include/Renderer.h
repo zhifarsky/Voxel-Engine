@@ -1,9 +1,18 @@
 #pragma once
 #include <glm.hpp>
+#include <gtc/matrix_transform.hpp>
+#include <gtc/type_ptr.hpp>
 #include "Typedefs.h"
 #include "Cubes.h"
 
+#define rotateXYZ(matrix, x, y, z)\
+matrix = glm::rotate(matrix, glm::radians(x), glm::vec3(1.0, 0.0, 0.0));\
+matrix = glm::rotate(matrix, glm::radians(y), glm::vec3(0.0, 1.0, 0.0));\
+matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
+
 #define FRAMEBUFFER_MAX_TEXTURES 1
+
+glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot = glm::vec3(0), glm::vec3 scale = glm::vec3(1));
 
 struct Plane {
 	glm::vec3 normal;
@@ -170,6 +179,7 @@ struct Asset {
 	AssetID id;
 
 	bool IsInitialized;
+	u64 fileWriteTime;
 
 	union {
 		Texture texture;
@@ -180,7 +190,10 @@ struct Asset {
 
 void InvalidateShaders();
 
-Asset* GetAsset(AssetID id);
+//Asset* GetAsset(AssetID id);
+Shader GetShader(AssetID id);
+Geometry* GetMesh(AssetID id);
+Texture* GetTexture(AssetID id);
 
 //
 // Renderer
@@ -203,16 +216,17 @@ namespace Renderer {
 	// oldShader можно использовать дл€ рекомпил€ции шейдера
 	Shader createShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader = 0);
 	void deleteShader(Shader shader);	
-	void bindShader(Asset* shader);
+	void bindShader(Shader shader);
 	void unbindShader();
 
-	void setUniformMatrix4(Asset* shader, const char* name, float* values, bool transpose = false);
-	void setUniformInt(Asset* shader, const char* name, int x);
-	void setUniformInt2(Asset* shader, const char* name, int x, int y);
-	void setUniformFloat(Asset* shader, const char* name, float x);
-	void setUniformFloat2(Asset* shader, const char* name, float x, float y);
-	void setUniformFloat3(Asset* shader, const char* name, float x, float y, float z);
-	void setUniformFloat4(Asset* shader, const char* name, glm::vec4 v);
+	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose = false);
+	void setUniformInt(Shader shader, const char* name, int x);
+	void setUniformInt2(Shader shader, const char* name, int x, int y);
+	void setUniformFloat(Shader shader, const char* name, float x);
+	void setUniformFloat2(Shader shader, const char* name, float x, float y);
+	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z);
+	void setUniformFloat3(Shader shader, const char* name, const glm::vec3& v);
+	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v);
 
 	int GetMaxAASamples();
 	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount);
@@ -241,7 +255,7 @@ namespace Renderer {
 	void unbindTexture(int textureSlot = 0);
 
 	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount);
-	Geometry createGeometryFromFile(GameMemory* memory, const char* fileName);
+	Geometry createGeometryFromFile(Arena* tempStorage, const char* fileName);
 	void deleteGeometry(Geometry* geo);
 	void drawGeometry(Geometry* geo);
 	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount);

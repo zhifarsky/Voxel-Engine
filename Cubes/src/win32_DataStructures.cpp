@@ -24,19 +24,23 @@ void Arena::release() {
 }
 
 void* Arena::push(u64 size) {
-	
 	// if not enough capacity, commiting more memory
 	if (this->size + size > capacity) {
 		u64 newCapacity = roundToMultiple(this->size + size, PAGE_SIZE);
 		assert(newCapacity <= reserved);
-		
+
 		VirtualAlloc((u8*)mem + capacity, newCapacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
 		capacity = newCapacity;
 	}
 
 	void* res = mem + this->size;
-	memset(res, 0, size);
 	this->size += size;
+	return res;
+}
+
+void* Arena::pushZero(u64 size) {
+	void* res = this->push(size);
+	memset(res, 0, size);
 	return res;
 }
 

@@ -11,8 +11,9 @@ struct Arena {
 
 	void alloc(u64 capacity, u64 reserveCapacity = 128ULL * 1024 * 1024 * 1024);
 	void release();
-	// возвращает указатель на зануленную память
 	void* push(u64 size);
+	// возвращает указатель на зануленную память
+	void* pushZero(u64 size);
 	void clear();
 };
 
@@ -34,7 +35,7 @@ struct Array {
 	void alloc(Arena* storage, u32 capacity) {
 		count = 0;
 		this->capacity = capacity;
-		items = (T*)storage->push(sizeof(T) * capacity);
+		items = (T*)storage->pushZero(sizeof(T) * capacity);
 	}
 
 	void release() {

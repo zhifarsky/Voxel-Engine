@@ -8,9 +8,8 @@ layout (location = 3) in int instanceTextureID;
 layout (location = 4) in int instanceSizeX;
 layout (location = 5) in int instanceSizeZ;
 
+uniform mat4 model;
 uniform mat4 lightSpaceMatrix;
-
-uniform ivec2 chunkPos;
 
 const int CHUNK_SX = 16, CHUNK_SZ = 16, CHUNK_SY = 48;
 
@@ -70,9 +69,9 @@ void main() {
 	    instancePackedOffset / CHUNK_SX % CHUNK_SZ
     );
 
-    vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);
+    vec3 vertexPos = pos + offset;
 
-	gl_Position = lightSpaceMatrix * vec4(vertexPos, 1.0);
+	gl_Position =  lightSpaceMatrix * model * vec4(vertexPos, 1.0);
 }
 
 #type fragment

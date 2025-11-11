@@ -26,6 +26,15 @@ const GLenum TextureFilteringTable[] = {
 	GL_NEAREST, GL_LINEAR,
 };
 
+glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale)
+{
+	glm::mat4 model(1);
+	model = glm::translate(model, pos);
+	model = rotateXYZ(model, rot.x, rot.y, rot.z);
+	model = glm::scale(model, scale);
+	return model;
+}
+
 Frustum FrustumCreate(
 	glm::vec3 pos, glm::vec3 front, glm::vec3 up,
 	float aspect, float fovY, float zNear, float zFar)
@@ -199,8 +208,10 @@ namespace Renderer {
 		char* vertexSource = strstr(source, VertexShaderToken);
 		char* fragmentSource = strstr(source, FragmentShaderToken);
 
-		if (!vertexSource || !fragmentSource)
-			FatalError("Unknown shader format");
+		if (!vertexSource || !fragmentSource) {
+			dbgprint("Unknown shader format");
+			return 0;
+		}
 
 		char* split = std::max(vertexSource, fragmentSource) - 2;
 		*split = '\0';
@@ -227,9 +238,9 @@ namespace Renderer {
 		glDeleteProgram(shader);
 	}
 
-	void bindShader(Asset* shader)
+	void bindShader(Shader shader)
 	{
-		glUseProgram(shader->shader);
+		glUseProgram(shader);
 	}
 
 	void unbindShader() {
@@ -238,32 +249,36 @@ namespace Renderer {
 
 	// TODO: сделать setUniform макросами?
 
-	void setUniformMatrix4(Asset* shader, const char* name, float* values, bool transpose) {
-		glUniformMatrix4fv(glGetUniformLocation(shader->shader, name), 1, transpose, values);
+	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose) {
+		glUniformMatrix4fv(glGetUniformLocation(shader, name), 1, transpose, values);
 	}
 
-	void setUniformInt(Asset* shader, const char* name, int x) {
-		glUniform1i(glGetUniformLocation(shader->shader, name), x);
+	void setUniformInt(Shader shader, const char* name, int x) {
+		glUniform1i(glGetUniformLocation(shader, name), x);
 	}
 
-	void setUniformInt2(Asset* shader, const char* name, int x, int y) {
-		glUniform2i(glGetUniformLocation(shader->shader, name), x, y);
+	void setUniformInt2(Shader shader, const char* name, int x, int y) {
+		glUniform2i(glGetUniformLocation(shader, name), x, y);
 	}
 	
-	void setUniformFloat(Asset* shader, const char* name, float x) {
-		glUniform1f(glGetUniformLocation(shader->shader, name), x);
+	void setUniformFloat(Shader shader, const char* name, float x) {
+		glUniform1f(glGetUniformLocation(shader, name), x);
 	}
 
-	void setUniformFloat2(Asset* shader, const char* name, float x, float y) {
-		glUniform2f(glGetUniformLocation(shader->shader, name), x, y);
+	void setUniformFloat2(Shader shader, const char* name, float x, float y) {
+		glUniform2f(glGetUniformLocation(shader, name), x, y);
 	}
 
-	void setUniformFloat3(Asset* shader, const char* name, float x, float y, float z) {
-		glUniform3f(glGetUniformLocation(shader->shader, name), x, y, z);
+	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z) {
+		glUniform3f(glGetUniformLocation(shader, name), x, y, z);
+	}	
+
+	void setUniformFloat3(Shader shader, const char* name, const glm::vec3& v) {
+		glUniform3f(glGetUniformLocation(shader, name), v.x, v.y, v.z);
 	}
 	
-	void setUniformFloat4(Asset* shader, const char* name, glm::vec4 v) {
-		glUniform4f(glGetUniformLocation(shader->shader, name), v.x, v.y, v.z, v.w);
+	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v) {
+		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
 	}
 
 	int GetMaxAASamples() {
@@ -485,7 +500,7 @@ namespace Renderer {
 	/* работает только с .obj форматом
 	работает только с триангулированными мешами 
 	TODO: загрузка нормалей */
-	Geometry createGeometryFromFile(GameMemory* memory, const char* fileName) {
+	Geometry Renderer::createGeometryFromFile(Arena* tempStorage, const char* fileName) {
 		struct Face {
 			int vertex[4];
 			int uv[4];
@@ -514,10 +529,10 @@ namespace Renderer {
 			}
 		}
 
-		glm::vec3* positions = (glm::vec3*)memory->tempStorage.push(sizeof(glm::vec3)* vCount);
-		glm::vec2* uvs = (glm::vec2*)memory->tempStorage.push(sizeof(glm::vec2) * uvCount);
-		glm::vec3* normals = (glm::vec3*)memory->tempStorage.push(sizeof(glm::vec3) * normalCount);
-		Face* faces = (Face*)memory->tempStorage.push(sizeof(Face) * faceCount);
+		glm::vec3* positions = (glm::vec3*)tempStorage->pushZero(sizeof(glm::vec3)* vCount);
+		glm::vec2* uvs = (glm::vec2*)tempStorage->pushZero(sizeof(glm::vec2) * uvCount);
+		glm::vec3* normals = (glm::vec3*)tempStorage->pushZero(sizeof(glm::vec3) * normalCount);
+		Face* faces = (Face*)tempStorage->pushZero(sizeof(Face) * faceCount);
 
 		rewind(file);
 
@@ -561,8 +576,8 @@ namespace Renderer {
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)memory->tempStorage.push(sizeof(Vertex) * faceCount * 3);
-		Triangle* tris = (Triangle*)memory->tempStorage.push(sizeof(Triangle) * faceCount);
+		Vertex* vertices = (Vertex*)tempStorage->pushZero(sizeof(Vertex) * faceCount * 3);
+		Triangle* tris = (Triangle*)tempStorage->pushZero(sizeof(Triangle) * faceCount);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)

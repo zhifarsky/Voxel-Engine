@@ -21,17 +21,23 @@ Asset g_Assets[(int)AssetID::COUNT] = {
 	{.path = TEX_FOLDER "UiAtlas.png"},
 	{.path = TEX_FOLDER "zombie_temp.png"},
 	{.path = TEX_FOLDER "uv.png"},
+
+	{.path = MESH_FOLDER "zombie.mesh"},
 };
 
 // TODO: отдавать вместо ссылки на Asset, сразу Texture или Geometry
 
 Asset* GetAsset(AssetID id) {
 	Asset* asset = &g_Assets[(int)id];
-	
+#if _DEBUG
+	if (!asset->IsInitialized || asset->fileWriteTime != GetFileWriteTime(asset->path)) {
+#else
 	if (!asset->IsInitialized) {
+#endif
 		dbgprint("[ASSETS] Loading %s\n", asset->path);
 		
 		asset->id = id;
+		asset->fileWriteTime = GetFileWriteTime(asset->path);
 
 		switch (id)
 		{
@@ -55,6 +61,7 @@ Asset* GetAsset(AssetID id) {
 			break;
 		case AssetID::EntityMesh:
 			asset->type = AssetType::Mesh;
+			asset->mesh = Renderer::createGeometryFromFile(g_TempStorage, asset->path);
 			break;
 		case AssetID::DefaultBox:
 			asset->type = AssetType::Mesh;
@@ -76,4 +83,19 @@ void InvalidateShaders() {
 			g_Assets[i].IsInitialized = false;
 		}
 	}
+}
+
+Shader GetShader(AssetID id)
+{
+	return GetAsset(id)->shader;
+}
+
+Geometry* GetMesh(AssetID id)
+{
+	return &GetAsset(id)->mesh;
+}
+
+Texture* GetTexture(AssetID id)
+{
+	return &GetAsset(id)->texture;
 }
