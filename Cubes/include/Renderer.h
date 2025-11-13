@@ -12,7 +12,13 @@ matrix = glm::rotate(matrix, glm::radians(z), glm::vec3(0.0, 0.0, 1.0));
 
 #define FRAMEBUFFER_MAX_TEXTURES 1
 
-glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot = glm::vec3(0), glm::vec3 scale = glm::vec3(1));
+struct RendererStats {
+	u32 drawCallsCount;
+	u32 drawCallsInstancedCount;
+	u32 trianglesRendered;
+};
+
+extern RendererStats g_RendererStats;
 
 struct Plane {
 	glm::vec3 normal;
@@ -37,6 +43,8 @@ Frustum FrustumCreate(
 
 // true если сфера внутри frustum
 float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float radius);
+
+glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot = glm::vec3(0), glm::vec3 scale = glm::vec3(1));
 
 enum class PixelFormat {
 	RGB, RGBA, Grayscale, DepthMap,
@@ -91,12 +99,6 @@ struct Triangle {
 };
 
 struct Geometry {
-	//Vertex* vertices;
-	//Triangle* triangles;
-
-	//u32 vertexCapacity, vertexCount;
-	//u32 triangleCapacity, triangleCount;
-
 	u32 vertexCount, triangleCount;
 	u32 VAO, VBO, EBO;
 };
@@ -104,14 +106,7 @@ struct Geometry {
 typedef Geometry Sprite;
 
 struct GeometryInstanced {
-	Vertex* vertices;
-	Triangle* triangles;
-
-	u32 vertexCapacity, vertexCount;
-	u32 triangleCapacity, triangleCount;
-
-	u32 instanceCount;
-
+	u32 vertexCount, triangleCount, instanceCount;
 	u32 VAO, VBO, instanceVBO, EBO;
 };
 
@@ -150,33 +145,31 @@ UV GetUVFromAtlas(Texture* atlas, s32 tileIndex, glm::ivec2 tileSize);
 // Asset Management
 //
 
-enum class AssetType : u8 {
-	Shader, Texture, Mesh
-};
-
-enum class AssetID : u8 {
+enum class ShaderAssetID : u8 {
 	CubeShader, CubeShadowShader,
 	PolymeshShader, PolymeshShadowShader,
 	FlatShader,
 	SpriteShader,
 	UIShader,
 	ScreenShader,
+	COUNT
+};
 
+enum class TextureAssetID : u8 {
 	EnvTexture,
 	UITexture,
 	EntityTexture,
 	TestTexture,
-
+	COUNT
+};
+enum class MeshAssetID {
 	EntityMesh,
-	DefaultBox,
-
 	COUNT
 };
 
+// TODO: вместо структуры с union разные стркутуры с одним заголовком
 struct Asset {
 	const char* path;
-	AssetType type;
-	AssetID id;
 
 	bool IsInitialized;
 	u64 fileWriteTime;
@@ -191,9 +184,9 @@ struct Asset {
 void InvalidateShaders();
 
 //Asset* GetAsset(AssetID id);
-Shader GetShader(AssetID id);
-Geometry* GetMesh(AssetID id);
-Texture* GetTexture(AssetID id);
+Shader GetShader(ShaderAssetID id);
+Geometry* GetMesh(MeshAssetID id);
+Texture* GetTexture(TextureAssetID id);
 
 //
 // Renderer
@@ -219,6 +212,7 @@ namespace Renderer {
 	void bindShader(Shader shader);
 	void unbindShader();
 
+	s32 GetUniformLocation(Shader shader, const char* name);
 	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose = false);
 	void setUniformInt(Shader shader, const char* name, int x);
 	void setUniformInt2(Shader shader, const char* name, int x, int y);
@@ -258,6 +252,7 @@ namespace Renderer {
 	Geometry createGeometryFromFile(Arena* tempStorage, const char* fileName);
 	void deleteGeometry(Geometry* geo);
 	void drawGeometry(Geometry* geo);
+	void drawGeometry(u32 VAO, u32 triangleCount);
 	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount);
 
 	void switchDepthTest(bool enabled);

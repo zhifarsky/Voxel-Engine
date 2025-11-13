@@ -537,11 +537,18 @@ void ChunkManagerCreate(int seed) {
 
 void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance) {
 	int chunksCount = GetChunksCount(renderDistance);
-	manager->chunks = (Chunk*)memory->chunkStorage.pushZero(chunksCount * sizeof(Chunk));
+	// NOTE: не pushZero, так как нам не об€зательно занул€ть всю пам€ть
+	manager->chunks = (Chunk*)memory->chunkStorage.push(chunksCount * sizeof(Chunk)); 
 	manager->chunksCount = chunksCount;
 
 	for (size_t i = 0; i < chunksCount; i++)
 	{
+		Chunk* chunk = &manager->chunks[i];
+		
+		// занул€ем только необходимые пол€
+		chunk->generationInProgress = false;
+		chunk->status = ChunkStatus::Uninitalized;
+
 		setupBlockMesh(&manager->chunks[i].mesh, false);
 	}
 
@@ -756,6 +763,7 @@ Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float pos
 	return &manager->chunks[chunkIndex].blocks[relativePos.y][relativePos.z][relativePos.x];
 }
 
+// TODO: улучить алгоритм (voxel traversal https://www.youtube.com/watch?v=ztkh1r1ioZo)
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist) {
 	PeekBlockResult res = { };
 	

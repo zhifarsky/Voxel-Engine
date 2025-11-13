@@ -86,7 +86,7 @@ UiStyle* GetStyle() {
 
 void UI::Begin(Arena* tempStorage, Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
 	g_Font = defaultFont;
-	g_UIShader = GetShader(AssetID::UIShader);
+	g_UIShader = GetShader(ShaderAssetID::UIShader);
 
 	//window = currentWindow;
 	input = currentInput;

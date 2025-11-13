@@ -8,6 +8,8 @@
 
 #define MAX_AA_SAMPLES 8
 
+RendererStats g_RendererStats;
+
 const char* VertexShaderToken = "#type vertex";
 const char* FragmentShaderToken = "#type fragment";
 
@@ -117,6 +119,7 @@ namespace Renderer {
 		glEnable(GL_MULTISAMPLE);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glLineWidth(2);
 
 		return res;
 	}
@@ -248,16 +251,6 @@ namespace Renderer {
 	}
 
 	// TODO: сделать setUniform макросами?
-
-	inline s32 GetUniformLocation(Shader shader, const char* name) {
-		GLint loc = glGetUniformLocation(shader, name);
-#if _DEBUG
-		if (loc == -1) {
-			dbgprint("[SHADER] shader %d: no uniform named \"%s\"\n", shader, name);
-		}
-#endif
-		return loc;
-	}
 
 	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose) {
 		glUniformMatrix4fv(GetUniformLocation(shader, name), 1, transpose, values);
@@ -460,13 +453,17 @@ namespace Renderer {
 	}
 
 	void deleteTexture(Texture* texture) {
-		glDeleteTextures(1, &texture->ID);
+		if (texture) {
+			glDeleteTextures(1, &texture->ID);
+		}
 	}
 
 	void bindTexture(Texture* texture, int textureSlot) {
-		glActiveTexture(GL_TEXTURE0 + textureSlot);
-		glBindTexture(GL_TEXTURE_2D, texture->ID);
-		glActiveTexture(GL_TEXTURE0);
+		if (texture) {
+			glActiveTexture(GL_TEXTURE0 + textureSlot);
+			glBindTexture(GL_TEXTURE_2D, texture->ID);
+			glActiveTexture(GL_TEXTURE0);
+		}
 	}
 
 	void unbindTexture(int textureSlot) {
@@ -541,10 +538,10 @@ namespace Renderer {
 			}
 		}
 
-		glm::vec3* positions = (glm::vec3*)tempStorage->pushZero(sizeof(glm::vec3)* vCount);
-		glm::vec2* uvs = (glm::vec2*)tempStorage->pushZero(sizeof(glm::vec2) * uvCount);
-		glm::vec3* normals = (glm::vec3*)tempStorage->pushZero(sizeof(glm::vec3) * normalCount);
-		Face* faces = (Face*)tempStorage->pushZero(sizeof(Face) * faceCount);
+		glm::vec3* positions = (glm::vec3*)tempStorage->push(sizeof(glm::vec3)* vCount);
+		glm::vec2* uvs = (glm::vec2*)tempStorage->push(sizeof(glm::vec2) * uvCount);
+		glm::vec3* normals = (glm::vec3*)tempStorage->push(sizeof(glm::vec3) * normalCount);
+		Face* faces = (Face*)tempStorage->push(sizeof(Face) * faceCount);
 
 		rewind(file);
 
@@ -588,8 +585,8 @@ namespace Renderer {
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)tempStorage->pushZero(sizeof(Vertex) * faceCount * 3);
-		Triangle* tris = (Triangle*)tempStorage->pushZero(sizeof(Triangle) * faceCount);
+		Vertex* vertices = (Vertex*)tempStorage->push(sizeof(Vertex) * faceCount * 3);
+		Triangle* tris = (Triangle*)tempStorage->push(sizeof(Triangle) * faceCount);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)
@@ -623,12 +620,27 @@ namespace Renderer {
 	//}
 
 	void drawGeometry(Geometry* geo) {
+		g_RendererStats.drawCallsCount++;
+		g_RendererStats.trianglesRendered += geo->triangleCount;
+
 		glBindVertexArray(geo->VAO);
 		glDrawElements(GL_TRIANGLES, geo->triangleCount * 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 	}
 
+	void drawGeometry(u32 VAO, u32 triangleCount) {
+		g_RendererStats.drawCallsCount++;
+		g_RendererStats.trianglesRendered += triangleCount;
+
+		glBindVertexArray(VAO);
+		glDrawElements(GL_TRIANGLES, triangleCount * 3, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+	}
+
 	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount) {
+		g_RendererStats.drawCallsInstancedCount++;
+		g_RendererStats.trianglesRendered += elementsCount / 3 * instancesCount;
+		
 		glBindVertexArray(VAO);
 		glDrawElementsInstanced(GL_TRIANGLES, elementsCount, GL_UNSIGNED_INT, 0, instancesCount);
 		glBindVertexArray(0);

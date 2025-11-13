@@ -21,14 +21,14 @@ Font* loadFont(GameMemory* memory, const char* path, float fontSize) {
 	font->fileBuffer = readEntireFile(&memory->permStorage, path, &fileSize, FileType::binary);
 
 	u32 atlasWidth = 512, atlasHeight = 512;
-	u8* tempBitmap = (u8*)memory->tempStorage.pushZero(atlasWidth * atlasHeight);
+	u8* tempBitmap = (u8*)memory->tempStorage.push(atlasWidth * atlasHeight);
 
 	font->size = fontSize;
 	font->firstChar = ' '; 
 	char lastChar = '~';
 	font->charsCount = lastChar - font->firstChar + 1;
 
-	font->charData = (CharData*)memory->permStorage.pushZero(font->charsCount * sizeof(stbtt_bakedchar));
+	font->charData = (CharData*)memory->permStorage.push(font->charsCount * sizeof(stbtt_bakedchar));
 
 	// render font to atlas
 	stbtt_BakeFontBitmap(
@@ -46,7 +46,7 @@ Font* loadFont(GameMemory* memory, const char* path, float fontSize) {
 		font->fileBuffer, 
 		stbtt_GetFontOffsetForIndex(font->fileBuffer, 0));
 
-	u8* rgbaBitmap = (u8*)memory->tempStorage.pushZero(atlasWidth * atlasHeight * 4);
+	u8* rgbaBitmap = (u8*)memory->tempStorage.push(atlasWidth * atlasHeight * 4);
 	for (int i = 0; i < atlasWidth * atlasHeight; i++) {
 		rgbaBitmap[i * 4 + 0] = 255; // R
 		rgbaBitmap[i * 4 + 1] = 255; // G
