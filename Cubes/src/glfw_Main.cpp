@@ -125,7 +125,7 @@ int main()
     glfwSetScrollCallback(window, scroll_callback);
 #pragma endregion
 
-    Renderer::init((Renderer::LoadProc)glfwGetProcAddress);
+    Renderer::Init((Renderer::LoadProc)glfwGetProcAddress);
 
 #pragma region Imgui
     //const char* glsl_version = "#version 330";
@@ -137,20 +137,35 @@ int main()
     //ImGui_ImplOpenGL3_Init(glsl_version);
     //ImGui::StyleColorsDark();
 #pragma endregion
-
-    GameInit();
     
+    //
+    // game inputs
+    //
+
     Input input[2] = { 0 };
     Input* newInput = &input[0];
     Input* oldInput = &input[1];
+
+    //
+    // game memory
+    //
+
+    GameMemory memory = {0};
+    memory.permStorage.alloc(Megabytes(128), Gigabytes(1));
+    memory.tempStorage.alloc(Megabytes(128), Gigabytes(1));
+    memory.chunkStorage.alloc(Gigabytes(2), Gigabytes(4));
 
     // MAIN LOOP
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
+        //
+        // input processing
+        //
+
 #define IsMouseButtonReleased(window, button) (glfwGetMouseButton(window, button) == GLFW_RELEASE)
 #define IsKeyReleased(window, key) (glfwGetKey(window, key) == GLFW_RELEASE)
-        // input processing
+
         {
             ProcessButtonInput(&oldInput->uiClick, &newInput->uiClick, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
 
@@ -173,7 +188,7 @@ int main()
             ProcessButtonInput(&oldInput->placeBlock, &newInput->placeBlock, IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));
 
             ProcessButtonInput(&oldInput->openInventory, &newInput->openInventory, IsKeyReleased(window, GLFW_KEY_TAB));
-            for (size_t i = 0; i < ArraySize(oldInput->inventorySlots); i++)
+            for (size_t i = 0; i < ArrayCount(oldInput->inventorySlots); i++)
             {
                 ProcessButtonInput(&oldInput->inventorySlots[i], &newInput->inventorySlots[i], IsKeyReleased(window, GLFW_KEY_1 + i));
             }
@@ -189,12 +204,15 @@ int main()
         FrameBufferInfo fbInfo;
         GetFramebufferSize(&fbInfo.sizeX, &fbInfo.sizeY);
 
-        GameUpdateAndRender(glfwGetTime(), newInput, &fbInfo);
+        GameUpdateAndRender(&memory, glfwGetTime(), newInput, &fbInfo);
 
         // swap old and new inputs
         Input* tempInput = oldInput;
         oldInput = newInput;
         newInput = tempInput;
+
+        // clear temporal memory
+        memory.tempStorage.clear();
 
         glfwSwapBuffers(window);
     }

@@ -5,20 +5,18 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 3) in vec3 aNormal;
 
+uniform mat4 model;
+uniform mat4 viewProjection;
+uniform mat4 lightSpaceMatrix;
 
 out vec2 TexCoord;
 out vec3 ourNormal;
 out vec3 FragPos;
 out vec4 FragPosLightSpace;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat4 lightSpaceMatrix;
-
 void main()
 {
-	gl_Position = projection * view * model * vec4(aPos, 1.0);
+	gl_Position = viewProjection * model * vec4(aPos, 1.0);
 	ourNormal = mat3(transpose(inverse(model))) * aNormal;
 	FragPos = vec3(model * vec4(aPos, 1.0));
 	TexCoord = vec2(aTexCoord.x, aTexCoord.y);
@@ -39,10 +37,12 @@ in vec4 FragPosLightSpace;
 uniform sampler2D texture1;
 uniform sampler2D shadowMap;
 
-uniform float lightingFactor;
 uniform vec3 sunDir;
 uniform vec3 sunColor;
 uniform vec3 ambientColor;
+
+uniform bool overrideColor;
+uniform vec3 color;
 
 float ShadowCalculation(vec4 fragPosLightSpace)
 {
@@ -64,6 +64,11 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 
 void main()
 {
+   if (overrideColor) {
+        FragColor = vec4(color, 1.0);
+        return;
+    }
+
 	// vec3 norm = normalize(ourNormal);
 	vec3 norm = ourNormal;
 	vec3 lightDir = normalize(sunDir);

@@ -7,7 +7,7 @@
 #include "Files.h"
 
 #define DEBUG_CHUNKS 0
-#define DEBUG_GENERATION 0
+#define DEBUG_GENERATION 1
 
 ChunkManager g_chunkManager;
 float g_chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
@@ -16,7 +16,7 @@ float Remap(float value, float oldMin, float oldMax, float newMin, float newMax)
 	return newMin + (value - oldMin) * (newMax - newMin) / (oldMax - oldMin);
 }
 
-static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
+static void setupBlockMesh(GeometryInstanced* mesh, bool staticMesh) {
 	static glm::vec3 faceVerts[] = {
 	glm::vec3(0,0,0),
 	glm::vec3(1,0,0),
@@ -71,7 +71,7 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 
 	// instances
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(mesh->faces), mesh->faces, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(BlockFaceInstance) * MAX_FACES_COUNT, NULL, GL_STATIC_DRAW);
 
 	// pos
 	glEnableVertexAttribArray(1);
@@ -99,7 +99,7 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 }
 
 void deleteBlockMesh(Chunk* chunk) {
-	BlockMesh* mesh = &chunk->mesh;
+	GeometryInstanced* mesh = &chunk->mesh;
 	//glDeleteBuffers(1, &mesh->VBO);
 	glDeleteBuffers(1, &mesh->instanceVBO);
 	//glDeleteBuffers(1, &mesh->EBO);
@@ -109,13 +109,27 @@ void deleteBlockMesh(Chunk* chunk) {
 }
 
 // обновить геометрию в ГПУ
-static void updateBlockMesh(Chunk* chunk) {
-	BlockMesh* mesh = &chunk->mesh;
-	glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
+//static void UpdateBlockMesh(Chunk* chunk) {
+//	BlockMesh* mesh = &chunk->mesh;
+//	glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
+//	//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
+//	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(BlockFaceInstance) * mesh->faceCount, mesh->faces);
+//
+//	glBindBuffer(GL_ARRAY_BUFFER, 0);
+//	chunk->status = ChunkStatus::ReadyToRender;
+//}
+
+// обновить геометрию в ГПУ
+static void UpdateBlockMesh(ChunkMeshGenResult* genRes) {
+	glBindBuffer(GL_ARRAY_BUFFER, genRes->chunk->mesh.instanceVBO);
+	//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(BlockFaceInstance) * genRes->facesCount, genRes->faces);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	chunk->status = ChunkStatus::ReadyToRender;
+
+	free(genRes->faces);
+	genRes->chunk->mesh.instanceCount = genRes->facesCount;
+	genRes->chunk->status = ChunkStatus::ReadyToRender;
 }
 
 //static FastNoiseLite noise; // TODO: должно быть по 1 на поток?
@@ -164,7 +178,7 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->posx = posx;
 	chunk->posz = posz;
 
-	dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
+	//dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
 
 	float noiseScale = 6.0f;
 	float caveNoiseScale = 5.0f;
@@ -351,13 +365,15 @@ bool IsZNegFaceVisible(Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX], int y, int z,
 	return z == 0 || IsBlockTransparent(blocks[y][z - 1][x].type);
 }
 
-void ChunkGenerateMesh(Chunk* chunk) {
+ChunkMeshGenResult ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk) {
 	static int layerStride = CHUNK_SX * CHUNK_SZ;
 	static int stride = CHUNK_SX;
 	int faceCount = 0;
 	int blockIndex = 0;
 	
-	BlockFaceInstance* faces = chunk->mesh.faces;
+	BlockFaceInstance* tempFaces = (BlockFaceInstance*)tempStorage->push(MAX_FACES_COUNT);
+	u32 facesCount = 0;
+
 	auto blocks = chunk->blocks;
 
 	int inc = 1;
@@ -365,15 +381,15 @@ void ChunkGenerateMesh(Chunk* chunk) {
 #define GREEDY 1
 
 #if GREEDY == 1
-	bool usedXPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedXNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedYPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedYNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedZPos[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
-	bool usedZNeg[CHUNK_SY][CHUNK_SZ][CHUNK_SX] = { false };
+	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
 #endif
 
-	memset(faces, 0, sizeof(chunk->mesh.faces));
+	//memset(faces, 0, sizeof(chunk->mesh.faces));
 	
 	for (size_t y = 0; y < CHUNK_SY; y += inc) {
 		for (size_t z = 0; z < CHUNK_SZ; z += inc) {
@@ -490,7 +506,7 @@ void ChunkGenerateMesh(Chunk* chunk) {
 							int faceSize[3] = { 1 };
 							faceSize[run.axisA] = lenA;
 							faceSize[run.axisB] = lenB;
-							faces[faceCount++] = BlockFaceInstance(blockIndex, run.face, texID, faceSize[0], faceSize[1], faceSize[2]);
+							tempFaces[facesCount++] = BlockFaceInstance(blockIndex, run.face, texID, faceSize[0], faceSize[1], faceSize[2]);
 						}
 					}
 
@@ -527,41 +543,67 @@ void ChunkGenerateMesh(Chunk* chunk) {
 		}
 	}
 
-	chunk->mesh.faceCount = faceCount;
+
+	ChunkMeshGenResult res = { 0 };
+	res.chunk = chunk;
+	res.facesCount = facesCount;
+	// NOTE: выделям память, которую освобождает UpdateBlockMesh()
+	// чтобы не выделять избыток памяти, сначала работаем с временной памятью, а потом копируем результат в res.faces
+	res.faces = (BlockFaceInstance*)malloc(sizeof(BlockFaceInstance) * facesCount); // TODO: убрать выделение в куче
+	memcpy(res.faces, tempFaces, sizeof(BlockFaceInstance)* facesCount);
+
+	//chunk->mesh.faceCount = faceCount;
 	chunk->status = ChunkStatus::Generated;
+
+	return res;
 }
 
 void ChunkManagerCreate(int seed) {
 	g_chunkManager.seed = seed;
-	g_chunkManager.queue = new TaskQueue();
 }
 
-void ChunkManagerAllocChunks(ChunkManager* manager, u32 renderDistance) {
+void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance) {
 	int chunksCount = GetChunksCount(renderDistance);
-	manager->chunks = (Chunk*)calloc(chunksCount, sizeof(Chunk));
+	// NOTE: не pushZero, так как нам не обязательно занулять всю память
+	manager->chunks = (Chunk*)memory->chunkStorage.push(chunksCount * sizeof(Chunk)); 
 	manager->chunksCount = chunksCount;
 
 	for (size_t i = 0; i < chunksCount; i++)
 	{
+		Chunk* chunk = &manager->chunks[i];
+		
+		// зануляем только необходимые поля
+		chunk->generationInProgress = false;
+		chunk->status = ChunkStatus::Uninitalized;
+
 		setupBlockMesh(&manager->chunks[i].mesh, false);
 	}
 
 #if (!DEBUG_CHUNKS)
-	manager->queue->Start(std::max(1, GetThreadsCount()));
+	g_chunkManager.queue = new TaskQueue(GetThreadsCount());
 #else
-	manager->queue->Start(1);
+	g_chunkManager.queue = new TaskQueue(1);
 #endif
+
+//#if (!DEBUG_CHUNKS)
+//	manager->queue->Start(std::max(1, GetThreadsCount()));
+//#else
+//	manager->queue->Start(1);
+//#endif
 }
 
-void ChunkManagerReleaseChunks(ChunkManager* manager) {
+void ChunkManagerReleaseChunks(GameMemory* memory, ChunkManager* manager) {
 	// дожидаемся выполнения всех задач, чтобы потоки не использовали освобожденную память
-	manager->queue->StopAndJoin(); 
+	delete manager->queue;
+	//manager->queue->StopAndJoin(); 
 
 	for (size_t i = 0; i < manager->chunksCount; i++)
 	{
 		deleteBlockMesh(&manager->chunks[i]);
 	}
-	free(manager->chunks);
+
+	memory->chunkStorage.clear();
+
 	manager->chunks = NULL;
 	manager->chunksCount = 0;
 
@@ -748,6 +790,7 @@ Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float pos
 	return &manager->chunks[chunkIndex].blocks[relativePos.y][relativePos.z][relativePos.x];
 }
 
+// TODO: улучить алгоритм (voxel traversal https://www.youtube.com/watch?v=ztkh1r1ioZo)
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist) {
 	PeekBlockResult res = { };
 	
@@ -778,7 +821,7 @@ PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 ra
 	return res;
 }
 
-PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+PlaceBlockResult ChunkManagerPlaceBlock(Arena* tempStorage, ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
 	PlaceBlockResult res = { };
 	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
 	if (peekRes.success) {
@@ -817,8 +860,8 @@ PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockTy
 			if (newBlock->type == BlockType::btAir) {
 				newBlock->type = blockType;
 
-				ChunkGenerateMesh(chunk);
-				updateBlockMesh(chunk);
+				ChunkMeshGenResult genRes = ChunkGenerateMesh(tempStorage, chunk);
+				UpdateBlockMesh(&genRes);
 
 				res.typePrev = peekRes.block->type;
 				res.typeNew = blockType;
@@ -835,7 +878,7 @@ PlaceBlockResult ChunkManagerPlaceBlock(ChunkManager* manager, BlockType blockTy
 	return res;
 }
 
-PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
+PlaceBlockResult ChunkManagerDestroyBlock(Arena* tempStorage, ChunkManager* manager, glm::vec3 pos, glm::vec3 direction, u8 maxDist) {
 	PlaceBlockResult res = {};
 	PeekBlockResult peekRes = ChunkManagerPeekBlockFromRay(manager, pos, direction, maxDist);
 	if (peekRes.success) {
@@ -846,8 +889,9 @@ PlaceBlockResult ChunkManagerDestroyBlock(ChunkManager* manager, glm::vec3 pos, 
 
 		peekRes.block->type = BlockType::btAir;
 		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
-		ChunkGenerateMesh(chunk);
-		updateBlockMesh(chunk);
+		
+		ChunkMeshGenResult genRes = ChunkGenerateMesh(tempStorage, chunk);
+		UpdateBlockMesh(&genRes);
 
 		return res;
 	}
@@ -864,7 +908,7 @@ glm::ivec2 PosToChunkPos(glm::vec3 pos)
 	};
 }
 
-void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float playerPosX, float playerPosZ) {
+void ChunkManagerBuildChunks(ChunkManager* manager, Arena* tempStorage, Frustum* frustum, float playerPosX, float playerPosZ) {
 	static bool printed = false;
 	printed = false;
 
@@ -954,7 +998,7 @@ void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float play
 			chunkToReplace->posx = chunkPosX;
 			chunkToReplace->posz = chunkPosZ;
 
-			manager->queue->AddTask([saveBeforeReplacing, chunkToReplace, oldChunkPosX, oldChunkPosZ, chunkPosX, chunkPosZ]() {
+			manager->queue->AddTask([saveBeforeReplacing, chunkToReplace, oldChunkPosX, oldChunkPosZ, chunkPosX, chunkPosZ](TaskQueue* queue, ThreadState* state) {
 				// save chunk before replacing
 				if (saveBeforeReplacing)
 				{
@@ -972,23 +1016,19 @@ void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float play
 
 				//std::this_thread::sleep_for(std::chrono::milliseconds(200)); // test
 
-				ChunkGenerateMesh(chunkToReplace);
+				ChunkMeshGenResult meshResult = ChunkGenerateMesh(&state->tempStorage, chunkToReplace);
+				queue->PushResult(meshResult);
 				chunkToReplace->generationInProgress = false;
 			});
 		}
 	}
 
-	//int updates = 0;
-	//int maxUpdates = 5;
-	for (size_t i = 0; i < manager->chunksCount; i++)
-	{
-		//if (updates > maxUpdates)
-		//	break;
+	//
+	// Update Mesh On GPU
+	//
 
-		Chunk* chunk = &manager->chunks[i];
-		if (!chunk->generationInProgress && chunk->status == ChunkStatus::Generated) {
-			updateBlockMesh(chunk);
-			//updates++;
-		}
+	while (!manager->queue->IsResultsEmpty()) {
+		ChunkMeshGenResult genRes = manager->queue->PopResult();
+		UpdateBlockMesh(&genRes);
 	}
 }

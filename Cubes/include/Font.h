@@ -1,5 +1,6 @@
 #pragma once
 #include "Renderer.h"
+#include "Cubes.h"
 
 struct Font;
 // NOTE: полностью повторяет stbtt_bakedchar
@@ -9,8 +10,7 @@ struct CharData {
 	float xoff, yoff, xadvance;
 };
 
-Font* loadFont(const char* fontPath, float fontSize);
-void FontRelease(Font* font);
+Font* loadFont(GameMemory* memory, const char* fontPath, float fontSize);
 float FontGetSize(Font* font);
 CharData FontGetCharData(Font* font, char c);
 float FontGetKernInPixels(Font* font, s32 codepointA, s32 codepointB);

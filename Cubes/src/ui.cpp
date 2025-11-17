@@ -16,7 +16,8 @@ std::unordered_map<std::string, ElementState> elementsState;
 
 static Sprite face;
 
-Font* font;
+Font* g_Font;
+Shader g_UIShader;
 
 Input* input;
 float originX = 0, originY = 0;
@@ -58,7 +59,7 @@ void Init() {
 		Triangle(0,2,3)
 	};
 
-	face = Renderer::createGeometry(faceVerts, 4, faceTris, 2);
+	face = Renderer::CreateGeometry(faceVerts, 4, faceTris, 2);
 
 	// style
 	{
@@ -83,8 +84,9 @@ UiStyle* GetStyle() {
 	return &uiStyle;
 }
 
-void Start(Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
-	font = defaultFont;
+void UI::Begin(Arena* tempStorage, Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
+	g_Font = defaultFont;
+	g_UIShader = GetShader(ShaderAssetID::UIShader);
 
 	//window = currentWindow;
 	input = currentInput;
@@ -104,14 +106,14 @@ void Start(Input* currentInput, Font* defaultFont, FrameBufferInfo* fbInfo) {
 	projection = glm::ortho(left, right, bottom, top, -1.0f, 1.0f);
 
 	// use ui shader
-	Renderer::bindShader(uiShader);
-	Renderer::setUniformMatrix4(uiShader, "projection", glm::value_ptr(projection));
-	Renderer::switchDepthTest(false);
+	Renderer::BindShader(g_UIShader);
+	Renderer::setUniformMatrix4(g_UIShader, "projection", glm::value_ptr(projection));
+	Renderer::SwitchDepthTest(false);
 }
 
 void End() {
-	Renderer::unbindShader();
-	Renderer::switchDepthTest(true);
+	Renderer::UnbindShader();
+	Renderer::SwitchDepthTest(true);
 }
 
 void SetAnchor(uiAnchor anchor, float offset) {
@@ -195,12 +197,12 @@ void Advance(float offsetX, float offsetY) {
 
 void UseFont(Font* newFont)
 {
-	font = newFont;
+	g_Font = newFont;
 }
 
 // NOTE: элементы отцентрованы при помощи translate. отстальные элементы не отцентрованы
 void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
-	Renderer::bindTexture(texture);
+	Renderer::BindTexture(texture);
 
 	glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
 	model = glm::translate(model, glm::vec3(originX, originY, 0));
@@ -213,16 +215,21 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 	uvShift.y += uvScale.y;
 	uvScale.y = -uvScale.y;
 
-	Renderer::setUniformMatrix4(uiShader, "model", value_ptr(model));
-	Renderer::setUniformFloat2(uiShader, "UVScale", uvScale.x, uvScale.y);
-	Renderer::setUniformFloat2(uiShader, "UVShift", uvShift.x, uvShift.y);
-	Renderer::setUniformFloat(uiShader, "colorWeight", 0);
+	Renderer::setUniformMatrix4(g_UIShader, "model", value_ptr(model));
+	Renderer::setUniformFloat2(g_UIShader, "UVScale", uvScale.x, uvScale.y);
+	Renderer::setUniformFloat2(g_UIShader, "UVShift", uvShift.x, uvShift.y);
+	Renderer::setUniformFloat(g_UIShader, "colorWeight", 0);
 
-	Renderer::drawGeometry(&face);
+	Renderer::DrawGeometry(&face);
 
-	Renderer::unbindTexture();
+	Renderer::UnbindTexture();
 
 	Advance(scale.x, scale.y);
+}
+
+void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, s32 tileIndex, glm::ivec2 tileSize) {
+	UV uv = GetUVFromAtlas(texture, tileIndex, tileSize);
+	DrawElement(texture, rot, scale, uv.scale, uv.offset);
 }
 
 bool Button(const char* text, glm::vec2 size, bool centerX) {
@@ -231,7 +238,7 @@ bool Button(const char* text, glm::vec2 size, bool centerX) {
 	if (size.x == 0)
 		size.x = textWidth + uiStyle.padding * 2;
 	if (size.y == 0)
-		size.y = FontGetSize(font) + uiStyle.padding * 2;
+		size.y = FontGetSize(g_Font) + uiStyle.padding * 2;
 
 	glm::vec2 pos = { originX, originY };
 	if (centerX)
@@ -266,11 +273,11 @@ bool Button(const char* text, glm::vec2 size, bool centerX) {
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, 0.0f));
 		model = glm::scale(model, glm::vec3(size, 1));
 
-		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
-		Renderer::setUniformFloat4(uiShader, "color", color);
-		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(model));
+		Renderer::setUniformFloat4(g_UIShader, "color", color);
+		Renderer::setUniformFloat(g_UIShader, "colorWeight", 1);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 	}
 
 	TextInternal(text, pos.x - textWidth / 2 + size.x / 2, pos.y + size.y / 2);
@@ -286,7 +293,7 @@ float GetButtonWidth(const char* text) {
 bool CheckBox(const char* text, bool* value, glm::vec2 size)
 {
 	if (size.x * size.y == 0)
-		size = glm::vec2(FontGetSize(font), FontGetSize(font)) * 2.0f;
+		size = glm::vec2(FontGetSize(g_Font), FontGetSize(g_Font)) * 2.0f;
 
 	ElementState state = { 0 };
 	if (elementsState.count(text))
@@ -320,14 +327,14 @@ bool CheckBox(const char* text, bool* value, glm::vec2 size)
 		model = glm::translate(model, glm::vec3(originX, originY, 0.0f));
 		model = glm::scale(model, glm::vec3(size, 1));
 
-		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
-		Renderer::setUniformFloat4(uiShader, "color", color);
-		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(model));
+		Renderer::setUniformFloat4(g_UIShader, "color", color);
+		Renderer::setUniformFloat(g_UIShader, "colorWeight", 1);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 	}
 
-	TextInternal(text, originX + size.x + uiStyle.margin, originY + FontGetSize(font) / 2);
+	TextInternal(text, originX + size.x + uiStyle.margin, originY + FontGetSize(g_Font) / 2);
 
 	Advance(size.x, size.y);
 
@@ -390,22 +397,22 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 		knobModel = glm::translate(knobModel, glm::vec3(knobPos.x - knobWidth / 2, originY - knobHeight / 2, 0));
 		knobModel = glm::scale(knobModel, glm::vec3(knobWidth, knobHeight, 1));
 
-		Renderer::setUniformFloat(uiShader, "colorWeight", 1);
+		Renderer::setUniformFloat(g_UIShader, "colorWeight", 1);
 
-		Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderBarColor);
-		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(barModel));
-		Renderer::drawGeometry(&face);
+		Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderBarColor);
+		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(barModel));
+		Renderer::DrawGeometry(&face);
 
 		if (hovered && clicked)
-			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobActiveColor);
+			Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderKnobActiveColor);
 		else if (hovered)
-			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobHoveredColor);
+			Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderKnobHoveredColor);
 		else
-			Renderer::setUniformFloat4(uiShader, "color", uiStyle.sliderKnobColor);
-		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(knobModel));
-		Renderer::drawGeometry(&face);
+			Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderKnobColor);
+		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(knobModel));
+		Renderer::DrawGeometry(&face);
 	}
-	Advance(barWidth, knobHeight + FontGetSize(font));
+	Advance(barWidth, knobHeight + FontGetSize(g_Font));
 	return res;
 }
 
@@ -432,12 +439,12 @@ float GetTextWidth(const char* text) {
 
 	for (size_t i = 0; i < len; i++)
 	{
-		CharData charData = FontGetCharData(font, text[i]);
+		CharData charData = FontGetCharData(g_Font, text[i]);
 
 		width += charData.xoff + charData.xadvance;
 
 		if (i > 0) {
-			width += FontGetKernInPixels(font, text[i - 1], text[i]);;
+			width += FontGetKernInPixels(g_Font, text[i - 1], text[i]);;
 		}
 	}
 
@@ -447,44 +454,41 @@ float GetTextWidth(const char* text) {
 float TextInternal(const char* text, float posX, float posY) {
 	u32 len = strlen(text);
 	
-	Renderer::bindTexture(FontGetTextureAtlas(font));
-	Renderer::setUniformFloat(uiShader, "colorWeight", 0);
+	Renderer::BindTexture(FontGetTextureAtlas(g_Font));
+	Renderer::setUniformFloat(g_UIShader, "colorWeight", 0);
 	float x = posX;
 
 	for (size_t i = 0; i < len; i++)
 	{
 		char c = text[i];
-		CharData charData = FontGetCharData(font, c);
+		CharData charData = FontGetCharData(g_Font, c);
 
 		float cHeight = charData.y1 - charData.y0;
 		float cWidth = charData.x1 - charData.x0;
 		float cAspect = cWidth / cHeight;
-		float cHeightFactor = cHeight / FontGetSize(font);
+		float cHeightFactor = cHeight / FontGetSize(g_Font);
 		
 		float coordX = x + charData.xoff;
 		float coordY = posY - cHeight - charData.yoff;
 
 		// kerning
 		if (i > 0) {
-			coordX += FontGetKernInPixels(font, text[i-1], text[i]);
+			coordX += FontGetKernInPixels(g_Font, text[i-1], text[i]);
 		}
 
-		glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
-		model = glm::translate(model, glm::vec3(coordX, coordY, 0));
-		model = glm::scale(model, glm::vec3(
-			cWidth, 
-			cHeight,
-			1));
-		Renderer::setUniformMatrix4(uiShader, "model", glm::value_ptr(model));
+		glm::mat4 model(1); // единичная матрица (1 по диагонали)	
+		model = glm::translate(model, glm::vec3((int)coordX, (int)coordY, 0));
+		model = glm::scale(model, glm::vec3((int)cWidth, (int)cHeight, 1));
+		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(model));
 
-		Renderer::setUniformFloat2(uiShader, "UVShift", 
-			(float)charData.x0 / FontGetTextureAtlas(font)->width,
-			(float)charData.y1 / FontGetTextureAtlas(font)->height);
-		Renderer::setUniformFloat2(uiShader, "UVScale", 
-			(float)(charData.x1 - charData.x0) / FontGetTextureAtlas(font)->width,
-			-(float)(charData.y1 - charData.y0) / FontGetTextureAtlas(font)->height);
+		Renderer::setUniformFloat2(g_UIShader, "UVShift",
+			(float)charData.x0 / FontGetTextureAtlas(g_Font)->width,
+			(float)charData.y1 / FontGetTextureAtlas(g_Font)->height);
+		Renderer::setUniformFloat2(g_UIShader, "UVScale",
+			(float)(charData.x1 - charData.x0) / FontGetTextureAtlas(g_Font)->width,
+			-(float)(charData.y1 - charData.y0) / FontGetTextureAtlas(g_Font)->height);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 		
 		x += charData.xadvance;
 	}
@@ -497,7 +501,7 @@ void Text(const char* text, bool centerX) {
 		pos.x -= GetTextWidth(text) / 2; 
 	
 	float width = TextInternal(text, pos.x, pos.y);
-	Advance(width, FontGetSize(font));
+	Advance(width, FontGetSize(g_Font));
 }
 
 }

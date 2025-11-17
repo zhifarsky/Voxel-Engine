@@ -6,11 +6,14 @@
 #include "Tools.h"
 #include "Files.h"
 
+#define MAX_AA_SAMPLES 8
+
+RendererStats g_RendererStats;
+
 const char* VertexShaderToken = "#type vertex";
 const char* FragmentShaderToken = "#type fragment";
 
 using namespace Renderer;
-
 
 const GLenum PixelFormatTable[] = {
 	GL_RGB, GL_RGBA, GL_RED, GL_DEPTH_COMPONENT
@@ -24,6 +27,15 @@ const GLenum TextureWrappingTable[] = {
 const GLenum TextureFilteringTable[] = {
 	GL_NEAREST, GL_LINEAR,
 };
+
+glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale)
+{
+	glm::mat4 model(1);
+	model = glm::translate(model, pos);
+	model = rotateXYZ(model, rot.x, rot.y, rot.z);
+	model = glm::scale(model, scale);
+	return model;
+}
 
 Frustum FrustumCreate(
 	glm::vec3 pos, glm::vec3 front, glm::vec3 up,
@@ -80,9 +92,26 @@ float FrustumSphereIntersection(Frustum* frustum, glm::vec3 sphereCenter, float 
 	return true;
 }
 
+UV GetUVFromAtlas(Texture* atlas, s32 tileIndex, glm::ivec2 tileSize)
+{
+	s32 tilesInRow = atlas->width / tileSize.x;
+	s32 tilesInCol = atlas->height / tileSize.y;
+	
+	glm::vec2 uvScale = { 1.0f / tilesInRow, 1.0f / tilesInCol };
+	glm::vec2 uvOffset = {
+		uvScale.x * (tileIndex % tilesInRow),
+		uvScale.y * (tileIndex / tilesInRow)
+	};
+
+	return {
+		.offset = uvOffset,
+		.scale = uvScale
+	};
+}
+
 
 namespace Renderer {
-	bool init(LoadProc loadProc) {
+	bool Init(LoadProc loadProc) {
 		int res = gladLoadGLLoader((GLADloadproc)loadProc);
 
 		glEnable(GL_DEPTH_TEST);
@@ -90,16 +119,17 @@ namespace Renderer {
 		glEnable(GL_MULTISAMPLE);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glLineWidth(2);
 
 		return res;
 	}
 
-	void clear(float r, float g, float b, float a) {
+	void Clear(float r, float g, float b, float a) {
 		glClearColor(r, g, b, a);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
-	void setViewportDimensions(int width, int height, int x, int y)
+	void SetViewportDimensions(int width, int height, int x, int y)
 	{
 		glViewport(x, y, width, height);
 	}
@@ -135,7 +165,7 @@ namespace Renderer {
 		return true;
 	}
 
-	Shader createShader(const char* vertexSource, const char* fragmentSource) {
+	Shader CreateShader(const char* vertexSource, const char* fragmentSource) {
 		GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
 		glShaderSource(vShader, 1, &vertexSource, NULL);
 		glCompileShader(vShader);
@@ -170,26 +200,10 @@ namespace Renderer {
 		return shaderProgram;
 	}
 
-	Shader createShaderFromFile(const char* vertexShaderFilename, const char* fragmentShaderFilename) {
-		u32 vFileSize = 0, fFileSize = 0;
-		char* vertexSource = (char*)readEntireFile(vertexShaderFilename, &vFileSize, FileType::text);
-		char* fragmentSource = (char*)readEntireFile(fragmentShaderFilename, &fFileSize, FileType::text);
-		if (vertexSource == 0 || fragmentSource == 0) {
-			FatalError("Error on loading shaders from disk");
-		}
-
-		Shader shaderProgram = Renderer::createShader(vertexSource, fragmentSource);
-
-		free(vertexSource);
-		free(fragmentSource);
-
-		return shaderProgram;
-	}
-
-	Shader Renderer::createShaderFromFile(const char* fileName)
+	Shader Renderer::CreateShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader)
 	{
 		u32 vFileSize = 0, fFileSize = 0;
-		char* source = (char*)readEntireFile(fileName, &vFileSize, FileType::text);
+		char* source = (char*)readEntireFile(tempStorage, fileName, &vFileSize, FileType::text);
 		if (!source) {
 			FatalError("Error on loading shaders from disk");
 		}
@@ -197,8 +211,10 @@ namespace Renderer {
 		char* vertexSource = strstr(source, VertexShaderToken);
 		char* fragmentSource = strstr(source, FragmentShaderToken);
 
-		if (!vertexSource || !fragmentSource)
-			FatalError("Unknown shader format");
+		if (!vertexSource || !fragmentSource) {
+			dbgprint("Unknown shader format");
+			return 0;
+		}
 
 		char* split = std::max(vertexSource, fragmentSource) - 2;
 		*split = '\0';
@@ -206,71 +222,90 @@ namespace Renderer {
 		vertexSource += strlen(VertexShaderToken);
 		fragmentSource += strlen(FragmentShaderToken);
 
-		Shader shader = Renderer::createShader(vertexSource, fragmentSource);
+		Shader shader = Renderer::CreateShader(vertexSource, fragmentSource);
 
-		free(source);
+		if (oldShader != 0)
+		{
+			if (shader) {
+				DeleteShader(oldShader);
+				return shader;
+			}
+			else
+				return oldShader;
+		}
 
 		return shader;
 	}
 
-	void deleteShader(Shader shader) {
+	void DeleteShader(Shader shader) {
 		glDeleteProgram(shader);
 	}
 
-	void bindShader(Shader shader) {
+	void BindShader(Shader shader)
+	{
 		glUseProgram(shader);
 	}
 
-	void unbindShader() {
+	void UnbindShader() {
 		glUseProgram(0);
 	}
 
 	// TODO: сделать setUniform макросами?
 
 	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose) {
-		glUniformMatrix4fv(glGetUniformLocation(shader, name), 1, transpose, values);
+		glUniformMatrix4fv(GetUniformLocation(shader, name), 1, transpose, values);
 	}
 
 	void setUniformInt(Shader shader, const char* name, int x) {
-		glUniform1i(glGetUniformLocation(shader, name), x);
+		glUniform1i(GetUniformLocation(shader, name), x);
 	}
 
 	void setUniformInt2(Shader shader, const char* name, int x, int y) {
-		glUniform2i(glGetUniformLocation(shader, name), x, y);
+		glUniform2i(GetUniformLocation(shader, name), x, y);
 	}
-
+	
 	void setUniformFloat(Shader shader, const char* name, float x) {
-		glUniform1f(glGetUniformLocation(shader, name), x);
+		glUniform1f(GetUniformLocation(shader, name), x);
 	}
 
 	void setUniformFloat2(Shader shader, const char* name, float x, float y) {
-		glUniform2f(glGetUniformLocation(shader, name), x, y);
+		glUniform2f(GetUniformLocation(shader, name), x, y);
 	}
 
 	void setUniformFloat3(Shader shader, const char* name, float x, float y, float z) {
-		glUniform3f(glGetUniformLocation(shader, name), x, y, z);
-	}
+		glUniform3f(GetUniformLocation(shader, name), x, y, z);
+	}	
 
-	void setUniformFloat4(Shader shader, const char* name, float x, float y, float z, float w) {
-		glUniform4f(glGetUniformLocation(shader, name), x, y, z, w);
+	void setUniformFloat3(Shader shader, const char* name, const glm::vec3& v) {
+		glUniform3f(GetUniformLocation(shader, name), v.x, v.y, v.z);
 	}
+	
 	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v) {
-		glUniform4f(glGetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
+		glUniform4f(GetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
 	}
 
-	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, MSAAFactor samplesCount) {
+	int GetMaxAASamples() {
+		GLint maxSamples = 0;
+		glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+		return std::min(MAX_AA_SAMPLES, maxSamples);
+	}
+
+	void CreateMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount) {
+		int maxSamples = GetMaxAASamples();
+		samplesCount = std::max(1, std::min(samplesCount, maxSamples));
+
 		*fb = {0};
 		Texture* texture = &fb->textures[0];
+		texture->width = width;
+		texture->height = height;
 
-		u32 samples = (u32)samplesCount;
-		
 		glGenFramebuffers(1, &fb->ID);
 		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 
 		// текстура для RGB буфера
 		glGenTextures(1, &fb->textures[0].ID);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture->ID);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samplesCount, GL_RGB, width, height, GL_TRUE);
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
@@ -280,7 +315,7 @@ namespace Renderer {
 		// RBO для Detph и Stencil буферов
 		glGenRenderbuffers(1, &fb->RBO);
 		glBindRenderbuffer(GL_RENDERBUFFER, fb->RBO);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samplesCount, GL_DEPTH24_STENCIL8, width, height);
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 		
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb->RBO);
@@ -291,7 +326,7 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void createColorFrameBuffer(FrameBuffer* fb, u32 width, u32 height) {
+	void CreateColorFrameBuffer(FrameBuffer* fb, u32 width, u32 height) {
 		*fb = { 0 };
 		Texture* texture = &fb->textures[0];
 
@@ -314,11 +349,11 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void createDepthMapFrameBuffer(FrameBuffer* fb, u32 size) {
+	void CreateDepthMapFrameBuffer(FrameBuffer* fb, u32 size) {
 		*fb = { 0 };
 		
 		Texture* depthMap = &fb->textures[0];
-		*depthMap = Renderer::createTexture(
+		*depthMap = Renderer::CreateTexture(
 			size, size, NULL,
 			PixelFormat::DepthMap, PixelFormat::DepthMap,
 			TextureWrapping::ClampToBorder, TextureFiltering::Nearest);
@@ -331,7 +366,7 @@ namespace Renderer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void releaseFrameBuffer(FrameBuffer* fb) {
+	void ReleaseFrameBuffer(FrameBuffer* fb) {
 		for (size_t i = 0; i < FRAMEBUFFER_MAX_TEXTURES; i++)
 		{
 			if (fb->textures[i].ID)
@@ -347,15 +382,15 @@ namespace Renderer {
 		*fb = { 0 };
 	}
 
-	void bindFrameBuffer(FrameBuffer* fb) {
+	void BindFrameBuffer(FrameBuffer* fb) {
 		glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 	}
 
-	void unbindFrameBuffer() {
+	void UnbindFrameBuffer() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	Texture createTexture(
+	Texture CreateTexture(
 		int width, int height, void* data,
 		PixelFormat inputFormat, PixelFormat outputFormat,
 		TextureWrapping wrapping, TextureFiltering filtering)
@@ -396,7 +431,7 @@ namespace Renderer {
 		return texture;
 	}
 
-	Texture createTextureFromFile(const char* path, PixelFormat pixelFormat, TextureWrapping wrapping, TextureFiltering filtering) {
+	Texture CreateTextureFromFile(const char* path, PixelFormat pixelFormat, TextureWrapping wrapping, TextureFiltering filtering) {
 		int forceChannels;
 		switch (pixelFormat) {
 		case PixelFormat::RGBA:
@@ -412,33 +447,40 @@ namespace Renderer {
 			FatalError("Error on loading texture from disk");
 		}
 
-		Texture tex = Renderer::createTexture(width, height, image, pixelFormat, pixelFormat, wrapping, filtering);
+		Texture tex = Renderer::CreateTexture(width, height, image, pixelFormat, pixelFormat, wrapping, filtering);
 		stbi_image_free(image);
 		return tex;
 	}
 
-	void deleteTexture(Texture* texture) {
-		glDeleteTextures(1, &texture->ID);
+	void DeleteTexture(Texture* texture) {
+		if (texture) {
+			glDeleteTextures(1, &texture->ID);
+		}
 	}
 
-	void bindTexture(Texture* texture, int textureSlot) {
-		glActiveTexture(GL_TEXTURE0 + textureSlot);
-		glBindTexture(GL_TEXTURE_2D, texture->ID);
-		glActiveTexture(GL_TEXTURE0);
+	void BindTexture(Texture* texture, int textureSlot) {
+		if (texture) {
+			glActiveTexture(GL_TEXTURE0 + textureSlot);
+			glBindTexture(GL_TEXTURE_2D, texture->ID);
+			glActiveTexture(GL_TEXTURE0);
+		}
 	}
 
-	void unbindTexture(int textureSlot) {
+	void UnbindTexture(int textureSlot) {
 		glActiveTexture(GL_TEXTURE0 + textureSlot);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glActiveTexture(GL_TEXTURE0);
 	}
 
-	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount) {
+	Geometry CreateGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount) {
 		Geometry geo;
-		geo.vertexCapacity = geo.vertexCount = verticesCount;
-		geo.triangleCapacity = geo.triangleCount = triangleCount;
-		geo.vertices = vertices;
-		geo.triangles = triangles;
+		//geo.vertexCapacity = geo.vertexCount = verticesCount;
+		//geo.triangleCapacity = geo.triangleCount = triangleCount;
+		//geo.vertices = vertices;
+		//geo.triangles = triangles;
+
+		geo.triangleCount = triangleCount;
+		geo.vertexCount = verticesCount;
 
 		glGenVertexArrays(1, &geo.VAO);
 		glGenBuffers(1, &geo.VBO);
@@ -467,7 +509,7 @@ namespace Renderer {
 	/* работает только с .obj форматом
 	работает только с триангулированными мешами 
 	TODO: загрузка нормалей */
-	Geometry createGeometryFromFile(const char* fileName) {
+	Geometry Renderer::CreateGeometryFromFile(Arena* tempStorage, const char* fileName) {
 		struct Face {
 			int vertex[4];
 			int uv[4];
@@ -496,10 +538,10 @@ namespace Renderer {
 			}
 		}
 
-		glm::vec3* positions = (glm::vec3*)malloc(sizeof(glm::vec3) * vCount);
-		glm::vec2* uvs = (glm::vec2*)malloc(sizeof(glm::vec2) * uvCount);
-		glm::vec3* normals = (glm::vec3*)malloc(sizeof(glm::vec3) * normalCount);
-		Face* faces = (Face*)malloc(sizeof(Face) * faceCount);
+		glm::vec3* positions = (glm::vec3*)tempStorage->push(sizeof(glm::vec3)* vCount);
+		glm::vec2* uvs = (glm::vec2*)tempStorage->push(sizeof(glm::vec2) * uvCount);
+		glm::vec3* normals = (glm::vec3*)tempStorage->push(sizeof(glm::vec3) * normalCount);
+		Face* faces = (Face*)tempStorage->push(sizeof(Face) * faceCount);
 
 		rewind(file);
 
@@ -543,8 +585,8 @@ namespace Renderer {
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)calloc(sizeof(Vertex), faceCount * 3);
-		Triangle* tris = (Triangle*)calloc(sizeof(Triangle), faceCount);
+		Vertex* vertices = (Vertex*)tempStorage->push(sizeof(Vertex) * faceCount * 3);
+		Triangle* tris = (Triangle*)tempStorage->push(sizeof(Triangle) * faceCount);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)
@@ -557,17 +599,13 @@ namespace Renderer {
 			}
 		}
 		
-		free(uvs);
-		free(faces);
-		free(positions);
-		free(normals);
 		fclose(file);
 
-		return createGeometry(vertices, faceCount * 3, tris, faceCount);;
+		return CreateGeometry(vertices, faceCount * 3, tris, faceCount);;
 	}
 
 	// удаляет только ресурсы с GPU
-	void deleteGeometry(Geometry* geo) {
+	void DeleteGeometry(Geometry* geo) {
 		glDeleteBuffers(1, &geo->VBO);
 		glDeleteBuffers(1, &geo->EBO);
 		glDeleteVertexArrays(1, &geo->VAO);
@@ -581,19 +619,34 @@ namespace Renderer {
 	//	glBindVertexArray(0);
 	//}
 
-	void drawGeometry(Geometry* geo) {
+	void DrawGeometry(Geometry* geo) {
+		g_RendererStats.drawCallsCount++;
+		g_RendererStats.trianglesRendered += geo->triangleCount;
+
 		glBindVertexArray(geo->VAO);
 		glDrawElements(GL_TRIANGLES, geo->triangleCount * 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 	}
 
-	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount) {
+	void DrawGeometry(u32 VAO, u32 triangleCount) {
+		g_RendererStats.drawCallsCount++;
+		g_RendererStats.trianglesRendered += triangleCount;
+
+		glBindVertexArray(VAO);
+		glDrawElements(GL_TRIANGLES, triangleCount * 3, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+	}
+
+	void DrawGeometryInstanced(u32 VAO, u32 elementsCount, u32 instancesCount) {
+		g_RendererStats.drawCallsInstancedCount++;
+		g_RendererStats.trianglesRendered += elementsCount / 3 * instancesCount;
+		
 		glBindVertexArray(VAO);
 		glDrawElementsInstanced(GL_TRIANGLES, elementsCount, GL_UNSIGNED_INT, 0, instancesCount);
 		glBindVertexArray(0);
 	}
 
-	void switchDepthTest(bool enabled)
+	void SwitchDepthTest(bool enabled)
 	{
 		if (enabled)
 			glEnable(GL_DEPTH_TEST);
@@ -616,7 +669,7 @@ Vertex::Vertex(float x, float y, float z, float u, float v) {
 	uv.x = u;
 	uv.y = v;
 }
-Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 color, glm::vec3 normal) {
+Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 normal) {
 	pos.x = x;
 	pos.y = y;
 	pos.z = z;

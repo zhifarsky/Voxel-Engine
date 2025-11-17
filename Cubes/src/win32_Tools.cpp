@@ -24,21 +24,25 @@ void WarningMessage(const char* msg) {
 }
 
 void dbgprint(const wchar_t* str, ...) {
+#if _DEBUG
 	va_list argp;
 	va_start(argp, str);
 	wchar_t dbg_out[512];
 	vswprintf_s(dbg_out, str, argp);
 	va_end(argp);
 	OutputDebugString(dbg_out);
+#endif
 }
 
 void dbgprint(const char* str, ...) {
+#if _DEBUG
 	va_list argp;
 	va_start(argp, str);
 	char dbg_out[512];
 	vsprintf_s(dbg_out, str, argp);
 	va_end(argp);
 	OutputDebugStringA(dbg_out);
+#endif
 }
 
 // печатает последнюю ошибку, связанную с системой (полученную при помощи GetLastError())
@@ -59,7 +63,7 @@ void syserrprint(const char* msg) {
 int GetThreadsCount() {
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);
-	return sysInfo.dwNumberOfProcessors;
+	return max(1, sysInfo.dwNumberOfProcessors);
 }
 
 bool IsFileExists(const char* filepath) {

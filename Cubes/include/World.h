@@ -9,11 +9,6 @@
 struct GameWorld;
 extern GameWorld g_gameWorld;
 
-enum GameState {
-	gsMainMenu, gsExitMenu, gsInGame, gsDebug,
-	gsCount
-};
-
 glm::mat4 getProjection(float FOV, int displayW, int displayH);
 int getChunksCount(int renderDistance);
 
@@ -63,15 +58,9 @@ void EnumerateWorlds(DynamicArray<GameWorldInfo>* infos);
 
 struct GameWorld {
 	GameWorldInfo info;
-	DynamicArray<Entity> entities;
-	DynamicArray<Item> droppedItems;
+	//DynamicArray<Item> droppedItems;
 
 	Player player;
 
-	// TDOO: сделать обычным массивом, чтобы при инициализации игры 
-	// у инвентаря сразу был нужный размер
-	//DynamicArray<BlockType> inventory; 
-	//u32 inventoryIndex;
-
-	void init(GameWorldInfo* info, u32 renderDistance);
+	void init(GameMemory* memory, GameWorldInfo* info, u32 renderDistance);
 };

@@ -11,6 +11,7 @@ constexpr u64 PAGE_SIZE = 4 * 1024;
 void Arena::alloc(u64 capacity, u64 reserveCapacity) {
 	this->capacity = roundToMultiple(capacity, PAGE_SIZE); // rounding to page size
 	this->size = 0;
+	this->reserved = reserveCapacity;
 
 	mem = (u8*)VirtualAlloc(0, reserveCapacity, MEM_RESERVE, PAGE_READWRITE); // reserve large chunk of memory
 	VirtualAlloc(mem, this->capacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
@@ -26,12 +27,20 @@ void* Arena::push(u64 size) {
 	// if not enough capacity, commiting more memory
 	if (this->size + size > capacity) {
 		u64 newCapacity = roundToMultiple(this->size + size, PAGE_SIZE);
+		assert(newCapacity <= reserved);
+
 		VirtualAlloc((u8*)mem + capacity, newCapacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
 		capacity = newCapacity;
 	}
 
 	void* res = mem + this->size;
 	this->size += size;
+	return res;
+}
+
+void* Arena::pushZero(u64 size) {
+	void* res = this->push(size);
+	memset(res, 0, size);
 	return res;
 }
 

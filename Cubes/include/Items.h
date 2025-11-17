@@ -1,7 +1,7 @@
 #pragma once
 #include <glm.hpp>
 #include "Typedefs.h"
-#include "Renderer.h"
+//#include "Renderer.h"
 
 enum class BlockType : u8 {
 	btAir = 0,
@@ -14,6 +14,20 @@ enum class BlockType : u8 {
 	texSun,
 	texMoon,
 	btCOUNT
+};
+
+// в том же порядке, что и в атласе
+enum TextureID : u8 {
+	tidGround,
+	tidStone,
+	tidSun,
+	tidMoon,
+	tidSnow,
+	tidIronOre,
+	tidWood,
+	tidLeaves,
+	tidAir,
+	tidCount
 };
 
 enum class ItemType : u8 {

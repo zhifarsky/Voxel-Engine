@@ -8,11 +8,11 @@ layout (location = 3) in int instanceTextureID;
 layout (location = 4) in int instanceSizeX; // TODO: X и Z в ivec2 или упаковать в int
 layout (location = 5) in int instanceSizeZ;
 
+uniform mat4 model;
 uniform mat4 viewProjection;
 uniform mat4 lightSpaceMatrix;
 
-uniform ivec2 atlasSize;
-uniform ivec2 chunkPos;
+uniform sampler2D texture1;
 
 out vec3 ourColor;
 out vec3 ourNormal;
@@ -124,7 +124,7 @@ void main() {
     
     
 
-    float uvSize = (float(atlasSize) / float(texSize));
+    float uvSize = (float(textureSize(texture1, 0)) / float(texSize));
     texScale.x = 1.0f / uvSize;
     texScale.y = 1.0f / uvSize;
     texOffset.x = (1.0 / uvSize) * float(instanceTextureID);
@@ -133,7 +133,7 @@ void main() {
     v = v / uvSize;
     ourUV = vec2(u,v);
 
-    vec3 vertexPos = pos + offset + vec3(chunkPos.x, 0, chunkPos.y);
+    vec3 vertexPos = vec3(model * vec4(pos + offset, 1.0));
     FragPos = vertexPos;
 
     FragPosLightSpace = lightSpaceMatrix * vec4(FragPos, 1.0);
@@ -228,9 +228,9 @@ void main() {
 	float diff = max(dot(norm, lightDir), 0.0);
 	vec3 diffuse = diff * sunColor;
 
-    float shadow = ShadowCalculationSmooth(FragPosLightSpace, norm, sunDir);
+    float shadow = ShadowCalculationSmooth(FragPosLightSpace, norm, lightDir);
 
 	vec3 result = (ambientColor + diffuse * (1.0 - shadow)) * vec3(texColor.r, texColor.g, texColor.b);
 	FragColor = vec4(result, 1.0);
-    // FragColor = vec4(uv, 0.0, 1.0);
+    //FragColor = vec4(uv, 0.0, 1.0);
 }

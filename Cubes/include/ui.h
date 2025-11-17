@@ -7,6 +7,11 @@
 //#include <stb_truetype.h>
 #include "Font.h"
 
+struct UVOffset {
+	glm::vec2 offset;
+	glm::vec2 scale;
+};
+
 enum class uiAnchor {
 	Center,
 	Left,
@@ -43,13 +48,15 @@ struct UiStyle {
 
 namespace UI {
 	void Init();
-	void Start(Input* input, Font* defaultFont, FrameBufferInfo* fbInfo);
+	void Begin(Arena* tempStorage, Input* input, Font* defaultFont, FrameBufferInfo* fbInfo);
 	void End();
 
 	UiStyle* GetStyle();
 
 	void UseFont(Font* font);
 	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift);
+	// рассчитывает uv элемента в атласе
+	void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, s32 tileIndex, glm::ivec2 tileSize);
 	bool Button(const char* text, glm::vec2 size = { 0, 0 }, bool centerX = false);
 	float GetButtonWidth(const char* text);
 	bool CheckBox(const char* text, bool* value, glm::vec2 size = { 0,0 });
