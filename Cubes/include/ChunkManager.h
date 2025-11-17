@@ -10,7 +10,7 @@
 // TDOO: bounding box вместо радиуса
 
 #define MIN_RENDER_DISTANCE 1
-#define MAX_RENDER_DISTANCE 24
+#define MAX_RENDER_DISTANCE 32
 #define GetChunksSideCount(renderDistance) (renderDistance * 2 + 1)
 #define GetChunksCount(renderDistance) (GetChunksSideCount(renderDistance) * GetChunksSideCount(renderDistance))
 #define GetRenderDistance(chunksCount) (((int)sqrt(chunksCount) - 1) / 2)
@@ -28,10 +28,8 @@ enum class BlockSide : u8 {
 };
 
 struct BlockMesh {
-	BlockFaceInstance faces[CHUNK_SIZE * 6];
 	u32 faceCount;
 	u32 VAO, VBO, instanceVBO, EBO;
-	//bool needUpdate;
 };
 
 // TODO совмещение статусов?
@@ -56,6 +54,8 @@ enum class ChunkStatus : u8
 	ReadyToRender	// sent to gpu memory
 };
 
+#define MAX_FACES_COUNT (CHUNK_SIZE * 6)
+
 struct Chunk {
 	Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX];
 	BlockMesh mesh;
@@ -65,8 +65,15 @@ struct Chunk {
 	bool generationInProgress;
 };
 
+struct ChunkMeshGenResult {
+	Chunk* chunk;
+	
+	BlockFaceInstance* faces;
+	u32 facesCount;
+};
+
 void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed);
-void ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk);
+ChunkMeshGenResult ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk);
 void ChunksSaveToDisk(Chunk* chunks, int chunksCount, const char* worldName);
 
 #include <queue>
@@ -80,10 +87,11 @@ struct ThreadState {
 
 // TODO: переписать и упростить
 struct TaskQueue {
-	std::queue <std::function<void(ThreadState*)>> queue;
+	std::queue <std::function<void(TaskQueue*, ThreadState*)>> queue;
+	std::queue<ChunkMeshGenResult> genResultsQueue;
 	std::vector<std::thread> threads;
 	Array<ThreadState> threadsState;
-	std::mutex mtx;
+	std::mutex mtx, genResultsMtx;
 	std::condition_variable cv;
 	bool stop;
 
@@ -100,7 +108,7 @@ struct TaskQueue {
 			threads.emplace_back([this, state]() {
 				while (true) {
 					// get new task
-					std::function<void(ThreadState*)> task;
+					std::function<void(TaskQueue*,ThreadState*)> task;
 					{
 						std::unique_lock<std::mutex> lock(mtx);
 						cv.wait(lock, [this]() {return stop || queue.size() > 0; });
@@ -113,7 +121,7 @@ struct TaskQueue {
 					}
 
 					// execute task
-					task(state); // TODO: передавать в задачу id потока для доступа к состоянию потока threadsState[threadID]
+					task(this, state); // TODO: передавать в задачу id потока для доступа к состоянию потока threadsState[threadID]
 					// arena cleanup
 					state->tempStorage.clear();
 				}
@@ -137,10 +145,27 @@ struct TaskQueue {
 		threadsState.release();
 	}
 
-	void AddTask(std::function<void(ThreadState*)>&& task) {
+	void AddTask(std::function<void(TaskQueue*, ThreadState*)>&& task) {
 		std::lock_guard lock(mtx);
 		queue.push(std::move(task));
 		cv.notify_one();
+	}
+
+	bool IsResultsEmpty() {
+		std::lock_guard lock(genResultsMtx);
+		return genResultsQueue.empty();
+	}
+
+	void PushResult(ChunkMeshGenResult result) {
+		std::lock_guard lock(genResultsMtx);
+		genResultsQueue.push(result);
+	}
+
+	ChunkMeshGenResult PopResult() {
+		std::lock_guard lock(genResultsMtx);
+		ChunkMeshGenResult result = genResultsQueue.front();
+		genResultsQueue.pop();
+		return result;
 	}
 
 	void Clear() {
@@ -187,7 +212,7 @@ struct PeekBlockResult {
 void ChunkManagerCreate(int seed);
 void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance);
 void ChunkManagerReleaseChunks(GameMemory* memory, ChunkManager* manager);
-void ChunkManagerBuildChunks(ChunkManager* manager, Frustum* frustum, float playerPosX, float playerPosZ);
+void ChunkManagerBuildChunks(ChunkManager* manager, Arena* tempStorage, Frustum* frustum, float playerPosX, float playerPosZ);
 Block* ChunkManagerPeekBlockFromPos(ChunkManager* manager, float posX, float posY, float posZ, int* outChunkIndex = NULL);
 PeekBlockResult ChunkManagerPeekBlockFromRay(ChunkManager* manager, glm::vec3 rayPos, glm::vec3 rayDir, u8 maxDist);
 PlaceBlockResult ChunkManagerPlaceBlock(Arena* tempStorage, ChunkManager* manager, BlockType blockType, glm::vec3 pos, glm::vec3 direction, u8 maxDist);

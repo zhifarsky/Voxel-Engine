@@ -669,7 +669,7 @@ Vertex::Vertex(float x, float y, float z, float u, float v) {
 	uv.x = u;
 	uv.y = v;
 }
-Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 color, glm::vec3 normal) {
+Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 normal) {
 	pos.x = x;
 	pos.y = y;
 	pos.z = z;

@@ -84,7 +84,7 @@ struct Vertex {
 	Vertex();
 	Vertex(float x, float y, float z);
 	Vertex(float x, float y, float z, float u, float v);
-	Vertex(float x, float y, float z, float u, float v, glm::vec3 color, glm::vec3 normal);
+	Vertex(float x, float y, float z, float u, float v, glm::vec3 normal);
 };
 #pragma pack(pop)
 

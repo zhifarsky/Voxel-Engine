@@ -656,7 +656,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 			//g_chunkManager.queue->Start(std::max(1, GetThreadsCount()));
 		}
 
-		ChunkManagerBuildChunks(&g_chunkManager, &frustum, player.camera.pos.x, player.camera.pos.z);
+		ChunkManagerBuildChunks(&g_chunkManager, &memory->tempStorage, &frustum, player.camera.pos.x, player.camera.pos.z);
 	}
 
 	//
@@ -951,20 +951,19 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 					glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f, chunk->posz + CHUNK_SZ / 2.0f);
 					if (FrustumSphereIntersection(&frustum, chunkCenter, g_chunkRadius)) {
 						glm::mat4 transform = GetTransform({ chunk->posx, 0, chunk->posz });
-						
+
 						// shadow pass
 						RenderEntryMeshShadowInstanced entryShadow = MakeRenderEntryMeshShadowInstanced(
 							chunk->mesh.VAO, 2, chunk->mesh.faceCount, 
 							transform, 
 							cubeShadowShader);
-					
+						RenderQueuePush(&renderQueue, &entryShadow);
+
 						// main pass
 						RenderEntryTexturedMeshInstanced entryMain = MakeRenderEntryTexturedMeshInstanced(
 							chunk->mesh.VAO, 2, chunk->mesh.faceCount, 
 							transform, 
 							cubeShader, texture, &Assets.depthMapFBO.textures[0]);
-
-						RenderQueuePush(&renderQueue, &entryShadow);
 						RenderQueuePush(&renderQueue, &entryMain);
 
 						// draw wireframe

@@ -139,7 +139,7 @@ int main () {
     GameMemory memory = { 0 };
     memory.permStorage.alloc(Megabytes(128), Gigabytes(1));
     memory.tempStorage.alloc(Megabytes(128), Gigabytes(1));
-    memory.chunkStorage.alloc(Gigabytes(2), Gigabytes(4));
+    memory.chunkStorage.alloc(Megabytes(128), Gigabytes(1));
     
     Input inputs[2] = { 0 };
     Input* oldInput = &inputs[0];
