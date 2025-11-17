@@ -134,7 +134,7 @@ int main () {
         return -1;
     }
 
-    Renderer::init((Renderer::LoadProc)SDL_GL_GetProcAddress);;
+    Renderer::Init((Renderer::LoadProc)SDL_GL_GetProcAddress);;
 
     GameMemory memory = { 0 };
     memory.permStorage.alloc(Megabytes(128), Gigabytes(1));

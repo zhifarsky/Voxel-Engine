@@ -27,11 +27,6 @@ enum class BlockSide : u8 {
 	None = 0, YPos, YNeg, XPos, XNeg, ZPos, ZNeg
 };
 
-struct BlockMesh {
-	u32 faceCount;
-	u32 VAO, VBO, instanceVBO, EBO;
-};
-
 // TODO совмещение статусов?
 // enum class ChunkStatus {
 //  None = 0,
@@ -58,7 +53,7 @@ enum class ChunkStatus : u8
 
 struct Chunk {
 	Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX];
-	BlockMesh mesh;
+	GeometryInstanced mesh;
 	int posx, posz;
 
 	ChunkStatus status;

@@ -16,7 +16,7 @@ float Remap(float value, float oldMin, float oldMax, float newMin, float newMax)
 	return newMin + (value - oldMin) * (newMax - newMin) / (oldMax - oldMin);
 }
 
-static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
+static void setupBlockMesh(GeometryInstanced* mesh, bool staticMesh) {
 	static glm::vec3 faceVerts[] = {
 	glm::vec3(0,0,0),
 	glm::vec3(1,0,0),
@@ -99,7 +99,7 @@ static void setupBlockMesh(BlockMesh* mesh, bool staticMesh) {
 }
 
 void deleteBlockMesh(Chunk* chunk) {
-	BlockMesh* mesh = &chunk->mesh;
+	GeometryInstanced* mesh = &chunk->mesh;
 	//glDeleteBuffers(1, &mesh->VBO);
 	glDeleteBuffers(1, &mesh->instanceVBO);
 	//glDeleteBuffers(1, &mesh->EBO);
@@ -109,7 +109,7 @@ void deleteBlockMesh(Chunk* chunk) {
 }
 
 // обновить геометрию в ГПУ
-//static void updateBlockMesh(Chunk* chunk) {
+//static void UpdateBlockMesh(Chunk* chunk) {
 //	BlockMesh* mesh = &chunk->mesh;
 //	glBindBuffer(GL_ARRAY_BUFFER, mesh->instanceVBO);
 //	//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
@@ -120,7 +120,7 @@ void deleteBlockMesh(Chunk* chunk) {
 //}
 
 // обновить геометрию в ГПУ
-static void updateBlockMesh(ChunkMeshGenResult* genRes) {
+static void UpdateBlockMesh(ChunkMeshGenResult* genRes) {
 	glBindBuffer(GL_ARRAY_BUFFER, genRes->chunk->mesh.instanceVBO);
 	//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(mesh->faces), mesh->faces);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(BlockFaceInstance) * genRes->facesCount, genRes->faces);
@@ -128,7 +128,7 @@ static void updateBlockMesh(ChunkMeshGenResult* genRes) {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	free(genRes->faces);
-	genRes->chunk->mesh.faceCount = genRes->facesCount;
+	genRes->chunk->mesh.instanceCount = genRes->facesCount;
 	genRes->chunk->status = ChunkStatus::ReadyToRender;
 }
 
@@ -861,7 +861,7 @@ PlaceBlockResult ChunkManagerPlaceBlock(Arena* tempStorage, ChunkManager* manage
 				newBlock->type = blockType;
 
 				ChunkMeshGenResult genRes = ChunkGenerateMesh(tempStorage, chunk);
-				updateBlockMesh(&genRes);
+				UpdateBlockMesh(&genRes);
 
 				res.typePrev = peekRes.block->type;
 				res.typeNew = blockType;
@@ -891,7 +891,7 @@ PlaceBlockResult ChunkManagerDestroyBlock(Arena* tempStorage, ChunkManager* mana
 		Chunk* chunk = &manager->chunks[peekRes.chunkIndex];
 		
 		ChunkMeshGenResult genRes = ChunkGenerateMesh(tempStorage, chunk);
-		updateBlockMesh(&genRes);
+		UpdateBlockMesh(&genRes);
 
 		return res;
 	}
@@ -1029,6 +1029,6 @@ void ChunkManagerBuildChunks(ChunkManager* manager, Arena* tempStorage, Frustum*
 
 	while (!manager->queue->IsResultsEmpty()) {
 		ChunkMeshGenResult genRes = manager->queue->PopResult();
-		updateBlockMesh(&genRes);
+		UpdateBlockMesh(&genRes);
 	}
 }

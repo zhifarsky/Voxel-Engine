@@ -50,17 +50,17 @@ void InitFramebuffers(int width, int height, int samplesCount) {
 	if ((width * height) == 0)
 		return;
 
-	Renderer::releaseFrameBuffer(&Assets.screenFBO);
-	Renderer::releaseFrameBuffer(&Assets.intermediateFBO);
+	Renderer::ReleaseFrameBuffer(&Assets.screenFBO);
+	Renderer::ReleaseFrameBuffer(&Assets.intermediateFBO);
 
-	Renderer::createMSAAFrameBuffer(&Assets.screenFBO, width, height, samplesCount);
-	Renderer::createColorFrameBuffer(&Assets.intermediateFBO, width, height);
-	Renderer::setViewportDimensions(width, height);
+	Renderer::CreateMSAAFrameBuffer(&Assets.screenFBO, width, height, samplesCount);
+	Renderer::CreateColorFrameBuffer(&Assets.intermediateFBO, width, height);
+	Renderer::SetViewportDimensions(width, height);
 }
 
 void InitShadowMapBuffer(u32 size) {
-	Renderer::releaseFrameBuffer(&Assets.depthMapFBO);
-	Renderer::createDepthMapFrameBuffer(&Assets.depthMapFBO, size);
+	Renderer::ReleaseFrameBuffer(&Assets.depthMapFBO);
+	Renderer::CreateDepthMapFrameBuffer(&Assets.depthMapFBO, size);
 }
 
 void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input);
@@ -100,7 +100,7 @@ void GameInit(GameState* gameState, GameMemory* memory) {
 			Triangle(2, 3, 6), Triangle(3, 7, 6),
 			Triangle(0, 1, 4), Triangle(1, 5, 4)
 		};
-		Assets.defaultBox = Renderer::createGeometry(boxVerts, 8, boxTris, 12);
+		Assets.defaultBox = Renderer::CreateGeometry(boxVerts, 8, boxTris, 12);
 
 		Vertex quadVerts[] = {
 			Vertex(0,0,0, 0,0),
@@ -112,7 +112,7 @@ void GameInit(GameState* gameState, GameMemory* memory) {
 			Triangle(0,1,2),
 			Triangle(0,2,3)
 		};
-		Assets.defaultQuad = Renderer::createGeometry(quadVerts, 4, quadTris, 2);
+		Assets.defaultQuad = Renderer::CreateGeometry(quadVerts, 4, quadTris, 2);
 
 		UV sunUV = GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidSun, {16,16});
 		UV moonUV = GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidMoon, { 16,16 });
@@ -132,7 +132,7 @@ void GameInit(GameState* gameState, GameMemory* memory) {
 			Triangle(0,2,3)
 		};
 
-		Assets.screenQuad = Renderer::createGeometry(vertices, 4, triangles, 2);
+		Assets.screenQuad = Renderer::CreateGeometry(vertices, 4, triangles, 2);
 	}
 
 	{
@@ -285,7 +285,7 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
 	};
 	static MainMenuStatus menuStatus = MainMenuStatus::Main;
 
-	Renderer::clear(0.6, 0.6, 0.6);
+	Renderer::Clear(0.6, 0.6, 0.6);
 
 	UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
 	UI::SetAnchor(uiAnchor::Center, 0);
@@ -379,7 +379,7 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
 	};
 	static PauseMenuState menuState = PauseMenuState::MainMenu;
 
-	Renderer::clear(0.6, 0.6, 0.6);
+	Renderer::Clear(0.6, 0.6, 0.6);
 
 	UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
 	UI::SetAdvanceMode(AdvanceMode::Down);
@@ -761,13 +761,13 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	
 	// clear framebuffers & bind Screen Framebuffer
 	{
-		Renderer::bindFrameBuffer(&Assets.depthMapFBO);
-		Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
-		Renderer::clear(0, 0, 0);
+		Renderer::BindFrameBuffer(&Assets.depthMapFBO);
+		Renderer::SetViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
+		Renderer::Clear(0, 0, 0);
 		
-		Renderer::bindFrameBuffer(&Assets.screenFBO);
-		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
-		Renderer::clear(lighting.ambientLightColor.r, lighting.ambientLightColor.g, lighting.ambientLightColor.b);
+		Renderer::BindFrameBuffer(&Assets.screenFBO);
+		Renderer::SetViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
+		Renderer::Clear(lighting.ambientLightColor.r, lighting.ambientLightColor.g, lighting.ambientLightColor.b);
 	}
 
 	// трансформация вида (камера)
@@ -896,7 +896,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		//player.camera.pos.x = 0;
 		//player.camera.pos.y = 0;
 
-		Renderer::unbindShader();
+		Renderer::UnbindShader();
 	}
 	// TEST
 
@@ -904,13 +904,13 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	u32 renderCommandsExecuted = 0;
 	{
 		// draw shadows
-		//Renderer::bindFrameBuffer(&Assets.depthMapFBO);
-		//Renderer::setViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
+		//Renderer::BindFrameBuffer(&Assets.depthMapFBO);
+		//Renderer::SetViewportDimensions(Assets.depthMapFBO.textures[0].width, Assets.depthMapFBO.textures[0].height);
 		//DrawChunksShadow(g_chunkManager.chunks, g_chunkManager.chunksCount, &Assets.depthMapFBO, &frustum, lightSpaceMatrix);
 		//DrawEntitiesShadow(gameState->entities.items, gameState->entities.count, &Assets.depthMapFBO, lightSpaceMatrix);
 
-		Renderer::bindFrameBuffer(&Assets.screenFBO);
-		Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
+		Renderer::BindFrameBuffer(&Assets.screenFBO);
+		Renderer::SetViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
 		
 		// draw entities
 		{
@@ -954,14 +954,14 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
 						// shadow pass
 						RenderEntryMeshShadowInstanced entryShadow = MakeRenderEntryMeshShadowInstanced(
-							chunk->mesh.VAO, 2, chunk->mesh.faceCount, 
+							chunk->mesh.VAO, 2, chunk->mesh.instanceCount, 
 							transform, 
 							cubeShadowShader);
 						RenderQueuePush(&renderQueue, &entryShadow);
 
 						// main pass
 						RenderEntryTexturedMeshInstanced entryMain = MakeRenderEntryTexturedMeshInstanced(
-							chunk->mesh.VAO, 2, chunk->mesh.faceCount, 
+							chunk->mesh.VAO, 2, chunk->mesh.instanceCount,
 							transform, 
 							cubeShader, texture, &Assets.depthMapFBO.textures[0]);
 						RenderQueuePush(&renderQueue, &entryMain);
@@ -969,7 +969,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 						// draw wireframe
 						if (g_RenderWireframe) {
 							RenderEntryTexturedMeshInstanced entryWireframe = MakeRenderEntryTexturedMeshInstanced(
-								chunk->mesh.VAO, 2, chunk->mesh.faceCount,
+								chunk->mesh.VAO, 2, chunk->mesh.instanceCount,
 								transform,
 								cubeShader, texture, &Assets.depthMapFBO.textures[0],
 								true, { 0,0,0 }, true);
@@ -1106,24 +1106,24 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	renderCommandsExecuted = 
 		RenderQueueExecute(&renderQueue);
 
-	Renderer::bindFrameBuffer(&Assets.screenFBO);
-	Renderer::setViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
+	Renderer::BindFrameBuffer(&Assets.screenFBO);
+	Renderer::SetViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
 
 	// post processing & draw to default buffer
 	{
-		Renderer::switchDepthTest(false);
-		Renderer::bindShader(GetShader(ShaderAssetID::ScreenShader));
+		Renderer::SwitchDepthTest(false);
+		Renderer::BindShader(GetShader(ShaderAssetID::ScreenShader));
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, Assets.screenFBO.ID);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Assets.intermediateFBO.ID);
 		glBlitFramebuffer(0, 0, fbInfo->sizeX, fbInfo->sizeY, 0, 0, fbInfo->sizeX, fbInfo->sizeY, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		Renderer::bindTexture(&Assets.intermediateFBO.textures[0]);
-		Renderer::drawGeometry(&Assets.screenQuad);
-		Renderer::unbindTexture();
+		Renderer::BindTexture(&Assets.intermediateFBO.textures[0]);
+		Renderer::DrawGeometry(&Assets.screenQuad);
+		Renderer::UnbindTexture();
 
-		Renderer::unbindShader();
-		Renderer::switchDepthTest(true);
+		Renderer::UnbindShader();
+		Renderer::SwitchDepthTest(true);
 	}
 
 	// draw ui

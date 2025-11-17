@@ -195,22 +195,21 @@ Texture* GetTexture(TextureAssetID id);
 namespace Renderer {
 	typedef void* (*LoadProc)(const char* name);
 
-	//bool init(void* (*loadProc)(const char* name));
 	// возвращает true, если успешно
-	bool init(LoadProc);
+	bool Init(LoadProc);
 
 	void Begin(Arena* tempStorage);
 	
-	void clear(float r, float g, float b, float a = 1);
+	void Clear(float r, float g, float b, float a = 1);
 
-	void setViewportDimensions(int width, int height, int x = 0, int y = 0);
+	void SetViewportDimensions(int width, int height, int x = 0, int y = 0);
 
-	Shader createShader(const char* vertexSource, const char* fragmentSource);
+	Shader CreateShader(const char* vertexSource, const char* fragmentSource);
 	// oldShader можно использовать для рекомпиляции шейдера
-	Shader createShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader = 0);
-	void deleteShader(Shader shader);	
-	void bindShader(Shader shader);
-	void unbindShader();
+	Shader CreateShaderFromFile(Arena* tempStorage, const char* fileName, Shader oldShader = 0);
+	void DeleteShader(Shader shader);	
+	void BindShader(Shader shader);
+	void UnbindShader();
 
 	s32 GetUniformLocation(Shader shader, const char* name);
 	void setUniformMatrix4(Shader shader, const char* name, float* values, bool transpose = false);
@@ -223,37 +222,37 @@ namespace Renderer {
 	void setUniformFloat4(Shader shader, const char* name, glm::vec4 v);
 
 	int GetMaxAASamples();
-	void createMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount);
-	void createColorFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height);
-	void createDepthMapFrameBuffer(FrameBuffer* frameBuffer, u32 size);
+	void CreateMSAAFrameBuffer(FrameBuffer* fb, u32 width, u32 height, int samplesCount);
+	void CreateColorFrameBuffer(FrameBuffer* frameBuffer, u32 width, u32 height);
+	void CreateDepthMapFrameBuffer(FrameBuffer* frameBuffer, u32 size);
 	
-	void releaseFrameBuffer(FrameBuffer* frameBuffer);
+	void ReleaseFrameBuffer(FrameBuffer* frameBuffer);
 
-	void bindFrameBuffer(FrameBuffer* frameBuffer);
-	void unbindFrameBuffer();
+	void BindFrameBuffer(FrameBuffer* frameBuffer);
+	void UnbindFrameBuffer();
 
-	Texture createTexture(
+	Texture CreateTexture(
 		int width, int height, void* data,
 		PixelFormat inputFormat = PixelFormat::RGBA,
 		PixelFormat outputFormat = PixelFormat::RGBA,
 		TextureWrapping wrapping = TextureWrapping::Repeat,
 		TextureFiltering filtering = TextureFiltering::Nearest);
-	Texture createTextureFromFile(
+	Texture CreateTextureFromFile(
 		const char* path,
 		PixelFormat pixelFormat,
 		TextureWrapping wrapping = TextureWrapping::Repeat,
 		TextureFiltering filtering = TextureFiltering::Nearest
 	);
-	void deleteTexture(Texture* texture);
-	void bindTexture(Texture* texture, int textureSlot = 0);
-	void unbindTexture(int textureSlot = 0);
+	void DeleteTexture(Texture* texture);
+	void BindTexture(Texture* texture, int textureSlot = 0);
+	void UnbindTexture(int textureSlot = 0);
 
-	Geometry createGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount);
-	Geometry createGeometryFromFile(Arena* tempStorage, const char* fileName);
-	void deleteGeometry(Geometry* geo);
-	void drawGeometry(Geometry* geo);
-	void drawGeometry(u32 VAO, u32 triangleCount);
-	void drawInstancedGeo(u32 VAO, u32 elementsCount, u32 instancesCount);
+	Geometry CreateGeometry(Vertex* vertices, u32 verticesCount, Triangle* triangles, u32 triangleCount);
+	Geometry CreateGeometryFromFile(Arena* tempStorage, const char* fileName);
+	void DeleteGeometry(Geometry* geo);
+	void DrawGeometry(Geometry* geo);
+	void DrawGeometry(u32 VAO, u32 triangleCount);
+	void DrawGeometryInstanced(u32 VAO, u32 elementsCount, u32 instancesCount);
 
-	void switchDepthTest(bool enabled);
+	void SwitchDepthTest(bool enabled);
 }

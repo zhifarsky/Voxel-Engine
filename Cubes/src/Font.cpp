@@ -54,7 +54,7 @@ Font* loadFont(GameMemory* memory, const char* path, float fontSize) {
 		rgbaBitmap[i * 4 + 3] = tempBitmap[i]; // A
 	}
 	
-	font->atlas = Renderer::createTexture(
+	font->atlas = Renderer::CreateTexture(
 		atlasWidth, atlasHeight, rgbaBitmap,
 		PixelFormat::RGBA, PixelFormat::RGBA,
 		TextureWrapping::ClampToEdge, TextureFiltering::Linear

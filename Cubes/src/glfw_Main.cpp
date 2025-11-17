@@ -125,7 +125,7 @@ int main()
     glfwSetScrollCallback(window, scroll_callback);
 #pragma endregion
 
-    Renderer::init((Renderer::LoadProc)glfwGetProcAddress);
+    Renderer::Init((Renderer::LoadProc)glfwGetProcAddress);
 
 #pragma region Imgui
     //const char* glsl_version = "#version 330";

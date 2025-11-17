@@ -59,7 +59,7 @@ void Init() {
 		Triangle(0,2,3)
 	};
 
-	face = Renderer::createGeometry(faceVerts, 4, faceTris, 2);
+	face = Renderer::CreateGeometry(faceVerts, 4, faceTris, 2);
 
 	// style
 	{
@@ -106,14 +106,14 @@ void UI::Begin(Arena* tempStorage, Input* currentInput, Font* defaultFont, Frame
 	projection = glm::ortho(left, right, bottom, top, -1.0f, 1.0f);
 
 	// use ui shader
-	Renderer::bindShader(g_UIShader);
+	Renderer::BindShader(g_UIShader);
 	Renderer::setUniformMatrix4(g_UIShader, "projection", glm::value_ptr(projection));
-	Renderer::switchDepthTest(false);
+	Renderer::SwitchDepthTest(false);
 }
 
 void End() {
-	Renderer::unbindShader();
-	Renderer::switchDepthTest(true);
+	Renderer::UnbindShader();
+	Renderer::SwitchDepthTest(true);
 }
 
 void SetAnchor(uiAnchor anchor, float offset) {
@@ -202,7 +202,7 @@ void UseFont(Font* newFont)
 
 // NOTE: элементы отцентрованы при помощи translate. отстальные элементы не отцентрованы
 void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvScale, glm::vec2 uvShift) {
-	Renderer::bindTexture(texture);
+	Renderer::BindTexture(texture);
 
 	glm::mat4 model = glm::mat4(1.0f); // единичная матрица (1 по диагонали)
 	model = glm::translate(model, glm::vec3(originX, originY, 0));
@@ -220,9 +220,9 @@ void DrawElement(Texture* texture, glm::vec3 rot, glm::vec3 scale, glm::vec2 uvS
 	Renderer::setUniformFloat2(g_UIShader, "UVShift", uvShift.x, uvShift.y);
 	Renderer::setUniformFloat(g_UIShader, "colorWeight", 0);
 
-	Renderer::drawGeometry(&face);
+	Renderer::DrawGeometry(&face);
 
-	Renderer::unbindTexture();
+	Renderer::UnbindTexture();
 
 	Advance(scale.x, scale.y);
 }
@@ -277,7 +277,7 @@ bool Button(const char* text, glm::vec2 size, bool centerX) {
 		Renderer::setUniformFloat4(g_UIShader, "color", color);
 		Renderer::setUniformFloat(g_UIShader, "colorWeight", 1);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 	}
 
 	TextInternal(text, pos.x - textWidth / 2 + size.x / 2, pos.y + size.y / 2);
@@ -331,7 +331,7 @@ bool CheckBox(const char* text, bool* value, glm::vec2 size)
 		Renderer::setUniformFloat4(g_UIShader, "color", color);
 		Renderer::setUniformFloat(g_UIShader, "colorWeight", 1);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 	}
 
 	TextInternal(text, originX + size.x + uiStyle.margin, originY + FontGetSize(g_Font) / 2);
@@ -401,7 +401,7 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 
 		Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderBarColor);
 		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(barModel));
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 
 		if (hovered && clicked)
 			Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderKnobActiveColor);
@@ -410,7 +410,7 @@ bool SliderInternal(const char* name, const char* text, float* value, float minV
 		else
 			Renderer::setUniformFloat4(g_UIShader, "color", uiStyle.sliderKnobColor);
 		Renderer::setUniformMatrix4(g_UIShader, "model", glm::value_ptr(knobModel));
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 	}
 	Advance(barWidth, knobHeight + FontGetSize(g_Font));
 	return res;
@@ -454,7 +454,7 @@ float GetTextWidth(const char* text) {
 float TextInternal(const char* text, float posX, float posY) {
 	u32 len = strlen(text);
 	
-	Renderer::bindTexture(FontGetTextureAtlas(g_Font));
+	Renderer::BindTexture(FontGetTextureAtlas(g_Font));
 	Renderer::setUniformFloat(g_UIShader, "colorWeight", 0);
 	float x = posX;
 
@@ -488,7 +488,7 @@ float TextInternal(const char* text, float posX, float posY) {
 			(float)(charData.x1 - charData.x0) / FontGetTextureAtlas(g_Font)->width,
 			-(float)(charData.y1 - charData.y0) / FontGetTextureAtlas(g_Font)->height);
 
-		Renderer::drawGeometry(&face);
+		Renderer::DrawGeometry(&face);
 		
 		x += charData.xadvance;
 	}

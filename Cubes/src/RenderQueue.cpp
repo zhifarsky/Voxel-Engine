@@ -94,8 +94,8 @@ void RenderQueuePush(RenderQueue* queue, RenderEntrySprite* command) {
 }
 
 void RenderSprite(RenderQueue* queue, RenderEntrySprite* entry) {
-	Renderer::bindShader(entry->shader);
-	Renderer::bindTexture(entry->texture);
+	Renderer::BindShader(entry->shader);
+	Renderer::BindTexture(entry->texture);
 
 	// TDOO: объеденить в одну матрицу
 	Renderer::setUniformMatrix4(entry->shader, "view", glm::value_ptr(queue->context.view));
@@ -109,7 +109,7 @@ void RenderSprite(RenderQueue* queue, RenderEntrySprite* entry) {
 	if (entry->drawOnBackground)
 		glDepthMask(GL_FALSE);
 
-	Renderer::drawGeometry(entry->VAO, entry->triangleCount);
+	Renderer::DrawGeometry(entry->VAO, entry->triangleCount);
 
 	if (entry->drawOnBackground)
 		glDepthMask(GL_TRUE);
@@ -171,8 +171,8 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 		RenderGroup* group = &queue->shadowPass;
 		u8* i = group->mem;
 
-		Renderer::bindFrameBuffer(queue->context.depthMapFBO);
-		Renderer::setViewportDimensions(queue->context.depthMapFBO->textures[0].width, queue->context.depthMapFBO->textures[0].height);
+		Renderer::BindFrameBuffer(queue->context.depthMapFBO);
+		Renderer::SetViewportDimensions(queue->context.depthMapFBO->textures[0].width, queue->context.depthMapFBO->textures[0].height);
 
 		while (i < group->mem + group->size) {
 			RenderEntryType entryType = *(RenderEntryType*)i;
@@ -185,12 +185,12 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 				RenderEntryMeshShadow* entry = (RenderEntryMeshShadow*)i;
 				i += sizeof(*entry);
 
-				Renderer::bindShader(entry->shader);
+				Renderer::BindShader(entry->shader);
 
 				Renderer::setUniformMatrix4(entry->shader, "lightSpaceMatrix", glm::value_ptr(queue->context.lightSpaceMatrix));
 				Renderer::setUniformMatrix4(entry->shader, "model", glm::value_ptr(entry->transform));
 
-				Renderer::drawGeometry(entry->VAO, entry->triangleCount);
+				Renderer::DrawGeometry(entry->VAO, entry->triangleCount);
 
 				//Renderer::unbindShader();
 			} break;
@@ -199,12 +199,12 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 				RenderEntryMeshShadowInstanced* entry = (RenderEntryMeshShadowInstanced*)i;
 				i += sizeof(*entry);
 
-				Renderer::bindShader(entry->shader);
+				Renderer::BindShader(entry->shader);
 
 				Renderer::setUniformMatrix4(entry->shader, "lightSpaceMatrix", glm::value_ptr(queue->context.lightSpaceMatrix));
 				Renderer::setUniformMatrix4(entry->shader, "model", glm::value_ptr(entry->transform));
 
-				Renderer::drawInstancedGeo(entry->VAO, entry->triangleCount * 3, entry->instanceCount);
+				Renderer::DrawGeometryInstanced(entry->VAO, entry->triangleCount * 3, entry->instanceCount);
 
 				//Renderer::unbindShader();
 			} break;
@@ -212,7 +212,7 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 			}
 		}
 
-		Renderer::unbindFrameBuffer();
+		Renderer::UnbindFrameBuffer();
 	}
 
 	//
@@ -223,8 +223,8 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 		RenderGroup* group = &queue->mainPass;
 		u8* i = group->mem;
 
-		Renderer::bindFrameBuffer(queue->context.screenFBO);
-		Renderer::setViewportDimensions(queue->context.screenFBO->textures[0].width, queue->context.screenFBO->textures[0].height);
+		Renderer::BindFrameBuffer(queue->context.screenFBO);
+		Renderer::SetViewportDimensions(queue->context.screenFBO->textures[0].width, queue->context.screenFBO->textures[0].height);
 
 		while (i < group->mem + group->size) {
 			RenderEntryType entryType = *(RenderEntryType*)i;
@@ -236,9 +236,9 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 				RenderEntryTexturedMesh* entry = (RenderEntryTexturedMesh*)i;
 				i += sizeof(*entry);
 				
-				Renderer::bindShader(entry->shader);
-				Renderer::bindTexture(entry->texture, 0);
-				Renderer::bindTexture(entry->shadowMap, 1);
+				Renderer::BindShader(entry->shader);
+				Renderer::BindTexture(entry->texture, 0);
+				Renderer::BindTexture(entry->shadowMap, 1);
 
 				// TODO: это точно нужно?
 				Renderer::setUniformInt(entry->shader, "texture1", 0);
@@ -263,7 +263,7 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				}
 				
-				Renderer::drawGeometry(entry->VAO, entry->triangleCount);
+				Renderer::DrawGeometry(entry->VAO, entry->triangleCount);
 
 				if (entry->wireframeMode) {
 					glDepthMask(GL_TRUE);
@@ -271,8 +271,8 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 				}
 
-				//Renderer::unbindTexture(0);
-				//Renderer::unbindTexture(1);
+				//Renderer::UnbindTexture(0);
+				//Renderer::UnbindTexture(1);
 				//Renderer::unbindShader();
 			} break;
 
@@ -280,9 +280,9 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 				RenderEntryTexturedMeshInstanced* entry = (RenderEntryTexturedMeshInstanced*)i;
 				i += sizeof(*entry);
 
-				Renderer::bindShader(entry->shader);
-				Renderer::bindTexture(entry->texture, 0);
-				Renderer::bindTexture(entry->shadowMap, 1);
+				Renderer::BindShader(entry->shader);
+				Renderer::BindTexture(entry->texture, 0);
+				Renderer::BindTexture(entry->shadowMap, 1);
 
 				// TODO: это точно нужно?
 				Renderer::setUniformInt(entry->shader, "texture1", 0);
@@ -307,7 +307,7 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				}
 
-				Renderer::drawInstancedGeo(entry->VAO, entry->triangleCount * 3, entry->instanceCount);
+				Renderer::DrawGeometryInstanced(entry->VAO, entry->triangleCount * 3, entry->instanceCount);
 
 				if (entry->wireframeMode) {
 					glDepthMask(GL_TRUE);
@@ -315,8 +315,8 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 				}
 
-				//Renderer::unbindTexture(0);
-				//Renderer::unbindTexture(1);
+				//Renderer::UnbindTexture(0);
+				//Renderer::UnbindTexture(1);
 				//Renderer::unbindShader();
 			} break;
 
@@ -330,7 +330,7 @@ u32 RenderQueueExecute(RenderQueue* queue) {
 			}
 		}
 
-		Renderer::unbindFrameBuffer();
+		Renderer::UnbindFrameBuffer();
 	}
 
 
@@ -365,7 +365,7 @@ RenderEntryMeshShadowInstanced MakeRenderEntryMeshShadowInstanced(u32 VAO, u32 t
 RenderEntryTexturedMesh MakeRenderEntryTexturedMesh(
 	u32 VAO, u32 triangleCount, 
 	const glm::mat4& transform, 
-	Shader shader, Texture* texture, Texture* shadowMap, 
+	Shader shader, Texture* texture, Texture* shadowMap,
 	bool overrideColor, glm::vec3 color,
 	bool wireframeMode)
 {

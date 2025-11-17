@@ -97,7 +97,7 @@ Shader GetShader(ShaderAssetID id)
 	{
 		
 
-		Shader newShader = Renderer::createShaderFromFile(g_TempStorage, asset->path, asset->shader);
+		Shader newShader = Renderer::CreateShaderFromFile(g_TempStorage, asset->path, asset->shader);
 
 		if (asset->shader != 0 && asset->shader != newShader) {
 			dbgprint("cache clear\n");
@@ -123,7 +123,7 @@ Geometry* GetMesh(MeshAssetID id)
 	if (!asset->IsInitialized)
 #endif
 	{
-		asset->mesh = Renderer::createGeometryFromFile(g_TempStorage, asset->path);
+		asset->mesh = Renderer::CreateGeometryFromFile(g_TempStorage, asset->path);
 
 		asset->fileWriteTime = GetFileWriteTime(asset->path);
 		asset->IsInitialized = true;
@@ -142,7 +142,7 @@ Texture* GetTexture(TextureAssetID id)
 	if (!asset->IsInitialized)
 #endif
 	{
-		asset->texture = Renderer::createTextureFromFile(asset->path, PixelFormat::RGBA);
+		asset->texture = Renderer::CreateTextureFromFile(asset->path, PixelFormat::RGBA);
 
 		asset->fileWriteTime = GetFileWriteTime(asset->path);
 		asset->IsInitialized = true;
