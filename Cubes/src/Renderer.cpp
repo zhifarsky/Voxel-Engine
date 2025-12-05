@@ -538,10 +538,10 @@ namespace Renderer {
 			}
 		}
 
-		glm::vec3* positions = (glm::vec3*)tempStorage->push(sizeof(glm::vec3)* vCount);
-		glm::vec2* uvs = (glm::vec2*)tempStorage->push(sizeof(glm::vec2) * uvCount);
-		glm::vec3* normals = (glm::vec3*)tempStorage->push(sizeof(glm::vec3) * normalCount);
-		Face* faces = (Face*)tempStorage->push(sizeof(Face) * faceCount);
+		glm::vec3* positions = ArenaPushArray(tempStorage, vCount, glm::vec3);
+		glm::vec2* uvs = ArenaPushArray(tempStorage, vCount, glm::vec2);
+		glm::vec3* normals = ArenaPushArray(tempStorage, normalCount, glm::vec3);
+		Face* faces = ArenaPushArray(tempStorage, faceCount, Face);
 
 		rewind(file);
 
@@ -585,8 +585,8 @@ namespace Renderer {
 
 		// TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования index-буфера)
 		vIndex = 0;
-		Vertex* vertices = (Vertex*)tempStorage->push(sizeof(Vertex) * faceCount * 3);
-		Triangle* tris = (Triangle*)tempStorage->push(sizeof(Triangle) * faceCount);
+		Vertex* vertices = ArenaPushArray(tempStorage, faceCount * 3, Vertex);
+		Triangle* tris = ArenaPushArray(tempStorage, faceCount, Triangle);
 		for (int i = 0; i < faceCount; i++)
 		{
 			for (int j = 0; j < 3; j++)

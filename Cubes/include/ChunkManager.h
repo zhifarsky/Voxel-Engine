@@ -52,12 +52,13 @@ enum class ChunkStatus : u8
 #define MAX_FACES_COUNT (CHUNK_SIZE * 6)
 
 struct Chunk {
-	Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX];
 	GeometryInstanced mesh;
 	int posx, posz;
 
 	ChunkStatus status;
 	bool generationInProgress;
+
+	Block blocks[CHUNK_SY][CHUNK_SZ][CHUNK_SX];
 };
 
 struct ChunkMeshGenResult {

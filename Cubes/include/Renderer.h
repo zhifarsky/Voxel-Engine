@@ -120,7 +120,6 @@ enum BlockFace : u8 {
 	faceNone,
 };
 
-#pragma pack(push, 1)
 struct BlockFaceInstance {
 	u16 pos;
 	TextureID textureID;
@@ -128,11 +127,11 @@ struct BlockFaceInstance {
 	// первая и вторая координата грани куба
 	// т.е. один из вариантов в зависимости от грани: XY/XZ/YZ
 	u8 sizeA, sizeB;
+	bool test;
 
 	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeA = 1, u8 sizeB = 1);
 	BlockFaceInstance(int pos, BlockFace face, TextureID textureID, u8 sizeY, u8 sizeZ, u8 sizeX);
 };
-#pragma pack(pop)    
 
 struct UV {
 	glm::vec2 offset;

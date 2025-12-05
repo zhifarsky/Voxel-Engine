@@ -28,6 +28,7 @@
 static GLFWwindow* window;
 static WindowMode g_windowMode = WindowMode::Windowed;
 double g_MouseScrollYOffset = 0;
+bool g_VSyncOn = false;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     g_MouseScrollYOffset = yoffset;
@@ -40,7 +41,12 @@ void GetFramebufferSize(int* width, int* height) {
     *height = std::max(1, h);
 }
 
+bool GetVsync() {
+    return g_VSyncOn;
+}
+
 void SetVsync(bool vsyncOn) {
+    g_VSyncOn = vsyncOn;
     glfwSwapInterval(vsyncOn);
 }
 

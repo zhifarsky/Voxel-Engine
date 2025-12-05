@@ -7,7 +7,7 @@
 #include "Files.h"
 
 #define DEBUG_CHUNKS 0
-#define DEBUG_GENERATION 1
+#define DEBUG_GENERATION 0
 
 ChunkManager g_chunkManager;
 float g_chunkRadius = sqrt(pow(sqrt(pow(CHUNK_SX, 2) + pow(CHUNK_SZ, 2)), 2) + pow(CHUNK_SY, 2)) / 2.0f; // высота чанка и диагональ ширины с длиной - катеты. гипотенуза - диаметр сферы
@@ -158,6 +158,12 @@ float PerlinNoise(int seed, glm::vec2 pos) {
 	return noise.GetNoise(pos.x, pos.y);
 }
 
+float Noise(int seed, glm::vec2 pos) {
+	FastNoiseLite noise(seed);
+	noise.SetNoiseType(FastNoiseLite::NoiseType_Cellular);
+	return noise.GetNoise(pos.x, pos.y);
+}
+
 bool inline IsBlockIndexValid(glm::ivec3& index) {
 	return (
 		index.x >= 0 && index.x < CHUNK_SX &&
@@ -179,6 +185,10 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	chunk->posz = posz;
 
 	//dbgprint("[CHUNK GEN] %d %d\n", posx, posz);
+
+	//
+	// Ground Generation
+	//
 
 	float noiseScale = 6.0f;
 	float caveNoiseScale = 5.0f;
@@ -248,48 +258,57 @@ void ChunkGenerateBlocks(Chunk* chunk, int posx, int posz, int seed) {
 	}
 
 	//
-	// Trees generation
+	// Trees Generation
 	//
-	int treeCount = rand() % 2;
-	int treeHeight = std::min(rand() % 7, 4);
-	
-	for (size_t i = 0; i < treeCount; i++)
-	{
-		int trunkStartX = rand() % CHUNK_SX;
-		int trunkStartZ = rand() % CHUNK_SZ;
-		int trunkStartY = CHUNK_SY - 1;
-		bool found = false;
 
-		for (; trunkStartY >= 0; trunkStartY--)
-		{
-			if (blocks[trunkStartY][trunkStartZ][trunkStartX].type == BlockType::btGround) {
-				found = true;
-				break;
-			}
-		}
+	float treeNoiseScale = 50.0f;
+	float treeHeightNoiseScale = 5.0f;
 
-		if (found) {
-			int trunkY = trunkStartY;
-			for (; trunkY - trunkStartY < treeHeight; trunkY++)
-			{
-				if (IsBlockIndexValid(trunkY, trunkStartZ, trunkStartX)) {
-					blocks[trunkY][trunkStartZ][trunkStartX].type = BlockType::btWood;
-				}
-			}
+	for (s32 y = 0; y < CHUNK_SY; y++) {
+		for (s32 z = 0; z < CHUNK_SZ; z++) {
+			for (s32 x = 0; x < CHUNK_SX; x++) {
+				float tree = Noise(seed, glm::vec2(x + posx, z + posz) * treeNoiseScale); // TODO: white nose / blue noise
 
-			int trunkEndY = trunkY;
-			int treeLeavesRadius = 2;
-			int treeLeavesHeight = 4;
-			for (int leavesY = trunkEndY; leavesY - trunkEndY < treeLeavesHeight; leavesY++) {
-				for (int z = -treeLeavesRadius; z <= treeLeavesRadius; z++)
-				{
-					for (int x = -treeLeavesRadius; x <= treeLeavesRadius; x++)
-						if (IsBlockIndexValid(leavesY, trunkStartZ + z, trunkStartX + x)) {
-							blocks[leavesY][trunkStartZ + z][trunkStartX + x].type = BlockType::btLeaves;
+				if (tree > 0.1) {
+					float heightScale = PerlinNoise(seed + 341, glm::vec2(x + posx, z + posz) * treeHeightNoiseScale);
+					heightScale = (heightScale + 1.0f) / 2.0f;
+					int treeHeight = glm::min(4.0f, 7.0f * heightScale);
+
+					glm::ivec3 trunkStart(x, CHUNK_SY - 1, z);
+					bool found = false;
+					for (; trunkStart.y >= 0; trunkStart.y--)
+					{
+						if (blocks[trunkStart.y][trunkStart.z][trunkStart.x].type == BlockType::btGround) {
+							found = true;
+							break;
 						}
 					}
-				if (leavesY - trunkEndY >= treeLeavesHeight - 2) {
-					treeLeavesRadius--;
+
+					if (found) {
+						int trunkY = trunkStart.y;
+						for (; trunkY - trunkStart.y < treeHeight; trunkY++)
+						{
+							if (IsBlockIndexValid(trunkY, trunkStart.z, trunkStart.x)) {
+								blocks[trunkY][trunkStart.z][trunkStart.x].type = BlockType::btWood;
+							}
+						}
+
+						int trunkEndY = trunkY;
+						int treeLeavesRadius = 2;
+						int treeLeavesHeight = 3;
+						for (int leavesY = trunkEndY; leavesY - trunkEndY < treeLeavesHeight; leavesY++) {
+							for (int z = -treeLeavesRadius; z <= treeLeavesRadius; z++)
+							{
+								for (int x = -treeLeavesRadius; x <= treeLeavesRadius; x++)
+									if (IsBlockIndexValid(leavesY, trunkStart.z + z, trunkStart.x + x)) {
+										blocks[leavesY][trunkStart.z + z][trunkStart.x + x].type = BlockType::btLeaves;
+									}
+							}
+							if (leavesY - trunkEndY >= treeLeavesHeight - 2) {
+								treeLeavesRadius--;
+							}
+						}
+					}
 				}
 			}
 		}
@@ -371,7 +390,7 @@ ChunkMeshGenResult ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk) {
 	int faceCount = 0;
 	int blockIndex = 0;
 	
-	BlockFaceInstance* tempFaces = (BlockFaceInstance*)tempStorage->push(MAX_FACES_COUNT);
+	BlockFaceInstance* tempFaces = (BlockFaceInstance*)ArenaPushArray(tempStorage, MAX_FACES_COUNT, BlockFaceInstance);
 	u32 facesCount = 0;
 
 	auto blocks = chunk->blocks;
@@ -381,12 +400,12 @@ ChunkMeshGenResult ChunkGenerateMesh(Arena* tempStorage, Chunk* chunk) {
 #define GREEDY 1
 
 #if GREEDY == 1
-	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
-	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])tempStorage->pushZero(sizeof(bool) * CHUNK_SIZE);
+	bool (*usedXPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
+	bool (*usedXNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
+	bool (*usedYPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
+	bool (*usedYNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
+	bool (*usedZPos)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
+	bool (*usedZNeg)[CHUNK_SZ][CHUNK_SX] = (bool (*)[CHUNK_SZ][CHUNK_SX])ArenaPushZeroArray(tempStorage, CHUNK_SIZE, bool);
 #endif
 
 	//memset(faces, 0, sizeof(chunk->mesh.faces));
@@ -565,7 +584,7 @@ void ChunkManagerCreate(int seed) {
 void ChunkManagerAllocChunks(GameMemory* memory, ChunkManager* manager, u32 renderDistance) {
 	int chunksCount = GetChunksCount(renderDistance);
 	// NOTE: не pushZero, так как нам не обязательно занулять всю память
-	manager->chunks = (Chunk*)memory->chunkStorage.push(chunksCount * sizeof(Chunk)); 
+	manager->chunks = (Chunk*)ArenaPushArray(&memory->chunkStorage, chunksCount, Chunk);
 	manager->chunksCount = chunksCount;
 
 	for (size_t i = 0; i < chunksCount; i++)

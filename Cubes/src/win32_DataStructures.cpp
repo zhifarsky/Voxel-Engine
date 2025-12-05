@@ -4,12 +4,11 @@
 #include <windows.h>
 #include "DataStructures.h"
 
-// TODO: Минимальное выделение через VirtualAlloc - 64KB, а не 4KB
-constexpr u64 PAGE_SIZE = 4 * 1024;
+constexpr u64 COMMIT_SIZE = 64 * 1024;
 #define roundToMultiple(number, multiple) ((number + multiple - 1) / multiple) * multiple
 
 void Arena::alloc(u64 capacity, u64 reserveCapacity) {
-	this->capacity = roundToMultiple(capacity, PAGE_SIZE); // rounding to page size
+	this->capacity = roundToMultiple(capacity, COMMIT_SIZE); // rounding to page size
 	this->size = 0;
 	this->reserved = reserveCapacity;
 
@@ -23,31 +22,34 @@ void Arena::release() {
 	size = capacity = 0;
 }
 
-void* Arena::push(u64 size) {
-	// if not enough capacity, commiting more memory
-	if (this->size + size > capacity) {
-		u64 newCapacity = roundToMultiple(this->size + size, PAGE_SIZE);
-		assert(newCapacity <= reserved);
+void* _ArenaPush(Arena* arena, u64 size, u64 alignment, bool clearToZero) {
+	assert(alignment && !(alignment & (alignment - 1))); // проверка на степень двойки
+	
+	u8* result = arena->mem + arena->size;
+	s64 padding = -(s64)result & (alignment - 1); // работает только со степенями двойки
 
-		VirtualAlloc((u8*)mem + capacity, newCapacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
-		capacity = newCapacity;
+	result += padding;
+
+	// commit memory
+	if (result + size >= arena->mem + arena->capacity) {
+		s64 commitSize = roundToMultiple(size + padding, COMMIT_SIZE);
+		assert(arena->reserved >= arena->capacity + commitSize);
+
+		VirtualAlloc(arena->mem + arena->capacity, commitSize, MEM_COMMIT, PAGE_READWRITE);
+		arena->capacity += commitSize;
 	}
 
-	void* res = mem + this->size;
-	this->size += size;
-	return res;
-}
+	arena->size += size + padding;
 
-void* Arena::pushZero(u64 size) {
-	void* res = this->push(size);
-	memset(res, 0, size);
-	return res;
+	if (clearToZero)
+		ZeroMemory(result, size);
+
+	return result;
 }
 
 void Arena::clear() {
 	size = 0;
 }
-
 
 //// NOTE: возможно придется применить CRITICAL_SECTION в функциях для потокобезопасности
 //struct WorkQueue {

@@ -26,7 +26,7 @@ u8* readEntireFile(Arena* storage, const char* path, u32* outBufferSize, FileTyp
 	u32 fileSize = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	u8* fileBuffer = (u8*)storage->pushZero(fileSize + 1);
+	u8* fileBuffer = (u8*)ArenaPushZero(storage, fileSize + 1);
 	if (!fileBuffer) {
 		FatalError("Alloc failed\n");
 		*outBufferSize = 0;

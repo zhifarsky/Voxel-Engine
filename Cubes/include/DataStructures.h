@@ -3,6 +3,8 @@
 #include "Typedefs.h"
 #include "Tools.h"
 
+#define DEFAULT_ALIGNMENT 16
+
 // арена, расширяющаяся при помощи коммитов ранее зарезервинованной памяти
 // capacity округляется до размера страницы памяти
 struct Arena {
@@ -11,11 +13,17 @@ struct Arena {
 
 	void alloc(u64 capacity, u64 reserveCapacity = 128ULL * 1024 * 1024 * 1024);
 	void release();
-	void* push(u64 size);
-	// возвращает указатель на зануленную память
-	void* pushZero(u64 size);
+	
 	void clear();
 };
+
+#define ArenaPush(arena, size) _ArenaPush(arena, (size), DEFAULT_ALIGNMENT, false)
+#define ArenaPushZero(arena, size) _ArenaPush(arena, (size), DEFAULT_ALIGNMENT, true)
+#define ArenaPushStruct(arena, type) (type*)_ArenaPush(arena, sizeof(type), alignof(type), true)
+#define ArenaPushArray(arena, count, type) (type*)_ArenaPush(arena, sizeof(type) * (count), alignof(type), false)
+#define ArenaPushZeroArray(arena, count, type) (type*)_ArenaPush(arena, sizeof(type) * (count), alignof(type), true)
+void* _ArenaPush(Arena* arena, u64 size, u64 alignment = DEFAULT_ALIGNMENT, bool clearToZero = true);
+
 
 template<typename T>
 struct Array {
@@ -35,7 +43,7 @@ struct Array {
 	void alloc(Arena* storage, u32 capacity) {
 		count = 0;
 		this->capacity = capacity;
-		items = (T*)storage->pushZero(sizeof(T) * capacity);
+		items = ArenaPushZeroArray(storage, capacity, T);
 	}
 
 	void release() {

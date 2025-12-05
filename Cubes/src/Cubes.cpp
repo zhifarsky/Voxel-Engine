@@ -30,7 +30,9 @@ bool g_ShowDebugInfo = true;
 bool g_UpdateSun = true;
 bool g_GenChunks = true;
 
-int g_maxInteractionDistance = 12;
+const int g_maxInteractionDistance = 12;
+
+const glm::vec3 g_WorldUp(0, 1, 0);
 
 struct SceneLighting {
 	glm::vec3 directLightDirection;
@@ -171,7 +173,7 @@ void GameUpdateAndRender(GameMemory* memory, float time, Input* input, FrameBuff
 	//
 
 	if (!memory->isInitialized) {
-		GameState* gameState = (GameState*)memory->permStorage.pushZero(sizeof(GameState));
+		GameState* gameState = ArenaPushStruct(&memory->permStorage, GameState);
 
 		gameState->time = time;
 
@@ -208,10 +210,10 @@ void GameUpdateAndRender(GameMemory* memory, float time, Input* input, FrameBuff
 		InitFramebuffers(frameBufferInfo->sizeX, frameBufferInfo->sizeY, gameState->AASamplesCount);
 	}
 
-	if (ButtonClicked(input->startGame)) {
-		if (gameState->status == gsMainMenu)
-			gameState->status = gsInGame;
-	}
+	//if (ButtonClicked(input->startGame)) {
+	//	if (gameState->status == gsMainMenu)
+	//		gameState->status = gsInGame;
+	//}
 	if (ButtonClicked(input->switchExitMenu)) {
 		if (gameState->status == gsInGame)
 			gameState->status = gsExitMenu;
@@ -319,7 +321,7 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
 			Player& player = g_gameWorld.player;
 			player.camera.pos = glm::vec3(8, 30, 8);
 			player.camera.front = glm::vec3(0, 0, -1);
-			player.camera.up = glm::vec3(0, 1, 0);
+			player.camera.up = g_WorldUp;
 			player.camera.FOV = settings.FOV;
 			player.maxSpeed = 15;
 			player.inventory = InventoryCreate();
@@ -500,6 +502,9 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		direction.y = sin(glm::radians(pitch));
 		direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
 		player.camera.front = glm::normalize(direction);
+		
+		glm::vec3 right = -glm::cross(player.camera.front, g_WorldUp);
+		player.camera.up = glm::cross(player.camera.front, right);
 	}
 
 	// update player pos
@@ -518,9 +523,9 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 				player.speedVector += glm::normalize(glm::cross(glm::normalize(player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) * cameraSpeedAdj;
 
 			if (ButtonHeldDown(input->up))
-				player.speedVector += cameraSpeedAdj * player.camera.up;
+				player.speedVector += cameraSpeedAdj * g_WorldUp;
 			if (ButtonHeldDown(input->down))
-				player.speedVector -= cameraSpeedAdj * player.camera.up;
+				player.speedVector -= cameraSpeedAdj * g_WorldUp;
 		}
 		else {
 			if (ButtonHeldDown(input->forward))
@@ -813,7 +818,8 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 	//
 
 	RenderQueue renderQueue;
-	RenderQueueInit(&renderQueue, memory->tempStorage.push(Megabytes(5)), Megabytes(5), &Assets.screenFBO, &Assets.depthMapFBO);
+	u64 renderQueueSize = Megabytes(5);
+	RenderQueueInit(&renderQueue, ArenaPush(&memory->tempStorage, renderQueueSize), renderQueueSize, &Assets.screenFBO, &Assets.depthMapFBO);
 	{
 		RenderEntryCamera cameraEntry = { .frustum = frustum, .view = view, .projection = projection };
 		RenderQueuePush(&renderQueue, &cameraEntry);
@@ -1039,6 +1045,31 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 		// moon
 		entry.VAO = Assets.moonSprite.VAO;
 		entry.transform = GetTransform(player.camera.pos + moonDir);
+		RenderQueuePush(&renderQueue, &entry);
+	}
+
+
+	// draw player hand
+	{
+		Texture* texture = GetTexture(TextureAssetID::UITexture);
+		glm::vec3 defaultFront(0, 0, -1);
+		glm::vec3 front = glm::normalize(player.camera.front);
+		glm::vec3 right = glm::normalize(glm::cross(front, g_WorldUp));
+
+		//glm::vec3 eye = player.camera.pos + front * 1.5f + right * 2.0f;
+		//glm::vec3 center = player.camera.pos;
+		glm::vec3 eye = player.camera.pos + front;
+		glm::vec3 center = player.camera.pos;
+
+		glm::mat4 t = glm::inverse(glm::lookAt(eye, center, glm::normalize(player.camera.up)));
+		t = glm::translate(t, glm::vec3(-2.5, -1, -.5));
+		if (ButtonHeldDown(input->attack))
+			t = glm::rotate(t, sin(gameState->time * 20) * 0.5f, { 1,0,-1 });
+		t = glm::scale(t, glm::vec3(1, 1, 2));
+		t = glm::translate(t, glm::vec3(0, -.5, 0));
+
+		auto entry = MakeRenderEntryTexturedMesh(
+			Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, t, polymeshShader, 0, 0, true, glm::vec3(0.1));
 		RenderQueuePush(&renderQueue, &entry);
 	}
 
