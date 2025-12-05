@@ -60,6 +60,22 @@ void syserrprint(const char* msg) {
 	LocalFree(dbg_out);
 }
 
+u64 GetMinCommitSize() {
+	return 64 * 1024ULL;
+}
+
+void* MemReserve(u64 size) {
+	return VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
+}
+
+void* MemCommit(void* base, u64 size) {
+	return VirtualAlloc(base, size, MEM_COMMIT, PAGE_READWRITE);
+}
+
+bool MemFree(void* base) {
+	return VirtualFree(base, 0, MEM_RELEASE);
+}
+
 int GetThreadsCount() {
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);

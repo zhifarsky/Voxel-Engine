@@ -4,53 +4,6 @@
 #include <windows.h>
 #include "DataStructures.h"
 
-constexpr u64 COMMIT_SIZE = 64 * 1024;
-#define roundToMultiple(number, multiple) ((number + multiple - 1) / multiple) * multiple
-
-void Arena::alloc(u64 capacity, u64 reserveCapacity) {
-	this->capacity = roundToMultiple(capacity, COMMIT_SIZE); // rounding to page size
-	this->size = 0;
-	this->reserved = reserveCapacity;
-
-	mem = (u8*)VirtualAlloc(0, reserveCapacity, MEM_RESERVE, PAGE_READWRITE); // reserve large chunk of memory
-	VirtualAlloc(mem, this->capacity, MEM_COMMIT, PAGE_READWRITE); // commit memory
-}
-
-void Arena::release() {
-	VirtualFree(mem, 0, MEM_RELEASE);
-	mem = 0;
-	size = capacity = 0;
-}
-
-void* _ArenaPush(Arena* arena, u64 size, u64 alignment, bool clearToZero) {
-	assert(alignment && !(alignment & (alignment - 1))); // проверка на степень двойки
-	
-	u8* result = arena->mem + arena->size;
-	s64 padding = -(s64)result & (alignment - 1); // работает только со степенями двойки
-
-	result += padding;
-
-	// commit memory
-	if (result + size >= arena->mem + arena->capacity) {
-		s64 commitSize = roundToMultiple(size + padding, COMMIT_SIZE);
-		assert(arena->reserved >= arena->capacity + commitSize);
-
-		VirtualAlloc(arena->mem + arena->capacity, commitSize, MEM_COMMIT, PAGE_READWRITE);
-		arena->capacity += commitSize;
-	}
-
-	arena->size += size + padding;
-
-	if (clearToZero)
-		ZeroMemory(result, size);
-
-	return result;
-}
-
-void Arena::clear() {
-	size = 0;
-}
-
 //// NOTE: возможно придется применить CRITICAL_SECTION в функциях для потокобезопасности
 //struct WorkQueue {
 //	int volatile taskCount;

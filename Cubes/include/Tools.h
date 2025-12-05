@@ -2,6 +2,8 @@
 #include <chrono>
 #include "Typedefs.h"
 
+#define roundToMultiple(number, multiple) ((number + multiple - 1) / multiple) * multiple
+
 void FatalError(const char* msg, int exitCode = 1);
 
 void dbgprint(const wchar_t* str, ...);
@@ -43,6 +45,11 @@ bool rectRectCollision(
     float bBottomLeftX, float bBottomLeftY,
     float bTopRightX, float bTopRightY
 );
+
+u64 GetMinCommitSize();
+void* MemReserve(u64 size);
+void* MemCommit(void* base, u64 size);
+bool MemFree(void* base);
 
 int GetThreadsCount();
 
