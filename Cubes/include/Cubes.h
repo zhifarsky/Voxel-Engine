@@ -14,33 +14,29 @@
 // includes
 //
 
-#include "Typedefs.h"
-#include "Input.h"
 #include "DataStructures.h"
 #include "Entity.h"
+#include "Input.h"
 #include "Items.h"
-
+#include "Typedefs.h"
 
 //
 // platform layer
 //
 
 struct GameMemory {
-	Arena permStorage;
-	Arena tempStorage;
-	Arena chunkStorage;
+  Arena permStorage;
+  Arena tempStorage;
+  Arena chunkStorage;
 
-	bool isInitialized;
+  bool isInitialized;
 };
 
 struct FrameBufferInfo {
-	int sizeX, sizeY;
+  int sizeX, sizeY;
 };
 
-enum class WindowMode {
-	Windowed,
-	WindowedFullScreen
-};
+enum class WindowMode { Windowed, WindowedFullScreen };
 
 bool GetVsync();
 void SetVsync(bool vsyncOn);
@@ -54,33 +50,33 @@ void CloseWindow();
 // game
 //
 
-enum GameStatus : u8 {
-	gsMainMenu, gsExitMenu, gsInGame, gsDebug,
-	gsCount
-};
+enum GameStatus : u8 { gsMainMenu, gsExitMenu, gsInGame, gsDebug, gsCount };
 
 struct GameState {
-	GameStatus status;
+  GameStatus status;
 
-	Array<Entity> entities;
-	Array<Item> droppedItems;
+  Array<Entity> entities;
+  Array<Item> droppedItems;
 
-	bool inventoryOpened;
-	
-	float time, deltaTime;
+  bool inventoryOpened;
 
-	float nearPlane, farPlane;
+  float time, deltaTime;
 
-	float shadowRenderDistance;
-	float shadowLightDistance;
+  float nearPlane, farPlane;
 
-	int AASamplesCount;
-	int shadowQuality;
+  float shadowRenderDistance;
+  float shadowLightDistance;
 
-	glm::vec3 sunDirection;
-	//glm::vec3 lightColor;
-	//glm::vec3 ambientColor;
+  int AASamplesCount;
+  int shadowQuality;
+
+  glm::vec3 sunDirection;
+  // glm::vec3 lightColor;
+  // glm::vec3 ambientColor;
 };
 
-//void GameInit();
-void GameUpdateAndRender(GameMemory* memory, float time, Input* input, FrameBufferInfo* frameBufferInfo);
+// void GameInit();
+void GameUpdateAndRender(GameMemory* memory,
+                         float time,
+                         Input* input,
+                         FrameBufferInfo* frameBufferInfo);

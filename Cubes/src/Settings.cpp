@@ -1,40 +1,39 @@
 #include "Settings.h"
 #include "Files.h"
 
-void SettingsCreateDefault(Settings* settings)
-{
-	settings->FOV = 90;
-	settings->renderDistance = 10;
-	settings->antiAliasingQuality = 4;
-	settings->shadowQuality = 12;
-	settings->vsync = true;
+void SettingsCreateDefault(Settings* settings) {
+  settings->FOV = 90;
+  settings->renderDistance = 10;
+  settings->antiAliasingQuality = 4;
+  settings->shadowQuality = 12;
+  settings->vsync = true;
 }
 
 void SettingsSave(Settings* settings) {
-	FILE* fileStream = fopen(SettingsPath, "wb");
-	if (!fileStream)
-		return;
+  FILE* fileStream = fopen(SettingsPath, "wb");
+  if (!fileStream)
+    return;
 
-	SerializeVariable(fileStream, settings->FOV);
-	SerializeVariable(fileStream, settings->renderDistance);
-	SerializeVariable(fileStream, settings->antiAliasingQuality);
-	SerializeVariable(fileStream, settings->shadowQuality);
-	SerializeVariable(fileStream, settings->vsync);
-	fclose(fileStream);
+  SerializeVariable(fileStream, settings->FOV);
+  SerializeVariable(fileStream, settings->renderDistance);
+  SerializeVariable(fileStream, settings->antiAliasingQuality);
+  SerializeVariable(fileStream, settings->shadowQuality);
+  SerializeVariable(fileStream, settings->vsync);
+  fclose(fileStream);
 }
 
 void SettingsLoad(Settings* settings) {
-	FILE* fileStream = fopen(SettingsPath, "rb");
-	if (!fileStream){
-		SettingsCreateDefault(settings);
-		SettingsSave(settings);
-		return;
-	}
+  FILE* fileStream = fopen(SettingsPath, "rb");
+  if (!fileStream) {
+    SettingsCreateDefault(settings);
+    SettingsSave(settings);
+    return;
+  }
 
-	DeserializeVariable(fileStream, settings->FOV);
-	DeserializeVariable(fileStream, settings->renderDistance);
-	DeserializeVariable(fileStream, settings->antiAliasingQuality);
-	DeserializeVariable(fileStream, settings->shadowQuality);
-	DeserializeVariable(fileStream, settings->vsync);
-	fclose(fileStream);
+  DeserializeVariable(fileStream, settings->FOV);
+  DeserializeVariable(fileStream, settings->renderDistance);
+  DeserializeVariable(fileStream, settings->antiAliasingQuality);
+  DeserializeVariable(fileStream, settings->shadowQuality);
+  DeserializeVariable(fileStream, settings->vsync);
+  fclose(fileStream);
 }

@@ -1,35 +1,41 @@
-#include <iostream>
 #include "Tools.h"
+#include <iostream>
 
 void Timer::start() {
-	startTime = std::chrono::high_resolution_clock::now();
+  startTime = std::chrono::high_resolution_clock::now();
 }
 
 void Timer::stop() {
-	stopTime = std::chrono::high_resolution_clock::now();
+  stopTime = std::chrono::high_resolution_clock::now();
 }
 
 void Timer::printMilliseconds(const char* msg) {
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stopTime - startTime);
-	if (!msg) msg = "Timer:";
-	dbgprint("%s %dmilliseconds\n", msg, duration);
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+      stopTime - startTime);
+  if (!msg)
+    msg = "Timer:";
+  dbgprint("%s %dmilliseconds\n", msg, duration);
 }
 
 void Timer::printMicroseconds(const char* msg) {
-	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime);
-	if (!msg) msg = "Timer:";
-	dbgprint("%s %dmicroseconds\n", msg, duration);
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+      stopTime - startTime);
+  if (!msg)
+    msg = "Timer:";
+  dbgprint("%s %dmicroseconds\n", msg, duration);
 }
 
 void Timer::printS(const char* msg) {
-	auto duration = std::chrono::duration_cast<std::chrono::seconds>(stopTime - startTime);
-	if (!msg) msg = "Timer:";
-	dbgprint("%s %dms\n", msg, duration);
+  auto duration =
+      std::chrono::duration_cast<std::chrono::seconds>(stopTime - startTime);
+  if (!msg)
+    msg = "Timer:";
+  dbgprint("%s %dms\n", msg, duration);
 }
 
-//void DirectoryWatcher::create(const wchar_t* directoryPath) {
+// void DirectoryWatcher::create(const wchar_t* directoryPath) {
 //	dirHandle = CreateFileW(
-//		directoryPath, 
+//		directoryPath,
 //		FILE_LIST_DIRECTORY,
 //		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 //		NULL,
@@ -41,14 +47,15 @@ void Timer::printS(const char* msg) {
 //
 //	overlapped = { 0 };
 //	overlapped.hEvent = this;
-//}
+// }
 //
-//void DirectoryWatcher::release() {
+// void DirectoryWatcher::release() {
 //	CloseHandle(dirHandle);
-//}
+// }
 //
-//void CALLBACK FileIOCompletionRoutine(
-//	DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
+// void CALLBACK FileIOCompletionRoutine(
+//	DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED
+//lpOverlapped)
 //{
 //	dbgprint("\n\nWATCHER CALLED\n\n");
 //	if (dwErrorCode != ERROR_SUCCESS) {
@@ -57,12 +64,13 @@ void Timer::printS(const char* msg) {
 //	}
 //
 //
-//	DirectoryWatcher* watcher = CONTAINING_RECORD(lpOverlapped, DirectoryWatcher, overlapped);
-//	BYTE* buffer = watcher->buffer;
-//	DWORD offset = 0;
+//	DirectoryWatcher* watcher = CONTAINING_RECORD(lpOverlapped,
+//DirectoryWatcher, overlapped); 	BYTE* buffer = watcher->buffer; 	DWORD offset =
+//0;
 //
 //	while (offset < dwNumberOfBytesTransfered) {
-//		FILE_NOTIFY_INFORMATION* info = (FILE_NOTIFY_INFORMATION*)&buffer[offset];
+//		FILE_NOTIFY_INFORMATION* info =
+//(FILE_NOTIFY_INFORMATION*)&buffer[offset];
 //
 //		dbgprint("[DIR WATCHER]%d\n", info->Action);
 //
@@ -70,9 +78,9 @@ void Timer::printS(const char* msg) {
 //	}
 //
 //	watcher->startWatching();
-//}
+// }
 //
-//void DirectoryWatcher::startWatching() {
+// void DirectoryWatcher::startWatching() {
 //	BOOL success = ReadDirectoryChangesW(
 //		dirHandle,
 //		buffer,
@@ -88,36 +96,36 @@ void Timer::printS(const char* msg) {
 //
 //	if (!success)
 //		syserrprint("Failed to start watching");
-//}
+// }
 
-bool pointRectCollision(
-	float px, float py,
-	float bottomLeftX, float bottomLeftY,
-	float topRightX, float topRightY)
-{
-	return
-		px > bottomLeftX && px < topRightX &&
-		py > bottomLeftY && py < topRightY;
+bool pointRectCollision(float px,
+                        float py,
+                        float bottomLeftX,
+                        float bottomLeftY,
+                        float topRightX,
+                        float topRightY) {
+  return px > bottomLeftX && px < topRightX && py > bottomLeftY &&
+         py < topRightY;
 }
 
-bool rectRectCollision(
-	float aBottomLeftX, float aBottomLeftY,
-	float aTopRightX, float aTopRightY,
-	float bBottomLeftX, float bBottomLeftY,
-	float bTopRightX, float bTopRightY
-) {
-	// Проверяем, что прямоугольники не пересекаются по оси X
-	if (aTopRightX <= bBottomLeftX ||
-		bTopRightX <= aBottomLeftX) {
-		return false;
-	}
+bool rectRectCollision(float aBottomLeftX,
+                       float aBottomLeftY,
+                       float aTopRightX,
+                       float aTopRightY,
+                       float bBottomLeftX,
+                       float bBottomLeftY,
+                       float bTopRightX,
+                       float bTopRightY) {
+  // Проверяем, что прямоугольники не пересекаются по оси X
+  if (aTopRightX <= bBottomLeftX || bTopRightX <= aBottomLeftX) {
+    return false;
+  }
 
-	// Проверяем, что прямоугольники не пересекаются по оси Y
-	if (aTopRightY <= bBottomLeftY ||
-		bTopRightY <= aBottomLeftY) {
-		return false;
-	}
+  // Проверяем, что прямоугольники не пересекаются по оси Y
+  if (aTopRightY <= bBottomLeftY || bTopRightY <= aBottomLeftY) {
+    return false;
+  }
 
-	// Если обе проверки пройдены - есть коллизия
-	return true;
+  // Если обе проверки пройдены - есть коллизия
+  return true;
 }
