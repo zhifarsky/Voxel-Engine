@@ -27,17 +27,17 @@ void ApplyTransform(Shader shader,
                     glm::vec3 pos,
                     glm::vec3 rot,
                     glm::vec3 scale) {
-  glm::mat4 model = glm::mat4(1.0f);  // единичная матрица (1 по диагонали)
-  model = glm::translate(model, pos);
-  model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0, 0.0, 0.0));
-  model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0, 1.0, 0.0));
-  model = glm::rotate(model, glm::radians(rot.z), glm::vec3(0.0, 0.0, 1.0));
-  model = glm::scale(model, scale);
+  glm::mat4 model=glm::mat4(1.0f);  // единичная матрица (1 по диагонали)
+  model=glm::translate(model, pos);
+  model=glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0, 0.0, 0.0));
+  model=glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0, 1.0, 0.0));
+  model=glm::rotate(model, glm::radians(rot.z), glm::vec3(0.0, 0.0, 1.0));
+  model=glm::scale(model, scale);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE,
                      glm::value_ptr(model));
 }
 
-void drawFlat(Shader shader, Geometry* mesh, glm::vec3 color, float alpha) {
+void drawFlat(Shader shader, Geometry *mesh, glm::vec3 color, float alpha) {
   glUniform4f(glGetUniformLocation(shader, "color"), color.r, color.g, color.b,
               alpha);
 
@@ -46,19 +46,19 @@ void drawFlat(Shader shader, Geometry* mesh, glm::vec3 color, float alpha) {
   glBindVertexArray(0);
 }
 
-Sprite createSprite(float scaleX, float scaleY, UV& uv) {
-  Vertex vertices[] = {
+Sprite createSprite(float scaleX, float scaleY, UV &uv) {
+  Vertex vertices[]={
       Vertex(-0.5, -0.5, 0, uv.offset.x, uv.offset.y),
       Vertex(0.5, -0.5, 0, uv.offset.x + uv.scale.x, uv.offset.y),
       Vertex(0.5, 0.5, 0, uv.offset.x + uv.scale.x, uv.offset.y + uv.scale.y),
       Vertex(-0.5, 0.5, 0, uv.offset.x, uv.offset.y + uv.scale.y),
   };
 
-  Triangle triangles[] = {Triangle(0, 1, 2), Triangle(0, 2, 3)};
+  Triangle triangles[]={Triangle(0, 1, 2), Triangle(0, 2, 3)};
 
-  Sprite sprite = {0};
-  sprite.vertexCount = ArrayCount(vertices);
-  sprite.triangleCount = ArrayCount(triangles);
+  Sprite sprite={0};
+  sprite.vertexCount=ArrayCount(vertices);
+  sprite.triangleCount=ArrayCount(triangles);
 
   {
     glGenVertexArrays(1, &sprite.VAO);
@@ -77,13 +77,13 @@ Sprite createSprite(float scaleX, float scaleY, UV& uv) {
                  GL_STATIC_DRAW);  // загружаем индексы
 
     // "объясняем" как необходимо прочитать массив с вершинами
-    GLint stride = sizeof(Vertex);
+    GLint stride=sizeof(Vertex);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride,
-                          (void*)offsetof(Vertex, pos));  // pos
+                          (void *)offsetof(Vertex, pos));  // pos
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
-                          (void*)offsetof(Vertex, uv));  // tex coord
+                          (void *)offsetof(Vertex, uv));  // tex coord
 
     glBindVertexArray(0);
   }

@@ -35,11 +35,11 @@ struct Inventory {
 };
 
 Inventory InventoryCreate();
-void InventoryAddItem(Inventory* inventory, ItemType type, int count);
-void InventorySelectItem(Inventory* inventory, int index);
-InventoryCell InventoryGetCurrentItem(Inventory* inventory);
-void InventoryDropItem(Inventory* inventory, int index, int count);
-int InventoryFindItem(Inventory* inventory, ItemType item);
+void InventoryAddItem(Inventory *inventory, ItemType type, int count);
+void InventorySelectItem(Inventory *inventory, int index);
+InventoryCell InventoryGetCurrentItem(Inventory *inventory);
+void InventoryDropItem(Inventory *inventory, int index, int count);
+int InventoryFindItem(Inventory *inventory, ItemType item);
 
 struct Player {
   Inventory inventory;
@@ -53,8 +53,8 @@ struct GameWorldInfo {
   int seed;
 };
 
-void GetWorldPath(char* buffer, const char* worldname);
-void EnumerateWorlds(DynamicArray<GameWorldInfo>* infos);
+void GetWorldPath(char *buffer, const char *worldname);
+void EnumerateWorlds(DynamicArray<GameWorldInfo> *infos);
 
 struct GameWorld {
   GameWorldInfo info;
@@ -62,5 +62,5 @@ struct GameWorld {
 
   Player player;
 
-  void init(GameMemory* memory, GameWorldInfo* info, u32 renderDistance);
+  void init(GameMemory *memory, GameWorldInfo *info, u32 renderDistance);
 };

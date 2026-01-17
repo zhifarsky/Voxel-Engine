@@ -36,11 +36,13 @@ struct FrameBufferInfo {
   int sizeX, sizeY;
 };
 
-enum class WindowMode { Windowed, WindowedFullScreen };
+enum class WindowMode {
+  Windowed, WindowedFullScreen
+};
 
 bool GetVsync();
 void SetVsync(bool vsyncOn);
-void GetCursorPos(double* xpos, double* ypos);
+void GetCursorPos(double *xpos, double *ypos);
 void SetCursorMode(bool enabled);
 void WindowSwitchMode(WindowMode windowMode);
 WindowMode WindowGetCurrentMode();
@@ -50,7 +52,9 @@ void CloseWindow();
 // game
 //
 
-enum GameStatus : u8 { gsMainMenu, gsExitMenu, gsInGame, gsDebug, gsCount };
+enum GameStatus : u8 {
+  gsMainMenu, gsExitMenu, gsInGame, gsDebug, gsCount
+};
 
 struct GameState {
   GameStatus status;
@@ -76,7 +80,7 @@ struct GameState {
 };
 
 // void GameInit();
-void GameUpdateAndRender(GameMemory* memory,
+void GameUpdateAndRender(GameMemory *memory,
                          float time,
-                         Input* input,
-                         FrameBufferInfo* frameBufferInfo);
+                         Input *input,
+                         FrameBufferInfo *frameBufferInfo);

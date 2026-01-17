@@ -1,40 +1,40 @@
 #pragma once
 
 struct ButtonState {
-	int halfTransitionsCount;
-	bool endedDown;
+  int halfTransitionsCount;
+  bool endedDown;
 };
 
 #define ButtonHeldDown(btn) (!btn.endedDown)
 #define ButtonClicked(btn) (btn.halfTransitionsCount)
 
 struct Input {
-	ButtonState uiClick;
-	
-	ButtonState startGame;
-	ButtonState switchExitMenu;
-	ButtonState switchFullscreenMode;
-	
-	ButtonState scrollUp;
-	ButtonState scrollDown;
+  ButtonState uiClick;
 
-	ButtonState forward;
-	ButtonState backwards;
-	ButtonState left;
-	ButtonState right;
-	ButtonState up;
-	ButtonState down;
+  ButtonState startGame;
+  ButtonState switchExitMenu;
+  ButtonState switchFullscreenMode;
 
-	ButtonState attack;
-	ButtonState placeBlock;
+  ButtonState scrollUp;
+  ButtonState scrollDown;
 
-	ButtonState openInventory;
-	ButtonState inventorySlots[9]; // TODO: убрать захардкоженое число
+  ButtonState forward;
+  ButtonState backwards;
+  ButtonState left;
+  ButtonState right;
+  ButtonState up;
+  ButtonState down;
 
-	// DEBUG
-	ButtonState rebuildShaders;
-	ButtonState regenerateChunks;
-	ButtonState showDebugInfo;
+  ButtonState attack;
+  ButtonState placeBlock;
+
+  ButtonState openInventory;
+  ButtonState inventorySlots[9]; // TODO: убрать захардкоженое число
+
+  // DEBUG
+  ButtonState rebuildShaders;
+  ButtonState regenerateChunks;
+  ButtonState showDebugInfo;
 };
 
-void ProcessButtonInput(ButtonState* oldButtonState, ButtonState* newButtonState, bool isReleased);
+void ProcessButtonInput(ButtonState *oldButtonState, ButtonState *newButtonState, bool isReleased);

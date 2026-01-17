@@ -3,11 +3,11 @@
 #include "Tools.h"
 #include "World.h"
 
-void EnumerateWorlds(DynamicArray<GameWorldInfo>* infos) {
+void EnumerateWorlds(DynamicArray<GameWorldInfo> *infos) {
   WIN32_FIND_DATAA data;
-  const char* path = WORLDS_FOLDER "*.*";
+  const char *path=WORLDS_FOLDER "*.*";
 
-  HANDLE hFind = FindFirstFileA(path, &data);
+  HANDLE hFind=FindFirstFileA(path, &data);
   if (hFind != INVALID_HANDLE_VALUE) {
     do {
       if (data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY) {
@@ -17,9 +17,9 @@ void EnumerateWorlds(DynamicArray<GameWorldInfo>* infos) {
         }
 
         // TODO: parse world seed
-        GameWorldInfo info = {0};
+        GameWorldInfo info={0};
         strncpy_s(info.name, data.cFileName, _TRUNCATE);
-        info.seed = 0;
+        info.seed=0;
         infos->append(info);
       }
     } while (FindNextFileA(hFind, &data));

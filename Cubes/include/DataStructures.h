@@ -8,13 +8,13 @@
 // арена, расширяющаяся при помощи коммитов ранее зарезервинованной памяти
 // capacity округляется до размера страницы памяти
 struct Arena {
-	u8* mem;
-	u64 size, capacity, reserved;
+  u8 *mem;
+  u64 size, capacity, reserved;
 
-	void alloc(u64 capacity, u64 reserveCapacity = 128ULL * 1024 * 1024 * 1024);
-	void release();
-	
-	void clear();
+  void alloc(u64 capacity, u64 reserveCapacity=128ULL * 1024 * 1024 * 1024);
+  void release();
+
+  void clear();
 };
 
 #define ArenaPush(arena, size) _ArenaPush(arena, (size), DEFAULT_ALIGNMENT, false)
@@ -22,104 +22,101 @@ struct Arena {
 #define ArenaPushStruct(arena, type) (type*)_ArenaPush(arena, sizeof(type), alignof(type), true)
 #define ArenaPushArray(arena, count, type) (type*)_ArenaPush(arena, sizeof(type) * (count), alignof(type), false)
 #define ArenaPushZeroArray(arena, count, type) (type*)_ArenaPush(arena, sizeof(type) * (count), alignof(type), true)
-void* _ArenaPush(Arena* arena, u64 size, u64 alignment = DEFAULT_ALIGNMENT, bool clearToZero = true);
+void *_ArenaPush(Arena *arena, u64 size, u64 alignment=DEFAULT_ALIGNMENT, bool clearToZero=true);
 
 
 template<typename T>
 struct Array {
-	T* items;
-	u32 count, capacity;
+  T *items;
+  u32 count, capacity;
 
-	T& operator[](u32 i) {
-		return items[i];
-	}
+  T &operator[](u32 i) {
+    return items[i];
+  }
 
-	void alloc(u32 capacity) {
-		count = 0;
-		this->capacity = capacity;
-		items = (T*)calloc(sizeof(T), capacity);
-	}
+  void alloc(u32 capacity) {
+    count=0;
+    this->capacity=capacity;
+    items=(T *)calloc(sizeof(T), capacity);
+  }
 
-	void alloc(Arena* storage, u32 capacity) {
-		count = 0;
-		this->capacity = capacity;
-		items = ArenaPushZeroArray(storage, capacity, T);
-	}
+  void alloc(Arena *storage, u32 capacity) {
+    count=0;
+    this->capacity=capacity;
+    items=ArenaPushZeroArray(storage, capacity, T);
+  }
 
-	void release() {
-		free(items);
-		items = NULL;
-		count = capacity = 0;
-	}
+  void release() {
+    free(items);
+    items=NULL;
+    count=capacity=0;
+  }
 
-	void append(T value) {
-		if (count < capacity)
-			items[count++] = value;
-		else
-			assert(false);
-	}
+  void append(T value) {
+    if (count < capacity)
+      items[count++]=value;
+    else
+      assert(false);
+  }
 
-	void insert(T value, u32 pos) {
-		if (count < capacity && pos <= count) {
-			for (s32 i = count; i > pos; i--)
-				items[i] = items[i - 1];
-			items[pos] = value;
-			count++;
-		}
-		else
-			assert(false);
-	}
+  void insert(T value, u32 pos) {
+    if (count < capacity &&pos <= count) {
+      for (s32 i=count; i > pos; i--)
+        items[i]=items[i - 1];
+      items[pos]=value;
+      count++;
+    } else
+      assert(false);
+  }
 
-	void remove(u32 pos) {
-		if (pos < count) {
-			for (size_t i = pos; i < count - 1; i++)
-				items[i] = items[i + 1];
-			count--;
-		}
-		else
-			assert(false);
-	}
+  void remove(u32 pos) {
+    if (pos < count) {
+      for (size_t i=pos; i < count - 1; i++)
+        items[i]=items[i + 1];
+      count--;
+    } else
+      assert(false);
+  }
 
-	void clear() {
-		count = 0;
-	}
+  void clear() {
+    count=0;
+  }
 };
 
 template<typename Type>
 struct DynamicArray {
-	Type* items;
-	u32 count, capacity;
+  Type *items;
+  u32 count, capacity;
 
-	void append(Type item) {
-		if (count >= capacity) {
-			if (capacity == 0) 
-				capacity = 256;
-			else 
-				capacity *= 2;
-			Type* newItems = (Type*)realloc(items, capacity * sizeof(Type));
-			if (!newItems) {
-				FatalError("Alloc error");
-				return;
-			}
-			else
-				items = newItems;
-		}
-		items[count++] = item;
-	}
+  void append(Type item) {
+    if (count >= capacity) {
+      if (capacity == 0)
+        capacity=256;
+      else
+        capacity*=2;
+      Type *newItems=(Type *)realloc(items, capacity * sizeof(Type));
+      if (!newItems) {
+        FatalError("Alloc error");
+        return;
+      } else
+        items=newItems;
+    }
+    items[count++]=item;
+  }
 
-	void clear() {
-		count = 0;
-	}
+  void clear() {
+    count=0;
+  }
 
-	void free() {
-		free(items);
-		items = 0;
-		count = capacity = 0;
-	}
+  void free() {
+    free(items);
+    items=0;
+    count=capacity=0;
+  }
 
-	Type operator[](int index) {
-		return items[index];
-	}
+  Type operator[](int index) {
+    return items[index];
+  }
 };
 
 //struct QueueTaskItem {

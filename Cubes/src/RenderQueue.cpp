@@ -18,46 +18,46 @@ enum class RenderEntryType {
   Sprite,
 };
 
-void RenderQueueInit(RenderQueue* queue,
-                     void* memory,
+void RenderQueueInit(RenderQueue *queue,
+                     void *memory,
                      u64 capacity,
-                     FrameBuffer* screenFBO,
-                     FrameBuffer* depthMapFBO) {
-  *queue = {};
+                     FrameBuffer *screenFBO,
+                     FrameBuffer *depthMapFBO) {
+  *queue={};
 
-  u32 renderGroupsCount = ArrayCount(queue->renderGroups);
-  u64 groupCapacity = capacity / renderGroupsCount;
-  u8* groupMemory = (u8*)memory;
-  for (size_t i = 0; i < renderGroupsCount; i++) {
-    queue->renderGroups[i].mem = groupMemory;
-    queue->renderGroups[i].capacity = groupCapacity;
-    groupMemory += groupCapacity;
+  u32 renderGroupsCount=ArrayCount(queue->renderGroups);
+  u64 groupCapacity=capacity / renderGroupsCount;
+  u8 *groupMemory=(u8 *)memory;
+  for (size_t i=0; i < renderGroupsCount; i++) {
+    queue->renderGroups[i].mem=groupMemory;
+    queue->renderGroups[i].capacity=groupCapacity;
+    groupMemory+=groupCapacity;
   }
 
-  queue->context.screenFBO = screenFBO;
-  queue->context.depthMapFBO = depthMapFBO;
+  queue->context.screenFBO=screenFBO;
+  queue->context.depthMapFBO=depthMapFBO;
 }
 
-void RenderQueueClear(RenderQueue* queue) {
-  for (size_t i = 0; i < ArrayCount(queue->renderGroups); i++) {
-    queue->renderGroups[i].size = 0;
+void RenderQueueClear(RenderQueue *queue) {
+  for (size_t i=0; i < ArrayCount(queue->renderGroups); i++) {
+    queue->renderGroups[i].size=0;
   }
-  queue->context = {};
+  queue->context={};
 }
 
-bool RenderGroupCanPush(RenderGroup* group, u64 size) {
+bool RenderGroupCanPush(RenderGroup *group, u64 size) {
   return group->size + size <= group->capacity;
 }
 
-void RenderGroupPush(RenderGroup* group,
+void RenderGroupPush(RenderGroup *group,
                      RenderEntryType commandType,
-                     void* command,
+                     void *command,
                      u32 commandSize) {
   if (RenderGroupCanPush(group, sizeof(commandType) + commandSize)) {
     memcpy(&group->mem[group->size], &commandType, sizeof(RenderEntryType));
-    group->size += sizeof(RenderEntryType);
+    group->size+=sizeof(RenderEntryType);
     memcpy(&group->mem[group->size], command, commandSize);
-    group->size += commandSize;
+    group->size+=commandSize;
   } else
     dbgprint("[RENDER QUEUE] queue is full\n");
 }
@@ -65,41 +65,41 @@ void RenderGroupPush(RenderGroup* group,
 // TODO: сделать макросами?
 // * push должен возвращать указатель на память, которую потом можно заполнить,
 // чтобы избежать копирования памяти
-void RenderQueuePush(RenderQueue* queue, RenderEntryCamera* command) {
+void RenderQueuePush(RenderQueue *queue, RenderEntryCamera *command) {
   RenderGroupPush(&queue->initPass, RenderEntryType::Camera, command,
                   sizeof(*command));
 }
 
-void RenderQueuePush(RenderQueue* queue, RenderEntryLighting* command) {
+void RenderQueuePush(RenderQueue *queue, RenderEntryLighting *command) {
   RenderGroupPush(&queue->initPass, RenderEntryType::Lighting, command,
                   sizeof(*command));
 }
 
-void RenderQueuePush(RenderQueue* queue, RenderEntryMeshShadow* command) {
+void RenderQueuePush(RenderQueue *queue, RenderEntryMeshShadow *command) {
   RenderGroupPush(&queue->shadowPass, RenderEntryType::PolymeshShadow, command,
                   sizeof(*command));
 }
 
-void RenderQueuePush(RenderQueue* queue,
-                     RenderEntryMeshShadowInstanced* command) {
+void RenderQueuePush(RenderQueue *queue,
+                     RenderEntryMeshShadowInstanced *command) {
   RenderGroupPush(&queue->shadowPass, RenderEntryType::PolymeshShadowInstanced,
                   command, sizeof(*command));
 }
 
-void RenderQueuePush(RenderQueue* queue, RenderEntryTexturedMesh* command) {
+void RenderQueuePush(RenderQueue *queue, RenderEntryTexturedMesh *command) {
   RenderGroupPush(&queue->mainPass, RenderEntryType::Polymesh, command,
                   sizeof(*command));
 }
 
-void RenderQueuePush(RenderQueue* queue,
-                     RenderEntryTexturedMeshInstanced* command) {
+void RenderQueuePush(RenderQueue *queue,
+                     RenderEntryTexturedMeshInstanced *command) {
   RenderGroupPush(&queue->mainPass, RenderEntryType::PolymeshInstanced, command,
                   sizeof(*command));
 }
 
 // NOTE: если нужно отрисовать на фоне, рисуем перед основным проходом
 // сортировки команд нет, поэтому спрайт должен быть запушен после камеры
-void RenderQueuePush(RenderQueue* queue, RenderEntrySprite* command) {
+void RenderQueuePush(RenderQueue *queue, RenderEntrySprite *command) {
   if (command->drawOnBackground)
     RenderGroupPush(&queue->initPass, RenderEntryType::Sprite, command,
                     sizeof(*command));
@@ -108,7 +108,7 @@ void RenderQueuePush(RenderQueue* queue, RenderEntrySprite* command) {
                     sizeof(*command));
 }
 
-void RenderSprite(RenderQueue* queue, RenderEntrySprite* entry) {
+void RenderSprite(RenderQueue *queue, RenderEntrySprite *entry) {
   Renderer::BindShader(entry->shader);
   Renderer::BindTexture(entry->texture);
 
@@ -134,45 +134,48 @@ void RenderSprite(RenderQueue* queue, RenderEntrySprite* entry) {
     glDepthMask(GL_TRUE);
 }
 
-u32 RenderQueueExecute(RenderQueue* queue) {
-  u32 commandsExecuted = 0;
+u32 RenderQueueExecute(RenderQueue *queue) {
+  u32 commandsExecuted=0;
 
   //
   // Initial Pass
   //
 
   {
-    RenderGroup* group = &queue->initPass;
-    u8* i = group->mem;
+    RenderGroup *group=&queue->initPass;
+    u8 *i=group->mem;
 
     while (i < group->mem + group->size) {
-      RenderEntryType entryType = *(RenderEntryType*)i;
-      i += sizeof(entryType);
+      RenderEntryType entryType=*(RenderEntryType *)i;
+      i+=sizeof(entryType);
       commandsExecuted++;
 
       switch (entryType) {
-        case RenderEntryType::Camera: {
-          RenderEntryCamera* entry = (RenderEntryCamera*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::Camera:
+        {
+          RenderEntryCamera *entry=(RenderEntryCamera *)i;
+          i+=sizeof(*entry);
 
-          queue->context.frustum = entry->frustum;
-          queue->context.projection = entry->projection;
-          queue->context.view = entry->view;
+          queue->context.frustum=entry->frustum;
+          queue->context.projection=entry->projection;
+          queue->context.view=entry->view;
         } break;
 
-        case RenderEntryType::Lighting: {
-          RenderEntryLighting* entry = (RenderEntryLighting*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::Lighting:
+        {
+          RenderEntryLighting *entry=(RenderEntryLighting *)i;
+          i+=sizeof(*entry);
 
-          queue->context.lightSpaceMatrix = entry->lightSpaceMatrix;
-          queue->context.directLightDirection = entry->directLightDirection;
-          queue->context.directLightColor = entry->directLightColor;
-          queue->context.ambientLightColor = entry->ambientLightColor;
+          queue->context.lightSpaceMatrix=entry->lightSpaceMatrix;
+          queue->context.directLightDirection=entry->directLightDirection;
+          queue->context.directLightColor=entry->directLightColor;
+          queue->context.ambientLightColor=entry->ambientLightColor;
         } break;
 
-        case RenderEntryType::Sprite: {
-          RenderEntrySprite* entry = (RenderEntrySprite*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::Sprite:
+        {
+          RenderEntrySprite *entry=(RenderEntrySprite *)i;
+          i+=sizeof(*entry);
 
           RenderSprite(queue, entry);
         } break;
@@ -185,29 +188,30 @@ u32 RenderQueueExecute(RenderQueue* queue) {
   //
 
   {
-    RenderGroup* group = &queue->shadowPass;
-    u8* i = group->mem;
+    RenderGroup *group=&queue->shadowPass;
+    u8 *i=group->mem;
 
     Renderer::BindFrameBuffer(queue->context.depthMapFBO);
     Renderer::SetViewportDimensions(
-        queue->context.depthMapFBO->textures[0].width,
-        queue->context.depthMapFBO->textures[0].height);
+      queue->context.depthMapFBO->textures[0].width,
+      queue->context.depthMapFBO->textures[0].height);
 
     while (i < group->mem + group->size) {
-      RenderEntryType entryType = *(RenderEntryType*)i;
-      i += sizeof(entryType);
+      RenderEntryType entryType=*(RenderEntryType *)i;
+      i+=sizeof(entryType);
       commandsExecuted++;
 
       switch (entryType) {
-        case RenderEntryType::PolymeshShadow: {
-          RenderEntryMeshShadow* entry = (RenderEntryMeshShadow*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::PolymeshShadow:
+        {
+          RenderEntryMeshShadow *entry=(RenderEntryMeshShadow *)i;
+          i+=sizeof(*entry);
 
           Renderer::BindShader(entry->shader);
 
           Renderer::setUniformMatrix4(
-              entry->shader, "lightSpaceMatrix",
-              glm::value_ptr(queue->context.lightSpaceMatrix));
+            entry->shader, "lightSpaceMatrix",
+            glm::value_ptr(queue->context.lightSpaceMatrix));
           Renderer::setUniformMatrix4(entry->shader, "model",
                                       glm::value_ptr(entry->transform));
 
@@ -216,16 +220,17 @@ u32 RenderQueueExecute(RenderQueue* queue) {
           // Renderer::unbindShader();
         } break;
 
-        case RenderEntryType::PolymeshShadowInstanced: {
-          RenderEntryMeshShadowInstanced* entry =
-              (RenderEntryMeshShadowInstanced*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::PolymeshShadowInstanced:
+        {
+          RenderEntryMeshShadowInstanced *entry=
+            (RenderEntryMeshShadowInstanced *)i;
+          i+=sizeof(*entry);
 
           Renderer::BindShader(entry->shader);
 
           Renderer::setUniformMatrix4(
-              entry->shader, "lightSpaceMatrix",
-              glm::value_ptr(queue->context.lightSpaceMatrix));
+            entry->shader, "lightSpaceMatrix",
+            glm::value_ptr(queue->context.lightSpaceMatrix));
           Renderer::setUniformMatrix4(entry->shader, "model",
                                       glm::value_ptr(entry->transform));
 
@@ -245,23 +250,24 @@ u32 RenderQueueExecute(RenderQueue* queue) {
   //
 
   {
-    RenderGroup* group = &queue->mainPass;
-    u8* i = group->mem;
+    RenderGroup *group=&queue->mainPass;
+    u8 *i=group->mem;
 
     Renderer::BindFrameBuffer(queue->context.screenFBO);
     Renderer::SetViewportDimensions(
-        queue->context.screenFBO->textures[0].width,
-        queue->context.screenFBO->textures[0].height);
+      queue->context.screenFBO->textures[0].width,
+      queue->context.screenFBO->textures[0].height);
 
     while (i < group->mem + group->size) {
-      RenderEntryType entryType = *(RenderEntryType*)i;
-      i += sizeof(entryType);
+      RenderEntryType entryType=*(RenderEntryType *)i;
+      i+=sizeof(entryType);
       commandsExecuted++;
 
       switch (entryType) {
-        case RenderEntryType::Polymesh: {
-          RenderEntryTexturedMesh* entry = (RenderEntryTexturedMesh*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::Polymesh:
+        {
+          RenderEntryTexturedMesh *entry=(RenderEntryTexturedMesh *)i;
+          i+=sizeof(*entry);
 
           Renderer::BindShader(entry->shader);
           Renderer::BindTexture(entry->texture, 0);
@@ -271,16 +277,16 @@ u32 RenderQueueExecute(RenderQueue* queue) {
           Renderer::setUniformInt(entry->shader, "texture1", 0);
           Renderer::setUniformInt(entry->shader, "shadowMap", 1);
 
-          glm::mat4 viewProjection =
-              queue->context.projection * queue->context.view;
+          glm::mat4 viewProjection=
+            queue->context.projection * queue->context.view;
 
           Renderer::setUniformMatrix4(entry->shader, "viewProjection",
                                       glm::value_ptr(viewProjection));
           Renderer::setUniformMatrix4(entry->shader, "model",
                                       glm::value_ptr(entry->transform));
           Renderer::setUniformMatrix4(
-              entry->shader, "lightSpaceMatrix",
-              glm::value_ptr(queue->context.lightSpaceMatrix));
+            entry->shader, "lightSpaceMatrix",
+            glm::value_ptr(queue->context.lightSpaceMatrix));
 
           Renderer::setUniformFloat(entry->shader, "overrideColor",
                                     entry->overrideColor);
@@ -312,10 +318,11 @@ u32 RenderQueueExecute(RenderQueue* queue) {
           // Renderer::unbindShader();
         } break;
 
-        case RenderEntryType::PolymeshInstanced: {
-          RenderEntryTexturedMeshInstanced* entry =
-              (RenderEntryTexturedMeshInstanced*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::PolymeshInstanced:
+        {
+          RenderEntryTexturedMeshInstanced *entry=
+            (RenderEntryTexturedMeshInstanced *)i;
+          i+=sizeof(*entry);
 
           Renderer::BindShader(entry->shader);
           Renderer::BindTexture(entry->texture, 0);
@@ -325,16 +332,16 @@ u32 RenderQueueExecute(RenderQueue* queue) {
           Renderer::setUniformInt(entry->shader, "texture1", 0);
           Renderer::setUniformInt(entry->shader, "shadowMap", 1);
 
-          glm::mat4 viewProjection =
-              queue->context.projection * queue->context.view;
+          glm::mat4 viewProjection=
+            queue->context.projection * queue->context.view;
 
           Renderer::setUniformMatrix4(entry->shader, "viewProjection",
                                       glm::value_ptr(viewProjection));
           Renderer::setUniformMatrix4(entry->shader, "model",
                                       glm::value_ptr(entry->transform));
           Renderer::setUniformMatrix4(
-              entry->shader, "lightSpaceMatrix",
-              glm::value_ptr(queue->context.lightSpaceMatrix));
+            entry->shader, "lightSpaceMatrix",
+            glm::value_ptr(queue->context.lightSpaceMatrix));
 
           Renderer::setUniformFloat(entry->shader, "overrideColor",
                                     entry->overrideColor);
@@ -367,9 +374,10 @@ u32 RenderQueueExecute(RenderQueue* queue) {
           // Renderer::unbindShader();
         } break;
 
-        case RenderEntryType::Sprite: {
-          RenderEntrySprite* entry = (RenderEntrySprite*)i;
-          i += sizeof(*entry);
+        case RenderEntryType::Sprite:
+        {
+          RenderEntrySprite *entry=(RenderEntrySprite *)i;
+          i+=sizeof(*entry);
 
           RenderSprite(queue, entry);
         } break;
@@ -388,78 +396,78 @@ RenderEntryMeshShadow MakeRenderEntryMeshShadow(u32 VAO,
                                                 Shader shader) {
   RenderEntryMeshShadow entry;
 
-  entry.VAO = VAO;
-  entry.triangleCount = triangleCount;
-  entry.transform = transform;
-  entry.shader = shader;
+  entry.VAO=VAO;
+  entry.triangleCount=triangleCount;
+  entry.transform=transform;
+  entry.shader=shader;
 
   return entry;
 }
 
 RenderEntryMeshShadowInstanced MakeRenderEntryMeshShadowInstanced(
-    u32 VAO,
-    u32 triangleCount,
-    u32 instanceCount,
-    const glm::mat4 transform,
-    Shader shader) {
+  u32 VAO,
+  u32 triangleCount,
+  u32 instanceCount,
+  const glm::mat4 transform,
+  Shader shader) {
   RenderEntryMeshShadowInstanced entry;
 
-  entry.VAO = VAO;
-  entry.triangleCount = triangleCount;
-  entry.instanceCount = instanceCount;
-  entry.transform = transform;
-  entry.shader = shader;
+  entry.VAO=VAO;
+  entry.triangleCount=triangleCount;
+  entry.instanceCount=instanceCount;
+  entry.transform=transform;
+  entry.shader=shader;
 
   return entry;
 }
 
 RenderEntryTexturedMesh MakeRenderEntryTexturedMesh(u32 VAO,
                                                     u32 triangleCount,
-                                                    const glm::mat4& transform,
+                                                    const glm::mat4 &transform,
                                                     Shader shader,
-                                                    Texture* texture,
-                                                    Texture* shadowMap,
+                                                    Texture *texture,
+                                                    Texture *shadowMap,
                                                     bool overrideColor,
                                                     glm::vec3 color,
                                                     bool wireframeMode) {
   RenderEntryTexturedMesh entry;
 
-  entry.VAO = VAO;
-  entry.triangleCount = triangleCount;
-  entry.transform = transform;
-  entry.shader = shader;
-  entry.texture = texture;
-  entry.shadowMap = shadowMap;
-  entry.overrideColor = overrideColor;
-  entry.color = color;
-  entry.wireframeMode = wireframeMode;
+  entry.VAO=VAO;
+  entry.triangleCount=triangleCount;
+  entry.transform=transform;
+  entry.shader=shader;
+  entry.texture=texture;
+  entry.shadowMap=shadowMap;
+  entry.overrideColor=overrideColor;
+  entry.color=color;
+  entry.wireframeMode=wireframeMode;
 
   return entry;
 }
 
 RenderEntryTexturedMeshInstanced MakeRenderEntryTexturedMeshInstanced(
-    u32 VAO,
-    u32 triangleCount,
-    u32 instanceCount,
-    const glm::mat4& transform,
-    Shader shader,
-    Texture* texture,
-    Texture* shadowMap,
-    bool overrideColor,
-    glm::vec3 color,
-    bool wireframeMode) {
+  u32 VAO,
+  u32 triangleCount,
+  u32 instanceCount,
+  const glm::mat4 &transform,
+  Shader shader,
+  Texture *texture,
+  Texture *shadowMap,
+  bool overrideColor,
+  glm::vec3 color,
+  bool wireframeMode) {
   RenderEntryTexturedMeshInstanced entry;
 
-  entry.VAO = VAO;
-  entry.triangleCount = triangleCount;
-  entry.instanceCount = instanceCount;
-  entry.transform = transform;
-  entry.shader = shader;
-  entry.texture = texture;
-  entry.shadowMap = shadowMap;
-  entry.overrideColor = overrideColor;
-  entry.color = color;
-  entry.wireframeMode = wireframeMode;
+  entry.VAO=VAO;
+  entry.triangleCount=triangleCount;
+  entry.instanceCount=instanceCount;
+  entry.transform=transform;
+  entry.shader=shader;
+  entry.texture=texture;
+  entry.shadowMap=shadowMap;
+  entry.overrideColor=overrideColor;
+  entry.color=color;
+  entry.wireframeMode=wireframeMode;
 
   return entry;
 }

@@ -1,6 +1,6 @@
 #include "Items.h"
 
-ItemInfo itemInfoTable[(int)ItemType::COUNT] = {
+ItemInfo itemInfoTable[(int)ItemType::COUNT]={
     {"None", ItemType::None, BlockType::btAir, uiNone, 1},
     {"Ground block", ItemType::GroundBlock, BlockType::btGround, uiGroundBlock,
      1},
@@ -28,32 +28,32 @@ ItemInfo itemInfoTable[(int)ItemType::COUNT] = {
      {ItemType::StoneBlock, ItemType::StoneBlock, ItemType::WoodBlock}},
 };
 
-BlockInfo blockInfoTable[(int)BlockType::btCOUNT] = {
-    {.itemType = ItemType::None, .textureID = TextureID::tidAir, .hardness = 0},
-    {.itemType = ItemType::GroundBlock,
-     .textureID = TextureID::tidGround,
-     .hardness = 0.5},
-    {.itemType = ItemType::StoneBlock,
-     .textureID = TextureID::tidStone,
-     .hardness = 1},
-    {.itemType = ItemType::SnowBlock,
-     .textureID = TextureID::tidSnow,
-     .hardness = 0.5},
-    {.itemType = ItemType::IronOreBlock,
-     .textureID = TextureID::tidIronOre,
-     .hardness = 1},
-    {.itemType = ItemType::WoodBlock,
-     .textureID = TextureID::tidWood,
-     .hardness = 1},
-    {.itemType = ItemType::LeavesBlock,
-     .textureID = TextureID::tidLeaves,
-     .hardness = 0.25},
+BlockInfo blockInfoTable[(int)BlockType::btCOUNT]={
+    {.itemType=ItemType::None, .textureID=TextureID::tidAir, .hardness=0},
+    {.itemType=ItemType::GroundBlock,
+     .textureID=TextureID::tidGround,
+     .hardness=0.5},
+    {.itemType=ItemType::StoneBlock,
+     .textureID=TextureID::tidStone,
+     .hardness=1},
+    {.itemType=ItemType::SnowBlock,
+     .textureID=TextureID::tidSnow,
+     .hardness=0.5},
+    {.itemType=ItemType::IronOreBlock,
+     .textureID=TextureID::tidIronOre,
+     .hardness=1},
+    {.itemType=ItemType::WoodBlock,
+     .textureID=TextureID::tidWood,
+     .hardness=1},
+    {.itemType=ItemType::LeavesBlock,
+     .textureID=TextureID::tidLeaves,
+     .hardness=0.25},
 };
 
-const ItemInfo* GetItemInfo(ItemType item) {
+const ItemInfo *GetItemInfo(ItemType item) {
   return &itemInfoTable[(int)item];
 }
 
-const BlockInfo* GetBlockInfo(BlockType item) {
+const BlockInfo *GetBlockInfo(BlockType item) {
   return &blockInfoTable[(int)item];
 }

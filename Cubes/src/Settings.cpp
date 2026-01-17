@@ -1,16 +1,16 @@
 #include "Settings.h"
 #include "Files.h"
 
-void SettingsCreateDefault(Settings* settings) {
-  settings->FOV = 90;
-  settings->renderDistance = 10;
-  settings->antiAliasingQuality = 4;
-  settings->shadowQuality = 12;
-  settings->vsync = true;
+void SettingsCreateDefault(Settings *settings) {
+  settings->FOV=90;
+  settings->renderDistance=10;
+  settings->antiAliasingQuality=4;
+  settings->shadowQuality=12;
+  settings->vsync=true;
 }
 
-void SettingsSave(Settings* settings) {
-  FILE* fileStream = fopen(SettingsPath, "wb");
+void SettingsSave(Settings *settings) {
+  FILE *fileStream=fopen(SettingsPath, "wb");
   if (!fileStream)
     return;
 
@@ -22,8 +22,8 @@ void SettingsSave(Settings* settings) {
   fclose(fileStream);
 }
 
-void SettingsLoad(Settings* settings) {
-  FILE* fileStream = fopen(SettingsPath, "rb");
+void SettingsLoad(Settings *settings) {
+  FILE *fileStream=fopen(SettingsPath, "rb");
   if (!fileStream) {
     SettingsCreateDefault(settings);
     SettingsSave(settings);

@@ -21,16 +21,16 @@
 
 // TDOO: перенести глобальные переменные
 
-FrameBufferInfo* fbInfo;
+FrameBufferInfo *fbInfo;
 
-bool g_DebugView = false;
-bool g_RenderWireframe = false;
-bool g_ShowDebugInfo = true;
+bool g_DebugView=false;
+bool g_RenderWireframe=false;
+bool g_ShowDebugInfo=true;
 
-bool g_UpdateSun = true;
-bool g_GenChunks = true;
+bool g_UpdateSun=true;
+bool g_GenChunks=true;
 
-const int g_maxInteractionDistance = 12;
+const int g_maxInteractionDistance=12;
 
 const glm::vec3 g_WorldUp(0, 1, 0);
 
@@ -45,8 +45,8 @@ struct {
   Sprite sunSprite, moonSprite;
   FrameBuffer depthMapFBO;
   FrameBuffer screenFBO,
-      intermediateFBO;  // рендерим в screenFBO с MSAA, копируем результат в
-                        // intermediateFBO и делаем постобработку
+    intermediateFBO;  // рендерим в screenFBO с MSAA, копируем результат в
+  // intermediateFBO и делаем постобработку
   Font *bigFont, *regularFont;
 } Assets;
 
@@ -68,21 +68,21 @@ void InitShadowMapBuffer(u32 size) {
   Renderer::CreateDepthMapFrameBuffer(&Assets.depthMapFBO, size);
 }
 
-void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input);
-void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input);
-void RenderGame(GameState* gameState, GameMemory* memory, Input* input);
+void RenderMainMenu(GameMemory *memory, GameState *gameState, Input *input);
+void RenderPauseMenu(GameMemory *memory, GameState *gameState, Input *input);
+void RenderGame(GameState *gameState, GameMemory *memory, Input *input);
 
-void GameInit(GameState* gameState, GameMemory* memory) {
+void GameInit(GameState *gameState, GameMemory *memory) {
   dbgprint("GL VERSION %s\n", glGetString(GL_VERSION));
 
   UI::Init();
 
   // загрузка шрифтов
-  Assets.regularFont = loadFont(memory, FONT_FOLDER "DigitalPixel.otf", 25);
-  Assets.bigFont = loadFont(memory, FONT_FOLDER "DigitalPixel.otf", 50);
+  Assets.regularFont=loadFont(memory, FONT_FOLDER "DigitalPixel.otf", 25);
+  Assets.bigFont=loadFont(memory, FONT_FOLDER "DigitalPixel.otf", 50);
 
   {
-    Vertex boxVerts[] = {
+    Vertex boxVerts[]={
         Vertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
         Vertex(1.0f, 0.0f, 0.0f, 1.0f, 0.0f),
         Vertex(1.0f, 1.0f, 0.0f, 1.0f, 1.0f),
@@ -93,58 +93,58 @@ void GameInit(GameState* gameState, GameMemory* memory) {
         Vertex(1.0f, 1.0f, 1.0f, 1.0f, 0.0f),
         Vertex(0.0f, 1.0f, 1.0f, 0.0f, 0.0f),
     };
-    for (size_t i = 0; i < 8; i++) {
-      boxVerts[i].normal = {0, 1, 0};
+    for (size_t i=0; i < 8; i++) {
+      boxVerts[i].normal={0, 1, 0};
     }
-    Triangle boxTris[] = {
+    Triangle boxTris[]={
         Triangle(0, 2, 1), Triangle(0, 3, 2), Triangle(4, 5, 7),
         Triangle(5, 6, 7), Triangle(0, 4, 3), Triangle(4, 7, 3),
         Triangle(1, 2, 6), Triangle(1, 6, 5), Triangle(2, 3, 6),
         Triangle(3, 7, 6), Triangle(0, 1, 4), Triangle(1, 5, 4)};
-    Assets.defaultBox = Renderer::CreateGeometry(boxVerts, 8, boxTris, 12);
+    Assets.defaultBox=Renderer::CreateGeometry(boxVerts, 8, boxTris, 12);
 
-    Vertex quadVerts[] = {
+    Vertex quadVerts[]={
         Vertex(0, 0, 0, 0, 0),
         Vertex(1, 0, 0, 1, 0),
         Vertex(1, 1, 0, 1, 1),
         Vertex(0, 1, 0, 0, 1),
     };
-    Triangle quadTris[] = {Triangle(0, 1, 2), Triangle(0, 2, 3)};
-    Assets.defaultQuad = Renderer::CreateGeometry(quadVerts, 4, quadTris, 2);
+    Triangle quadTris[]={Triangle(0, 1, 2), Triangle(0, 2, 3)};
+    Assets.defaultQuad=Renderer::CreateGeometry(quadVerts, 4, quadTris, 2);
 
-    UV sunUV = GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidSun,
-                              {16, 16});
-    UV moonUV = GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidMoon,
-                               {16, 16});
-    Assets.sunSprite = createSprite(1, 1, sunUV);
-    Assets.moonSprite = createSprite(1, 1, moonUV);
+    UV sunUV=GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidSun,
+                            {16, 16});
+    UV moonUV=GetUVFromAtlas(GetTexture(TextureAssetID::EnvTexture), tidMoon,
+                             {16, 16});
+    Assets.sunSprite=createSprite(1, 1, sunUV);
+    Assets.moonSprite=createSprite(1, 1, moonUV);
   }
 
   {
-    Vertex vertices[] = {
+    Vertex vertices[]={
         Vertex(-1, -1, 0, 0, 0),
         Vertex(1, -1, 0, 1, 0),
         Vertex(1, 1, 0, 1, 1),
         Vertex(-1, 1, 0, 0, 1),
     };
-    Triangle triangles[] = {Triangle(0, 1, 2), Triangle(0, 2, 3)};
+    Triangle triangles[]={Triangle(0, 1, 2), Triangle(0, 2, 3)};
 
-    Assets.screenQuad = Renderer::CreateGeometry(vertices, 4, triangles, 2);
+    Assets.screenQuad=Renderer::CreateGeometry(vertices, 4, triangles, 2);
   }
 
   {
     Entity entity;
-    entity.type = entityZombie;
-    entity.state = entityStateIdle;
-    entity.pos = {0, CHUNK_SY - 2, 0};
+    entity.type=entityZombie;
+    entity.state=entityStateIdle;
+    entity.pos={0, CHUNK_SY - 2, 0};
     gameState->entities.append(entity);
 
-    entity.type = entityZombie;
-    entity.state = entityStateIdle;
-    entity.pos = {5, CHUNK_SY - 2, 5};
+    entity.type=entityZombie;
+    entity.state=entityStateIdle;
+    entity.pos={5, CHUNK_SY - 2, 5};
     gameState->entities.append(entity);
 
-    entity.pos = {-15, CHUNK_SY - 2, -15};
+    entity.pos={-15, CHUNK_SY - 2, -15};
     gameState->entities.append(entity);
   }
 
@@ -161,10 +161,10 @@ void GameExit() {
 }
 
 // time - врем€ в секундах
-void GameUpdateAndRender(GameMemory* memory,
+void GameUpdateAndRender(GameMemory *memory,
                          float time,
-                         Input* input,
-                         FrameBufferInfo* frameBufferInfo) {
+                         Input *input,
+                         FrameBufferInfo *frameBufferInfo) {
   Renderer::Begin(&memory->tempStorage);
 
   //
@@ -172,39 +172,39 @@ void GameUpdateAndRender(GameMemory* memory,
   //
 
   if (!memory->isInitialized) {
-    GameState* gameState = ArenaPushStruct(&memory->permStorage, GameState);
+    GameState *gameState=ArenaPushStruct(&memory->permStorage, GameState);
 
-    gameState->time = time;
+    gameState->time=time;
 
     Settings settings;
     SettingsLoad(&settings);
-    gameState->shadowQuality = settings.shadowQuality;
-    gameState->AASamplesCount = settings.antiAliasingQuality;
+    gameState->shadowQuality=settings.shadowQuality;
+    gameState->AASamplesCount=settings.antiAliasingQuality;
     SetVsync(settings.vsync);
 
     gameState->entities.alloc(&memory->permStorage, 1024);
     gameState->droppedItems.alloc(&memory->permStorage, 1024);
 
-    gameState->nearPlane = 0.1;
-    gameState->farPlane = 1000;
+    gameState->nearPlane=0.1;
+    gameState->farPlane=1000;
 
-    gameState->shadowRenderDistance = 128;
-    gameState->shadowLightDistance = 128;
+    gameState->shadowRenderDistance=128;
+    gameState->shadowLightDistance=128;
 
     GameInit(gameState, memory);
-    gameState->status = gsMainMenu;
+    gameState->status=gsMainMenu;
 
-    memory->isInitialized = true;
+    memory->isInitialized=true;
   }
 
-  GameState* gameState = (GameState*)memory->permStorage.mem;
+  GameState *gameState=(GameState *)memory->permStorage.mem;
 
-  gameState->deltaTime =
-      time - gameState->time;  // текущее врем€ - предыдущее врем€
-  gameState->time = time;
+  gameState->deltaTime=
+    time - gameState->time;  // текущее врем€ - предыдущее врем€
+  gameState->time=time;
 
-  fbInfo = frameBufferInfo;
-  static FrameBufferInfo lastFBInfo = {0};
+  fbInfo=frameBufferInfo;
+  static FrameBufferInfo lastFBInfo={0};
   if (lastFBInfo.sizeX != frameBufferInfo->sizeX ||
       lastFBInfo.sizeY != frameBufferInfo->sizeY) {
     InitFramebuffers(frameBufferInfo->sizeX, frameBufferInfo->sizeY,
@@ -217,20 +217,20 @@ void GameUpdateAndRender(GameMemory* memory,
   // }
   if (ButtonClicked(input->switchExitMenu)) {
     if (gameState->status == gsInGame)
-      gameState->status = gsExitMenu;
+      gameState->status=gsExitMenu;
     else if (gameState->status == gsExitMenu) {
       // save settings to file
       {
         Settings settings;
-        settings.FOV = g_gameWorld.player.camera.FOV;
-        settings.shadowQuality = gameState->shadowQuality;
-        settings.renderDistance = GetRenderDistance(g_chunkManager.chunksCount);
-        settings.antiAliasingQuality = gameState->AASamplesCount;
-        settings.vsync = GetVsync();
+        settings.FOV=g_gameWorld.player.camera.FOV;
+        settings.shadowQuality=gameState->shadowQuality;
+        settings.renderDistance=GetRenderDistance(g_chunkManager.chunksCount);
+        settings.antiAliasingQuality=gameState->AASamplesCount;
+        settings.vsync=GetVsync();
         SettingsSave(&settings);
       }
 
-      gameState->status = gsInGame;
+      gameState->status=gsInGame;
     }
   }
   if (ButtonClicked(input->switchFullscreenMode)) {
@@ -249,7 +249,7 @@ void GameUpdateAndRender(GameMemory* memory,
     dbgprint("Shaders rebuild done!\n");
   }
   if (ButtonClicked(input->showDebugInfo)) {
-    g_ShowDebugInfo = !g_ShowDebugInfo;
+    g_ShowDebugInfo=!g_ShowDebugInfo;
   }
 
   switch (gameState->status) {
@@ -270,7 +270,7 @@ void GameUpdateAndRender(GameMemory* memory,
   // отрисовываем его самосто€тельно
   if (gameState->status == gsMainMenu || gameState->status == gsExitMenu) {
     UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
-    double xpos = 0, ypos = 0;
+    double xpos=0, ypos=0;
     GetCursorPos(&xpos, &ypos);
     UI::SetOrigin(xpos, fbInfo->sizeY - ypos);
     UI::DrawElement(GetTexture(TextureAssetID::UITexture), glm::vec3(0, 0, 0),
@@ -279,9 +279,11 @@ void GameUpdateAndRender(GameMemory* memory,
   }
 }
 
-void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
-  enum class MainMenuStatus { Main, SelectWorld };
-  static MainMenuStatus menuStatus = MainMenuStatus::Main;
+void RenderMainMenu(GameMemory *memory, GameState *gameState, Input *input) {
+  enum class MainMenuStatus {
+    Main, SelectWorld
+  };
+  static MainMenuStatus menuStatus=MainMenuStatus::Main;
 
   Renderer::Clear(0.6, 0.6, 0.6);
 
@@ -290,35 +292,37 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
   UI::SetAdvanceMode(AdvanceMode::Down);
 
   switch (menuStatus) {
-    case MainMenuStatus::Main: {
+    case MainMenuStatus::Main:
+    {
       if (UI::Button("Start game", {0, 0}, true)) {
-        menuStatus = MainMenuStatus::SelectWorld;
+        menuStatus=MainMenuStatus::SelectWorld;
       }
     } break;
-    case MainMenuStatus::SelectWorld: {
-      static DynamicArray<GameWorldInfo> worldsList = {0};
-      static bool updateWorldsList = true;
+    case MainMenuStatus::SelectWorld:
+    {
+      static DynamicArray<GameWorldInfo> worldsList={0};
+      static bool updateWorldsList=true;
       if (updateWorldsList) {
-        updateWorldsList = false;
+        updateWorldsList=false;
         worldsList.clear();
         EnumerateWorlds(&worldsList);
       }
       if (UI::Button("Update", {0, 0}, true)) {
-        updateWorldsList = true;
+        updateWorldsList=true;
       }
 
-      auto StartGame = [](GameMemory* memory, GameState* gameState,
-                          GameWorldInfo* worldInfo) {
+      auto StartGame=[](GameMemory *memory, GameState *gameState,
+                        GameWorldInfo *worldInfo) {
         Settings settings;
         SettingsLoad(&settings);
 
-        Player& player = g_gameWorld.player;
-        player.camera.pos = glm::vec3(8, 30, 8);
-        player.camera.front = glm::vec3(0, 0, -1);
-        player.camera.up = g_WorldUp;
-        player.camera.FOV = settings.FOV;
-        player.maxSpeed = 15;
-        player.inventory = InventoryCreate();
+        Player &player=g_gameWorld.player;
+        player.camera.pos=glm::vec3(8, 30, 8);
+        player.camera.front=glm::vec3(0, 0, -1);
+        player.camera.up=g_WorldUp;
+        player.camera.FOV=settings.FOV;
+        player.maxSpeed=15;
+        player.inventory=InventoryCreate();
 #if _DEBUG
         InventoryAddItem(&player.inventory, ItemType::GroundBlock, 64);
         InventoryAddItem(&player.inventory, ItemType::StoneBlock, 64);
@@ -328,11 +332,11 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
 
         g_gameWorld.init(memory, worldInfo, settings.renderDistance);
 
-        gameState->status = gsInGame;
+        gameState->status=gsInGame;
       };
 
       // load existing world
-      for (size_t i = 0; i < worldsList.count; i++) {
+      for (size_t i=0; i < worldsList.count; i++) {
         if (UI::Button(worldsList[i].name, {0, 0}, true)) {
           StartGame(memory, gameState, &worldsList.items[i]);
         }
@@ -341,14 +345,14 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
       // create new world
       if (UI::Button("Start new world", {0, 0}, true)) {
         GameWorldInfo worldInfo;
-        worldInfo.seed = 0;
+        worldInfo.seed=0;
 
         // find name for new world
         {
           char worldPath[256];
-          const char* newWorldNameBase = "New World";
+          const char *newWorldNameBase="New World";
 
-          int i = 1;
+          int i=1;
           do {
             sprintf(worldInfo.name, "%s %d", newWorldNameBase, i);
             GetWorldPath(worldPath, worldInfo.name);
@@ -367,35 +371,39 @@ void RenderMainMenu(GameMemory* memory, GameState* gameState, Input* input) {
   UI::End();
 }
 
-void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
-  enum class PauseMenuState { MainMenu, SettingsMenu };
-  static PauseMenuState menuState = PauseMenuState::MainMenu;
+void RenderPauseMenu(GameMemory *memory, GameState *gameState, Input *input) {
+  enum class PauseMenuState {
+    MainMenu, SettingsMenu
+  };
+  static PauseMenuState menuState=PauseMenuState::MainMenu;
 
   Renderer::Clear(0.6, 0.6, 0.6);
 
   UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
   UI::SetAdvanceMode(AdvanceMode::Down);
-  float elemWidth = 400;
+  float elemWidth=400;
 
   switch (menuState) {
-    case PauseMenuState::MainMenu: {
+    case PauseMenuState::MainMenu:
+    {
       UI::SetAnchor(uiAnchor::Center, 0);
       if (UI::Button("Return", glm::vec2(elemWidth, 0), true)) {
-        gameState->status = gsInGame;
+        gameState->status=gsInGame;
       }
       if (UI::Button("Settings", glm::vec2(elemWidth, 0), true)) {
-        menuState = PauseMenuState::SettingsMenu;
+        menuState=PauseMenuState::SettingsMenu;
       }
       if (UI::Button("Exit", glm::vec2(elemWidth, 0), true)) {
         GameExit();
       }
     } break;
-    case PauseMenuState::SettingsMenu: {
+    case PauseMenuState::SettingsMenu:
+    {
       UI::SetAnchor(uiAnchor::Center, 0);
       UI::ShiftOrigin(-elemWidth / 2, 400);
 
-      bool fullScreen =
-          (WindowGetCurrentMode() == WindowMode::WindowedFullScreen);
+      bool fullScreen=
+        (WindowGetCurrentMode() == WindowMode::WindowedFullScreen);
       if (UI::CheckBox("Fullscreen mode", &fullScreen)) {
         if (fullScreen)
           WindowSwitchMode(WindowMode::WindowedFullScreen);
@@ -406,9 +414,9 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
       UI::SliderFloat("FOV", &g_gameWorld.player.camera.FOV, 40, 120,
                       elemWidth);
 
-      int renderDistanceSlider = GetRenderDistance(g_chunkManager.chunksCount);
+      int renderDistanceSlider=GetRenderDistance(g_chunkManager.chunksCount);
       if (UI::SliderInt("Render distance", &renderDistanceSlider,
-                        MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE, elemWidth)) {
+          MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE, elemWidth)) {
         if (GetRenderDistance(g_chunkManager.chunksCount) !=
             renderDistanceSlider) {
           ChunkManagerReleaseChunks(memory, &g_chunkManager);
@@ -418,23 +426,23 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
       }
 
       if (UI::SliderInt("Shadow quality", &gameState->shadowQuality, 10, 14,
-                        elemWidth)) {
+          elemWidth)) {
         InitShadowMapBuffer(pow(2, gameState->shadowQuality));
       }
 
       if (UI::SliderInt("Anti Aliasing quality", &gameState->AASamplesCount, 1,
-                        Renderer::GetMaxAASamples(), elemWidth)) {
+          Renderer::GetMaxAASamples(), elemWidth)) {
         InitFramebuffers(fbInfo->sizeX, fbInfo->sizeY,
                          gameState->AASamplesCount);
       }
 
       UI::CheckBox("Update sun", &g_UpdateSun);
       if (!g_UpdateSun) {
-        static float sunSlider = 0;
+        static float sunSlider=0;
         UI::SliderFloat("Sun direction", &sunSlider, -2, 2);
-        gameState->sunDirection.x = cos(sunSlider);
-        gameState->sunDirection.y = sin(sunSlider);
-        gameState->sunDirection.z = 0;
+        gameState->sunDirection.x=cos(sunSlider);
+        gameState->sunDirection.y=sin(sunSlider);
+        gameState->sunDirection.z=0;
       }
 
       UI::CheckBox("Wireframe mode", &g_RenderWireframe);
@@ -443,13 +451,13 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
       UI::CheckBox("Debug info", &g_ShowDebugInfo);
       UI::CheckBox("Generate chunks", &g_GenChunks);
 
-      bool vsyncOn = GetVsync();
+      bool vsyncOn=GetVsync();
       if (UI::CheckBox("Vsync", &vsyncOn)) {
         SetVsync(vsyncOn);
       }
 
       if (UI::Button("Back", glm::vec2(elemWidth, 0))) {
-        menuState = PauseMenuState::MainMenu;
+        menuState=PauseMenuState::MainMenu;
       }
     } break;
     default:
@@ -459,8 +467,8 @@ void RenderPauseMenu(GameMemory* memory, GameState* gameState, Input* input) {
   UI::End();
 }
 
-void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
-  Player& player = g_gameWorld.player;
+void RenderGame(GameState *gameState, GameMemory *memory, Input *input) {
+  Player &player=g_gameWorld.player;
 
   if (gameState->inventoryOpened)
     SetCursorMode(true);
@@ -469,131 +477,130 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
   // update player rotation
   if (!gameState->inventoryOpened) {
-    static float lastX = 0, lastY = 0;  // позици€ курсора
-    static float yaw = 0, pitch = 0;
-    static const float sensitivity = 0.1f;  // TODO: перенести в настройки
+    static float lastX=0, lastY=0;  // позици€ курсора
+    static float yaw=0, pitch=0;
+    static const float sensitivity=0.1f;  // TODO: перенести в настройки
 
     double xpos, ypos;
     GetCursorPos(&xpos, &ypos);
 
-    float xoffset = xpos - lastX;
-    float yoffset =
-        lastY - ypos;  // reversed since y-coordinates range from bottom to top
-    lastX = xpos;
-    lastY = ypos;
+    float xoffset=xpos - lastX;
+    float yoffset=
+      lastY - ypos;  // reversed since y-coordinates range from bottom to top
+    lastX=xpos;
+    lastY=ypos;
 
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
+    xoffset*=sensitivity;
+    yoffset*=sensitivity;
 
-    yaw += xoffset;
-    pitch += yoffset;
+    yaw+=xoffset;
+    pitch+=yoffset;
 
     if (pitch > 89.0f)
-      pitch = 89.0f;
+      pitch=89.0f;
     if (pitch < -89.0f)
-      pitch = -89.0f;
+      pitch=-89.0f;
 
     // update player camera
     glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    player.camera.front = glm::normalize(direction);
+    direction.x=cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y=sin(glm::radians(pitch));
+    direction.z=sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    player.camera.front=glm::normalize(direction);
 
-    glm::vec3 right = -glm::cross(player.camera.front, g_WorldUp);
-    player.camera.up = glm::cross(player.camera.front, right);
+    glm::vec3 right=-glm::cross(player.camera.front, g_WorldUp);
+    player.camera.up=glm::cross(player.camera.front, right);
   }
 
   // update player pos
   {
-    float cameraSpeedAdj =
-        player.maxSpeed *
-        gameState->deltaTime;  // делаем скорость камеры независимой от FPS
-    float jumpSpeedAdj = 100 * gameState->deltaTime;
-    static bool flyMode = true;
+    float cameraSpeedAdj=
+      player.maxSpeed *
+      gameState->deltaTime;  // делаем скорость камеры независимой от FPS
+    float jumpSpeedAdj=100 * gameState->deltaTime;
+    static bool flyMode=true;
     if (flyMode) {
       if (ButtonHeldDown(input->forward))
-        player.speedVector +=
-            cameraSpeedAdj *
-            glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
+        player.speedVector+=
+        cameraSpeedAdj *
+        glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
       if (ButtonHeldDown(input->backwards))
-        player.speedVector -=
-            cameraSpeedAdj *
-            glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
+        player.speedVector-=
+        cameraSpeedAdj *
+        glm::normalize(player.camera.front * glm::vec3(1, 0, 1));
       if (ButtonHeldDown(input->left))
-        player.speedVector -=
-            glm::normalize(glm::cross(
-                glm::normalize(player.camera.front * glm::vec3(1, 0, 1)),
-                player.camera.up)) *
-            cameraSpeedAdj;
+        player.speedVector-=
+        glm::normalize(glm::cross(
+        glm::normalize(player.camera.front * glm::vec3(1, 0, 1)),
+        player.camera.up)) *
+        cameraSpeedAdj;
       ;
       if (ButtonHeldDown(input->right))
-        player.speedVector +=
-            glm::normalize(glm::cross(
-                glm::normalize(player.camera.front * glm::vec3(1, 0, 1)),
-                player.camera.up)) *
-            cameraSpeedAdj;
+        player.speedVector+=
+        glm::normalize(glm::cross(
+        glm::normalize(player.camera.front * glm::vec3(1, 0, 1)),
+        player.camera.up)) *
+        cameraSpeedAdj;
 
       if (ButtonHeldDown(input->up))
-        player.speedVector += cameraSpeedAdj * g_WorldUp;
+        player.speedVector+=cameraSpeedAdj * g_WorldUp;
       if (ButtonHeldDown(input->down))
-        player.speedVector -= cameraSpeedAdj * g_WorldUp;
+        player.speedVector-=cameraSpeedAdj * g_WorldUp;
     } else {
       if (ButtonHeldDown(input->forward))
-        player.speedVector +=
-            cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
+        player.speedVector+=
+        cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
       if (ButtonHeldDown(input->backwards))
-        player.speedVector -=
-            cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
+        player.speedVector-=
+        cameraSpeedAdj * (player.camera.front * glm::vec3(1, 0, 1));
       if (ButtonHeldDown(input->left))
-        player.speedVector -=
-            glm::normalize(glm::cross(
-                (player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) *
-            cameraSpeedAdj;
+        player.speedVector-=
+        glm::normalize(glm::cross(
+        (player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) *
+        cameraSpeedAdj;
       ;
       if (ButtonHeldDown(input->right))
-        player.speedVector +=
-            glm::normalize(glm::cross(
-                (player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) *
-            cameraSpeedAdj;
+        player.speedVector+=
+        glm::normalize(glm::cross(
+        (player.camera.front * glm::vec3(1, 0, 1)), player.camera.up)) *
+        cameraSpeedAdj;
 
       if (ButtonClicked(input->up))
-        player.speedVector += jumpSpeedAdj * player.camera.up;
+        player.speedVector+=jumpSpeedAdj * player.camera.up;
     }
 
-    glm::vec3 prevPos = player.camera.pos;
-    player.camera.pos += player.speedVector;
-    player.speedVector *= 0.8;  // TODO: deltatime
+    glm::vec3 prevPos=player.camera.pos;
+    player.camera.pos+=player.speedVector;
+    player.speedVector*=0.8;  // TODO: deltatime
 
 #if 0
-		// gravity, ground collision
-		player.camera.pos.y -= 20 * gameState->deltaTime; // gravity
-		Block *block1, *block2;
-		//do {
-		//	belowBlock = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
-		//	if (belowBlock && belowBlock->type != BlockType::btAir)
-		//		player.camera.pos.y = (int)player.camera.pos.y + 1;
-		//	else
-		//		break;
-		//} while (belowBlock);
-		block1 = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
-		block2 = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 1, player.camera.pos.z);
-			
-		if ((block1 && block1->type != BlockType::btAir) ||
-			(block2 && block2->type != BlockType::btAir)) 
-		{
-			player.camera.pos = { prevPos.x, floor(prevPos.y) + 0.01, prevPos.z };
-		}
+    // gravity, ground collision
+    player.camera.pos.y-=20 * gameState->deltaTime; // gravity
+    Block *block1, *block2;
+    //do {
+    //	belowBlock = ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
+    //	if (belowBlock && belowBlock->type != BlockType::btAir)
+    //		player.camera.pos.y = (int)player.camera.pos.y + 1;
+    //	else
+    //		break;
+    //} while (belowBlock);
+    block1=ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 2, player.camera.pos.z);
+    block2=ChunkManagerPeekBlockFromPos(&g_chunkManager, player.camera.pos.x, player.camera.pos.y - 1, player.camera.pos.z);
+
+    if ((block1 && block1->type != BlockType::btAir) ||
+        (block2 && block2->type != BlockType::btAir)) {
+      player.camera.pos={prevPos.x, floor(prevPos.y) + 0.01, prevPos.z};
+    }
 #endif
   }
 
   // player inventory
   {
     if (ButtonClicked(input->openInventory)) {
-      gameState->inventoryOpened = !gameState->inventoryOpened;
+      gameState->inventoryOpened=!gameState->inventoryOpened;
     }
 
-    for (size_t i = 0; i < INVENTORY_MAX_SIZE; i++) {
+    for (size_t i=0; i < INVENTORY_MAX_SIZE; i++) {
       if (ButtonClicked(input->inventorySlots[i])) {
         InventorySelectItem(&player.inventory, i);
       }
@@ -610,15 +617,15 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   }
 
   // collect dropped items
-  float collectRadius = 3;
-  for (size_t i = 0; i < gameState->droppedItems.count; i++) {
-    Item* item = &gameState->droppedItems[i];
+  float collectRadius=3;
+  for (size_t i=0; i < gameState->droppedItems.count; i++) {
+    Item *item=&gameState->droppedItems[i];
     if (item->count < 1)
       continue;
 
     if (glm::distance(player.camera.pos, item->pos) < collectRadius) {
       InventoryAddItem(&player.inventory, item->type, item->count);
-      item->count = 0;
+      item->count=0;
     }
   }
 
@@ -627,48 +634,48 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   SceneLighting lighting;
   glm::vec3 moonDir;
   {
-    float sunSpeed = 0.05;
+    float sunSpeed=0.05;
     glm::vec3 sunColor(1, 0.9, 0.8);
     glm::vec3 moonColor(0.6, 0.6, 0.9);
     glm::vec3 skyColor(0.4, 0.4, 0.8);
 
     if (g_UpdateSun) {
-      gameState->sunDirection.x = cos((gameState->time + 10) * sunSpeed);
-      gameState->sunDirection.y = sin((gameState->time + 10) * sunSpeed);
-      gameState->sunDirection.z = 0;
+      gameState->sunDirection.x=cos((gameState->time + 10) * sunSpeed);
+      gameState->sunDirection.y=sin((gameState->time + 10) * sunSpeed);
+      gameState->sunDirection.z=0;
     }
 
-    moonDir = -gameState->sunDirection;
+    moonDir=-gameState->sunDirection;
 
     // если день
     if (gameState->sunDirection.y > 0) {
-      float sunIntencity = glm::max(gameState->sunDirection.y, 0.0f);
-      lighting.ambientLightColor = skyColor * glm::max(sunIntencity, 0.2f);
-      lighting.directLightColor = sunColor * sunIntencity;
+      float sunIntencity=glm::max(gameState->sunDirection.y, 0.0f);
+      lighting.ambientLightColor=skyColor * glm::max(sunIntencity, 0.2f);
+      lighting.directLightColor=sunColor * sunIntencity;
 
-      lighting.directLightDirection = gameState->sunDirection;
+      lighting.directLightDirection=gameState->sunDirection;
     }
     // если ночь
     else {
-      float moonIntencity = glm::max(moonDir.y, 0.0f) * 0.3;
-      lighting.directLightColor = moonColor * moonIntencity;
-      lighting.ambientLightColor = skyColor * glm::max(moonIntencity, 0.2f);
+      float moonIntencity=glm::max(moonDir.y, 0.0f) * 0.3;
+      lighting.directLightColor=moonColor * moonIntencity;
+      lighting.ambientLightColor=skyColor * glm::max(moonIntencity, 0.2f);
 
-      lighting.directLightDirection = moonDir;
+      lighting.directLightDirection=moonDir;
     }
   }
 
-  Frustum frustum =
-      FrustumCreate(player.camera.pos, player.camera.front, player.camera.up,
-                    (float)fbInfo->sizeX / fbInfo->sizeY, player.camera.FOV,
-                    gameState->nearPlane, gameState->farPlane);
+  Frustum frustum=
+    FrustumCreate(player.camera.pos, player.camera.front, player.camera.up,
+                  (float)fbInfo->sizeX / fbInfo->sizeY, player.camera.FOV,
+                  gameState->nearPlane, gameState->farPlane);
 
-  int currentChunkPosX = (int)(player.camera.pos.x / CHUNK_SX) * CHUNK_SX;
-  int currentChunkPosZ = (int)(player.camera.pos.z / CHUNK_SZ) * CHUNK_SZ;
+  int currentChunkPosX=(int)(player.camera.pos.x / CHUNK_SX) * CHUNK_SX;
+  int currentChunkPosZ=(int)(player.camera.pos.z / CHUNK_SZ) * CHUNK_SZ;
   if (player.camera.pos.x < 0)
-    currentChunkPosX -= CHUNK_SX;
+    currentChunkPosX-=CHUNK_SX;
   if (player.camera.pos.z < 0)
-    currentChunkPosZ -= CHUNK_SZ;
+    currentChunkPosZ-=CHUNK_SZ;
 
   if (g_GenChunks) {
     if (ButtonClicked(input->regenerateChunks)) {
@@ -690,13 +697,13 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
   // place block
   if (ButtonClicked(input->placeBlock)) {
-    InventoryCell* cell =
-        &player.inventory.cells[player.inventory.selectedIndex];
+    InventoryCell *cell=
+      &player.inventory.cells[player.inventory.selectedIndex];
     if (cell->itemsCount > 0) {
-      BlockType blockType = GetItemInfo(cell->itemType)->blockType;
-      auto res = ChunkManagerPlaceBlock(
-          &memory->tempStorage, &g_chunkManager, blockType, player.camera.pos,
-          player.camera.front, g_maxInteractionDistance);
+      BlockType blockType=GetItemInfo(cell->itemType)->blockType;
+      auto res=ChunkManagerPlaceBlock(
+        &memory->tempStorage, &g_chunkManager, blockType, player.camera.pos,
+        player.camera.front, g_maxInteractionDistance);
       if (res.success) {
         InventoryDropItem(&player.inventory, player.inventory.selectedIndex, 1);
       }
@@ -705,84 +712,84 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // destroy block
   else if (ButtonHeldDown(input->attack)) {
     {
-      PeekBlockResult res = ChunkManagerPeekBlockFromRay(
-          &g_chunkManager, player.camera.pos, player.camera.front,
-          g_maxInteractionDistance);
+      PeekBlockResult res=ChunkManagerPeekBlockFromRay(
+        &g_chunkManager, player.camera.pos, player.camera.front,
+        g_maxInteractionDistance);
       if (res.success) {
         static glm::ivec3 lastBlokPos(0);
-        static float startTime = gameState->time;
-        glm::ivec3 blockPos = res.blockPos;
+        static float startTime=gameState->time;
+        glm::ivec3 blockPos=res.blockPos;
         if (blockPos == lastBlokPos) {
-          float blockHardness = GetBlockInfo(res.block->type)->hardness;
-          float itemDamage =
-              GetItemInfo(InventoryGetCurrentItem(&player.inventory).itemType)
-                  ->blockDamage;
-          float timeToDestroyBlock = blockHardness / itemDamage;
+          float blockHardness=GetBlockInfo(res.block->type)->hardness;
+          float itemDamage=
+            GetItemInfo(InventoryGetCurrentItem(&player.inventory).itemType)
+            ->blockDamage;
+          float timeToDestroyBlock=blockHardness / itemDamage;
 
           if (gameState->time - startTime > timeToDestroyBlock) {
-            PlaceBlockResult res = ChunkManagerDestroyBlock(
-                &memory->tempStorage, &g_chunkManager, player.camera.pos,
-                player.camera.front, g_maxInteractionDistance);
+            PlaceBlockResult res=ChunkManagerDestroyBlock(
+              &memory->tempStorage, &g_chunkManager, player.camera.pos,
+              player.camera.front, g_maxInteractionDistance);
             if (res.success) {
-              Item drop = {.pos = glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5,
+              Item drop={.pos=glm::vec3(res.pos.x + 0.5, res.pos.y + 0.5,
                                             res.pos.z + 0.5),
-                           .count = 1,
-                           .type = GetBlockInfo(res.typePrev)->itemType};
+                           .count=1,
+                           .type=GetBlockInfo(res.typePrev)->itemType};
               gameState->droppedItems.append(drop);
             }
-            startTime = gameState->time;
+            startTime=gameState->time;
           }
         } else {
-          startTime = gameState->time;
+          startTime=gameState->time;
         }
-        lastBlokPos = blockPos;
+        lastBlokPos=blockPos;
       }
     }
   }
 
   // update entities
-  for (size_t i = 0; i < gameState->entities.count; i++) {
-    Entity& entity = gameState->entities[i];
+  for (size_t i=0; i < gameState->entities.count; i++) {
+    Entity &entity=gameState->entities[i];
 
     if (entity.type == entityNull)
       continue;
 
     // gravity
-    entity.pos.y -= 5 * gameState->deltaTime;
-    entity.pos += entity.speed * gameState->deltaTime;
-    entity.speed *= 0.1;
-    Block* belowBlock;
+    entity.pos.y-=5 * gameState->deltaTime;
+    entity.pos+=entity.speed * gameState->deltaTime;
+    entity.speed*=0.1;
+    Block *belowBlock;
 #if 1
     do {
-      belowBlock = ChunkManagerPeekBlockFromPos(&g_chunkManager, entity.pos.x,
-                                                entity.pos.y, entity.pos.z);
+      belowBlock=ChunkManagerPeekBlockFromPos(&g_chunkManager, entity.pos.x,
+                                              entity.pos.y, entity.pos.z);
       if (belowBlock && belowBlock->type != BlockType::btAir)
-        entity.pos.y = (int)entity.pos.y + 1;
+        entity.pos.y=(int)entity.pos.y + 1;
       else
         break;
     } while (belowBlock);
 #endif
 
     if (glm::distance(entity.pos, player.camera.pos) < 16) {
-      entity.state = entityStateChasing;
+      entity.state=entityStateChasing;
     } else {
-      entity.state = entityStateIdle;
+      entity.state=entityStateIdle;
     }
 
     switch (gameState->entities[i].state) {
       case entityStateChasing:
-        glm::vec3 toPlayer =
-            (player.camera.pos - entity.pos) * glm::vec3(1, 0, 1);
+        glm::vec3 toPlayer=
+          (player.camera.pos - entity.pos) * glm::vec3(1, 0, 1);
         if (glm::length(toPlayer) > 0) {
-          gameState->entities[i].pos +=
-              glm::normalize(toPlayer) * 3.0f * gameState->deltaTime;
+          gameState->entities[i].pos+=
+            glm::normalize(toPlayer) * 3.0f * gameState->deltaTime;
 
-          glm::vec3 dir = glm::normalize(toPlayer);
-          float yaw = atan2f(dir.x, dir.z);
-          float pitch = asinf(-dir.y);
+          glm::vec3 dir=glm::normalize(toPlayer);
+          float yaw=atan2f(dir.x, dir.z);
+          float pitch=asinf(-dir.y);
 
-          gameState->entities[i].rot =
-              glm::degrees(glm::vec3(pitch, yaw, 0.0f));
+          gameState->entities[i].rot=
+            glm::degrees(glm::vec3(pitch, yaw, 0.0f));
         }
         break;
       case entityStateIdle:
@@ -808,106 +815,106 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // трансформаци€ вида (камера)
   glm::mat4 view, projection;
   {
-    view =
-        glm::lookAt(player.camera.pos, player.camera.pos + player.camera.front,
-                    player.camera.up);
+    view=
+      glm::lookAt(player.camera.pos, player.camera.pos + player.camera.front,
+                  player.camera.up);
 
     // матрица проекции (перспективна€/ортогональна€ проекци€)
-    projection = glm::mat4(1);
-    projection = glm::perspective(glm::radians(player.camera.FOV),
-                                  (float)fbInfo->sizeX / (float)fbInfo->sizeY,
-                                  gameState->nearPlane, gameState->farPlane);
+    projection=glm::mat4(1);
+    projection=glm::perspective(glm::radians(player.camera.FOV),
+                                (float)fbInfo->sizeX / (float)fbInfo->sizeY,
+                                gameState->nearPlane, gameState->farPlane);
   }
 
   // трансформаци€ тени
   glm::mat4 lightSpaceMatrix;
   {
-    glm::mat4 lightProjection = glm::ortho(
-        -gameState->shadowRenderDistance, gameState->shadowRenderDistance,
-        -gameState->shadowRenderDistance, gameState->shadowRenderDistance,
-        gameState->nearPlane, gameState->farPlane);
+    glm::mat4 lightProjection=glm::ortho(
+      -gameState->shadowRenderDistance, gameState->shadowRenderDistance,
+      -gameState->shadowRenderDistance, gameState->shadowRenderDistance,
+      gameState->nearPlane, gameState->farPlane);
 
-    glm::mat4 lightView = glm::lookAt(
-        gameState->shadowLightDistance * lighting.directLightDirection +
-            player.camera.pos * glm::vec3(1, 0, 1),
-        player.camera.pos * glm::vec3(1, 0, 1), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightView=glm::lookAt(
+      gameState->shadowLightDistance * lighting.directLightDirection +
+      player.camera.pos * glm::vec3(1, 0, 1),
+      player.camera.pos * glm::vec3(1, 0, 1), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    lightSpaceMatrix = lightProjection * lightView;
+    lightSpaceMatrix=lightProjection * lightView;
   }
 
   //
   // Get Shaders
   //
 
-  Shader polymeshShader = GetShader(ShaderAssetID::PolymeshShader);
-  Shader polymeshShadowShader = GetShader(ShaderAssetID::PolymeshShadowShader);
-  Shader cubeShader = GetShader(ShaderAssetID::CubeShader);
-  Shader cubeShadowShader = GetShader(ShaderAssetID::CubeShadowShader);
-  Shader spriteShader = GetShader(ShaderAssetID::SpriteShader);
+  Shader polymeshShader=GetShader(ShaderAssetID::PolymeshShader);
+  Shader polymeshShadowShader=GetShader(ShaderAssetID::PolymeshShadowShader);
+  Shader cubeShader=GetShader(ShaderAssetID::CubeShader);
+  Shader cubeShadowShader=GetShader(ShaderAssetID::CubeShadowShader);
+  Shader spriteShader=GetShader(ShaderAssetID::SpriteShader);
 
   //
   // Init Render Queue
   //
 
   RenderQueue renderQueue;
-  u64 renderQueueSize = Megabytes(5);
+  u64 renderQueueSize=Megabytes(5);
   RenderQueueInit(&renderQueue,
                   ArenaPush(&memory->tempStorage, renderQueueSize),
                   renderQueueSize, &Assets.screenFBO, &Assets.depthMapFBO);
   {
-    RenderEntryCamera cameraEntry = {
-        .frustum = frustum, .view = view, .projection = projection};
+    RenderEntryCamera cameraEntry={
+        .frustum=frustum, .view=view, .projection=projection};
     RenderQueuePush(&renderQueue, &cameraEntry);
   }
   {
-    RenderEntryLighting lightingEntry = {
-        .lightSpaceMatrix = lightSpaceMatrix,
-        .directLightDirection = lighting.directLightDirection,
-        .directLightColor = lighting.directLightColor,
-        .ambientLightColor = lighting.ambientLightColor};
+    RenderEntryLighting lightingEntry={
+        .lightSpaceMatrix=lightSpaceMatrix,
+        .directLightDirection=lighting.directLightDirection,
+        .directLightColor=lighting.directLightColor,
+        .ambientLightColor=lighting.ambientLightColor};
     RenderQueuePush(&renderQueue, &lightingEntry);
   }
 
   // TEST
   {
-    float epsilon = 1e-6;
+    float epsilon=1e-6;
 
-    auto RayIntersection = [](glm::vec3& rayOrigin, glm::vec3& rayDir,
-                              u32 plane, float planeOffset) -> glm::vec3 {
-      float epsilon = 1e-6;
+    auto RayIntersection=[](glm::vec3 &rayOrigin, glm::vec3 &rayDir,
+                            u32 plane, float planeOffset) -> glm::vec3 {
+      float epsilon=1e-6;
       if (plane > 2 || abs(rayDir[plane]) < epsilon) {
         return {0, 0, 0};
       }
 
-      float t = -(rayOrigin[plane] - planeOffset) / rayDir[plane];
-      glm::vec3 res = rayOrigin + (t * rayDir);
-      res[plane] = planeOffset;
+      float t=-(rayOrigin[plane] - planeOffset) / rayDir[plane];
+      glm::vec3 res=rayOrigin + (t * rayDir);
+      res[plane]=planeOffset;
 
       return res;
     };
 
-    glm::vec3& rayDir = player.camera.front;
-    glm::vec3& rayOrigin = player.camera.pos;
+    glm::vec3 &rayDir=player.camera.front;
+    glm::vec3 &rayOrigin=player.camera.pos;
 
-    for (size_t j = 0; j < 2; j++) {
-      for (size_t i = 0; i < 3; i++) {
-        glm::vec3 p = RayIntersection(rayOrigin, rayDir, i, j);
+    for (size_t j=0; j < 2; j++) {
+      for (size_t i=0; i < 3; i++) {
+        glm::vec3 p=RayIntersection(rayOrigin, rayDir, i, j);
         if (p.length() > 0) {
           if (p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1 && p.z >= 0 &&
               p.z <= 1) {
             glm::vec3 color(0.0f);
-            color[i] = 1;
+            color[i]=1;
 
             // draw
             {
               glm::mat4 model(1);
-              model = glm::translate(model, p);
-              model = glm::scale(model, {0.4, 0.4, 0.4});
-              model = glm::translate(model, {-.5, -.5, -.5});
+              model=glm::translate(model, p);
+              model=glm::scale(model, {0.4, 0.4, 0.4});
+              model=glm::translate(model, {-.5, -.5, -.5});
 
-              RenderEntryTexturedMesh entry = MakeRenderEntryTexturedMesh(
-                  Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
-                  polymeshShader, 0, 0, true, color);
+              RenderEntryTexturedMesh entry=MakeRenderEntryTexturedMesh(
+                Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
+                polymeshShader, 0, 0, true, color);
               RenderQueuePush(&renderQueue, &entry);
             }
           }
@@ -918,12 +925,12 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
     // cube
     if (false) {
       glm::mat4 model(1);
-      model = glm::translate(model, {0, 0, 0});
-      model = glm::scale(model, {1, 1, 1});
+      model=glm::translate(model, {0, 0, 0});
+      model=glm::scale(model, {1, 1, 1});
 
-      RenderEntryTexturedMesh entry = MakeRenderEntryTexturedMesh(
-          Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
-          polymeshShader, 0, 0, true, {0.5, 0.5, 0.5});
+      RenderEntryTexturedMesh entry=MakeRenderEntryTexturedMesh(
+        Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
+        polymeshShader, 0, 0, true, {0.5, 0.5, 0.5});
       RenderQueuePush(&renderQueue, &entry);
     }
 
@@ -935,7 +942,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // TEST
 
   // draw chunks & entities
-  u32 renderCommandsExecuted = 0;
+  u32 renderCommandsExecuted=0;
   {
     // draw shadows
     // Renderer::BindFrameBuffer(&Assets.depthMapFBO);
@@ -951,23 +958,23 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
     // draw entities
     {
-      Geometry* mesh = GetMesh(MeshAssetID::EntityMesh);
-      Texture* texture = GetTexture(TextureAssetID::EntityTexture);
+      Geometry *mesh=GetMesh(MeshAssetID::EntityMesh);
+      Texture *texture=GetTexture(TextureAssetID::EntityTexture);
 
-      for (size_t i = 0; i < gameState->entities.count; i++) {
-        Entity* e = &gameState->entities[i];
+      for (size_t i=0; i < gameState->entities.count; i++) {
+        Entity *e=&gameState->entities[i];
 
         // TODO: frustum culling
 
         // shadow pass
-        RenderEntryMeshShadow entryShadow = MakeRenderEntryMeshShadow(
-            mesh->VAO, mesh->triangleCount, GetTransform(e->pos, e->rot),
-            polymeshShadowShader);
+        RenderEntryMeshShadow entryShadow=MakeRenderEntryMeshShadow(
+          mesh->VAO, mesh->triangleCount, GetTransform(e->pos, e->rot),
+          polymeshShadowShader);
 
         // main pass
-        RenderEntryTexturedMesh entryMain = MakeRenderEntryTexturedMesh(
-            mesh->VAO, mesh->triangleCount, GetTransform(e->pos, e->rot),
-            polymeshShader, texture, &Assets.depthMapFBO.textures[0]);
+        RenderEntryTexturedMesh entryMain=MakeRenderEntryTexturedMesh(
+          mesh->VAO, mesh->triangleCount, GetTransform(e->pos, e->rot),
+          polymeshShader, texture, &Assets.depthMapFBO.textures[0]);
 
         RenderQueuePush(&renderQueue, &entryShadow);
         RenderQueuePush(&renderQueue, &entryMain);
@@ -976,52 +983,52 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
     // draw chunks
     {
-      Texture* texture = GetTexture(TextureAssetID::EnvTexture);
+      Texture *texture=GetTexture(TextureAssetID::EnvTexture);
 
-      for (size_t i = 0; i < g_chunkManager.chunksCount; i++) {
-        Chunk* chunk = &g_chunkManager.chunks[i];
+      for (size_t i=0; i < g_chunkManager.chunksCount; i++) {
+        Chunk *chunk=&g_chunkManager.chunks[i];
 
         if (!chunk->generationInProgress &&
             chunk->status == ChunkStatus::ReadyToRender) {
           glm::vec3 chunkCenter(chunk->posx + CHUNK_SX / 2.0f, CHUNK_SY / 2.0f,
                                 chunk->posz + CHUNK_SZ / 2.0f);
           if (FrustumSphereIntersection(&frustum, chunkCenter, g_chunkRadius)) {
-            glm::mat4 transform = GetTransform({chunk->posx, 0, chunk->posz});
+            glm::mat4 transform=GetTransform({chunk->posx, 0, chunk->posz});
 
             // shadow pass
-            RenderEntryMeshShadowInstanced entryShadow =
-                MakeRenderEntryMeshShadowInstanced(chunk->mesh.VAO, 2,
-                                                   chunk->mesh.instanceCount,
-                                                   transform, cubeShadowShader);
+            RenderEntryMeshShadowInstanced entryShadow=
+              MakeRenderEntryMeshShadowInstanced(chunk->mesh.VAO, 2,
+                                                 chunk->mesh.instanceCount,
+                                                 transform, cubeShadowShader);
             RenderQueuePush(&renderQueue, &entryShadow);
 
             // main pass
-            RenderEntryTexturedMeshInstanced entryMain =
-                MakeRenderEntryTexturedMeshInstanced(
-                    chunk->mesh.VAO, 2, chunk->mesh.instanceCount, transform,
-                    cubeShader, texture, &Assets.depthMapFBO.textures[0]);
+            RenderEntryTexturedMeshInstanced entryMain=
+              MakeRenderEntryTexturedMeshInstanced(
+              chunk->mesh.VAO, 2, chunk->mesh.instanceCount, transform,
+              cubeShader, texture, &Assets.depthMapFBO.textures[0]);
             RenderQueuePush(&renderQueue, &entryMain);
 
             // draw wireframe
             if (g_RenderWireframe) {
-              RenderEntryTexturedMeshInstanced entryWireframe =
-                  MakeRenderEntryTexturedMeshInstanced(
-                      chunk->mesh.VAO, 2, chunk->mesh.instanceCount, transform,
-                      cubeShader, texture, &Assets.depthMapFBO.textures[0],
-                      true, {0, 0, 0}, true);
+              RenderEntryTexturedMeshInstanced entryWireframe=
+                MakeRenderEntryTexturedMeshInstanced(
+                chunk->mesh.VAO, 2, chunk->mesh.instanceCount, transform,
+                cubeShader, texture, &Assets.depthMapFBO.textures[0],
+                true, {0, 0, 0}, true);
 
               RenderQueuePush(&renderQueue, &entryWireframe);
             }
 
             // chunk bounds
             if (g_DebugView) {
-              glm::mat4 model =
-                  GetTransform({chunk->posx, 0, chunk->posz}, {0, 0, 0},
-                               {CHUNK_SX, CHUNK_SY, CHUNK_SZ});
-              RenderEntryTexturedMesh entryChunkBounds =
-                  MakeRenderEntryTexturedMesh(
-                      Assets.defaultBox.VAO, Assets.defaultBox.triangleCount,
-                      model, polymeshShader, 0, 0, true, {0, 0, 0}, true);
+              glm::mat4 model=
+                GetTransform({chunk->posx, 0, chunk->posz}, {0, 0, 0},
+                             {CHUNK_SX, CHUNK_SY, CHUNK_SZ});
+              RenderEntryTexturedMesh entryChunkBounds=
+                MakeRenderEntryTexturedMesh(
+                Assets.defaultBox.VAO, Assets.defaultBox.triangleCount,
+                model, polymeshShader, 0, 0, true, {0, 0, 0}, true);
 
               RenderQueuePush(&renderQueue, &entryChunkBounds);
             }
@@ -1030,22 +1037,22 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 #if _DEBUG
         // draw debug info
         else {
-          glm::mat4 model =
-              GetTransform({chunk->posx, 0, chunk->posz}, glm::vec3(0),
-                           {CHUNK_SX, CHUNK_SY, CHUNK_SZ});
+          glm::mat4 model=
+            GetTransform({chunk->posx, 0, chunk->posz}, glm::vec3(0),
+                         {CHUNK_SX, CHUNK_SY, CHUNK_SZ});
           glm::vec3 color(0);
 
           if (chunk->status == ChunkStatus::ReadyToRender) {
-            color = {1, 0, 0};
+            color={1, 0, 0};
           } else if (chunk->status == ChunkStatus::Generated) {
-            color = {0, 1, 0};
+            color={0, 1, 0};
           } else if (chunk->status == ChunkStatus::Initialized) {
-            color = {0, 0, 0};
+            color={0, 0, 0};
           }
 
-          RenderEntryTexturedMesh entry = MakeRenderEntryTexturedMesh(
-              Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
-              polymeshShader, 0, 0, true, color);
+          RenderEntryTexturedMesh entry=MakeRenderEntryTexturedMesh(
+            Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
+            polymeshShader, 0, 0, true, color);
 
           RenderQueuePush(&renderQueue, &entry);
         }
@@ -1057,73 +1064,73 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // draw sun and moon
   {
     // sun
-    RenderEntrySprite entry = {};
-    entry.shader = spriteShader;
-    entry.texture = GetTexture(TextureAssetID::EnvTexture);
-    entry.VAO = Assets.sunSprite.VAO;
-    entry.triangleCount = 2;
-    entry.scale = 0.3;
-    entry.spherical = true;
-    entry.drawOnBackground = true;
-    entry.transform = GetTransform(player.camera.pos + gameState->sunDirection);
+    RenderEntrySprite entry={};
+    entry.shader=spriteShader;
+    entry.texture=GetTexture(TextureAssetID::EnvTexture);
+    entry.VAO=Assets.sunSprite.VAO;
+    entry.triangleCount=2;
+    entry.scale=0.3;
+    entry.spherical=true;
+    entry.drawOnBackground=true;
+    entry.transform=GetTransform(player.camera.pos + gameState->sunDirection);
 
     RenderQueuePush(&renderQueue, &entry);
 
     // moon
-    entry.VAO = Assets.moonSprite.VAO;
-    entry.transform = GetTransform(player.camera.pos + moonDir);
+    entry.VAO=Assets.moonSprite.VAO;
+    entry.transform=GetTransform(player.camera.pos + moonDir);
     RenderQueuePush(&renderQueue, &entry);
   }
 
   // draw player hand
   {
-    Texture* texture = GetTexture(TextureAssetID::UITexture);
+    Texture *texture=GetTexture(TextureAssetID::UITexture);
     glm::vec3 defaultFront(0, 0, -1);
-    glm::vec3 front = glm::normalize(player.camera.front);
-    glm::vec3 right = glm::normalize(glm::cross(front, g_WorldUp));
+    glm::vec3 front=glm::normalize(player.camera.front);
+    glm::vec3 right=glm::normalize(glm::cross(front, g_WorldUp));
 
     // glm::vec3 eye = player.camera.pos + front * 1.5f + right * 2.0f;
     // glm::vec3 center = player.camera.pos;
-    glm::vec3 eye = player.camera.pos + front;
-    glm::vec3 center = player.camera.pos;
+    glm::vec3 eye=player.camera.pos + front;
+    glm::vec3 center=player.camera.pos;
 
-    glm::mat4 t = glm::inverse(
-        glm::lookAt(eye, center, glm::normalize(player.camera.up)));
-    t = glm::translate(t, glm::vec3(-2.5, -1, -.5));
+    glm::mat4 t=glm::inverse(
+      glm::lookAt(eye, center, glm::normalize(player.camera.up)));
+    t=glm::translate(t, glm::vec3(-2.5, -1, -.5));
     if (ButtonHeldDown(input->attack))
-      t = glm::rotate(t, sin(gameState->time * 20) * 0.5f, {1, 0, -1});
-    t = glm::scale(t, glm::vec3(1, 1, 2));
-    t = glm::translate(t, glm::vec3(0, -.5, 0));
+      t=glm::rotate(t, sin(gameState->time * 20) * 0.5f, {1, 0, -1});
+    t=glm::scale(t, glm::vec3(1, 1, 2));
+    t=glm::translate(t, glm::vec3(0, -.5, 0));
 
-    auto entry = MakeRenderEntryTexturedMesh(
-        Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, t,
-        polymeshShader, 0, 0, true, glm::vec3(0.1));
+    auto entry=MakeRenderEntryTexturedMesh(
+      Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, t,
+      polymeshShader, 0, 0, true, glm::vec3(0.1));
     RenderQueuePush(&renderQueue, &entry);
   }
 
   // draw dropped items
   {
-    Texture* texture = GetTexture(TextureAssetID::TestTexture);
+    Texture *texture=GetTexture(TextureAssetID::TestTexture);
 
-    for (size_t i = 0; i < gameState->droppedItems.count; i++) {
-      Item* item = &gameState->droppedItems[i];
+    for (size_t i=0; i < gameState->droppedItems.count; i++) {
+      Item *item=&gameState->droppedItems[i];
       if (item->count < 1)
         continue;
 
       glm::mat4 model(1);
-      model = glm::translate(model, {0.0f, sin(gameState->time) * 0.3, 0.0f});
-      model = glm::translate(model, item->pos);
+      model=glm::translate(model, {0.0f, sin(gameState->time) * 0.3, 0.0f});
+      model=glm::translate(model, item->pos);
       rotateXYZ(model, 0.0f, gameState->time * 30, 0.0f);
-      model = glm::scale(model, glm::vec3(0.3));
-      model = glm::translate(model, glm::vec3(-0.5));  // center
+      model=glm::scale(model, glm::vec3(0.3));
+      model=glm::translate(model, glm::vec3(-0.5));  // center
 
-      RenderEntryMeshShadow entryShadow = MakeRenderEntryMeshShadow(
-          Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
-          polymeshShadowShader);
+      RenderEntryMeshShadow entryShadow=MakeRenderEntryMeshShadow(
+        Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
+        polymeshShadowShader);
 
-      RenderEntryTexturedMesh entryMain = MakeRenderEntryTexturedMesh(
-          Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
-          polymeshShader, texture, &Assets.depthMapFBO.textures[0]);
+      RenderEntryTexturedMesh entryMain=MakeRenderEntryTexturedMesh(
+        Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, model,
+        polymeshShader, texture, &Assets.depthMapFBO.textures[0]);
 
       RenderQueuePush(&renderQueue, &entryShadow);
       RenderQueuePush(&renderQueue, &entryMain);
@@ -1134,21 +1141,21 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // draw debug geometry
   {
     // axis
-    glm::mat4 modelX = glm::scale(glm::mat4(1), {1.0, 0.2, 0.2});
-    glm::mat4 modelY = glm::scale(glm::mat4(1), {0.2, 1.0, 0.2});
-    glm::mat4 modelZ = glm::scale(glm::mat4(1), {0.2, 0.2, 1.0});
+    glm::mat4 modelX=glm::scale(glm::mat4(1), {1.0, 0.2, 0.2});
+    glm::mat4 modelY=glm::scale(glm::mat4(1), {0.2, 1.0, 0.2});
+    glm::mat4 modelZ=glm::scale(glm::mat4(1), {0.2, 0.2, 1.0});
 
-    RenderEntryTexturedMesh entry = MakeRenderEntryTexturedMesh(
-        Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, modelX,
-        polymeshShader, 0, 0, true, {1, 0, 0});
+    RenderEntryTexturedMesh entry=MakeRenderEntryTexturedMesh(
+      Assets.defaultBox.VAO, Assets.defaultBox.triangleCount, modelX,
+      polymeshShader, 0, 0, true, {1, 0, 0});
     RenderQueuePush(&renderQueue, &entry);
 
-    entry.color = {0, 1, 0};
-    entry.transform = modelY;
+    entry.color={0, 1, 0};
+    entry.transform=modelY;
     RenderQueuePush(&renderQueue, &entry);
 
-    entry.color = {0, 0, 1};
-    entry.transform = modelZ;
+    entry.color={0, 0, 1};
+    entry.transform=modelZ;
     RenderQueuePush(&renderQueue, &entry);
   }
 #endif
@@ -1157,7 +1164,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   // Render Queue
   //
 
-  renderCommandsExecuted = RenderQueueExecute(&renderQueue);
+  renderCommandsExecuted=RenderQueueExecute(&renderQueue);
 
   Renderer::BindFrameBuffer(&Assets.screenFBO);
   Renderer::SetViewportDimensions(fbInfo->sizeX, fbInfo->sizeY);
@@ -1182,30 +1189,30 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
   // draw ui
   UI::Begin(&memory->tempStorage, input, Assets.regularFont, fbInfo);
-  Texture* uiAtlas = GetTexture(TextureAssetID::UITexture);
+  Texture *uiAtlas=GetTexture(TextureAssetID::UITexture);
   UI::SetAnchor(uiAnchor::Center, 0);
   {
     UI::DrawElement(uiAtlas, glm::vec3(0, 0, 0), glm::vec3(64, 64, 1), uiCross,
                     {16, 16});  // cursor
   }
 
-  int cellsCount = INVENTORY_MAX_SIZE;
-  float cellWidth = 70;
-  float inventoryWidth = (cellsCount - 1) * cellWidth;
+  int cellsCount=INVENTORY_MAX_SIZE;
+  float cellWidth=70;
+  float inventoryWidth=(cellsCount - 1) * cellWidth;
   UI::SetAnchor(uiAnchor::Bottom, 50);
   UI::SetAdvanceMode(AdvanceMode::None);
   UI::ShiftOrigin(-inventoryWidth / 2, 0);
   UI::SetMargin(false);
-  for (size_t i = 0; i < player.inventory.cellsCount; i++) {
-    InventoryCell* cell = &player.inventory.cells[i];
+  for (size_t i=0; i < player.inventory.cellsCount; i++) {
+    InventoryCell *cell=&player.inventory.cells[i];
 
-    uiElemType uiElemType = uiStoneBlock;
-    uiElemType = GetItemInfo(cell->itemType)->uiElement;
+    uiElemType uiElemType=uiStoneBlock;
+    uiElemType=GetItemInfo(cell->itemType)->uiElement;
 
     UI::DrawElement(uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1),
                     uiElemType,
                     {16, 16});  // TDOO: размеры тайла должны братьс€ из
-                                // текстуры, а не передаватьс€
+    // текстуры, а не передаватьс€
 
     UI::ShiftOrigin(-FontGetSize(Assets.regularFont) / 2, 0);
     char buf[64];
@@ -1219,7 +1226,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   UI::SetAdvanceMode(AdvanceMode::Right);
   UI::SetAnchor(uiAnchor::Bottom, 50);
   UI::ShiftOrigin(-inventoryWidth / 2, 0);
-  for (size_t i = 0; i < cellsCount; i++) {
+  for (size_t i=0; i < cellsCount; i++) {
     UI::DrawElement(uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1),
                     uiInventoryCell, {16, 16});  // inventory
   }
@@ -1230,12 +1237,12 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
   UI::DrawElement(uiAtlas, glm::vec3(0), glm::vec3(cellWidth, cellWidth, 1),
                   uiInventorySelectCell, {16, 16});
 
-  int heartsCount = 8;
-  float heartWidth = 35;
-  float heartsWidth = (heartsCount - 1) * heartWidth;
+  int heartsCount=8;
+  float heartWidth=35;
+  float heartsWidth=(heartsCount - 1) * heartWidth;
   UI::SetAnchor(uiAnchor::Bottom, 110);
   UI::ShiftOrigin(-heartsWidth / 2, 0);
-  for (size_t i = 0; i < heartsCount; i++) {
+  for (size_t i=0; i < heartsCount; i++) {
     UI::DrawElement(uiAtlas, glm::vec3(0, 0, 0),
                     glm::vec3(heartWidth, heartWidth, 1), uiHeart,
                     {16, 16});  // health bar
@@ -1247,25 +1254,25 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
     UI::ShiftOrigin(100, 0);
     UI::SetAdvanceMode(AdvanceMode::Up);
     UI::Text("Craft items");
-    for (size_t i = 0; i < ArrayCount(itemInfoTable); i++) {
-      ItemInfo* itemInfo = &itemInfoTable[i];
+    for (size_t i=0; i < ArrayCount(itemInfoTable); i++) {
+      ItemInfo *itemInfo=&itemInfoTable[i];
 
       if (!itemInfo->craftable)
         continue;
 
-      Inventory inventoryCopy = player.inventory;
-      bool canCraft = true;
+      Inventory inventoryCopy=player.inventory;
+      bool canCraft=true;
 
-      for (size_t j = 0; j < ArrayCount(itemInfo->craftScheme); j++) {
+      for (size_t j=0; j < ArrayCount(itemInfo->craftScheme); j++) {
         if (itemInfo->craftScheme[j] == ItemType::None)
           continue;
 
-        int cellIndex =
-            InventoryFindItem(&inventoryCopy, itemInfo->craftScheme[j]);
+        int cellIndex=
+          InventoryFindItem(&inventoryCopy, itemInfo->craftScheme[j]);
         if (cellIndex != -1) {
           InventoryDropItem(&inventoryCopy, cellIndex, 1);
         } else {
-          canCraft = false;
+          canCraft=false;
           break;
         }
       }
@@ -1274,7 +1281,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
         char craftButtonText[128];
         sprintf(craftButtonText, "Craft %s", itemInfo->name);
         if (UI::Button(craftButtonText)) {
-          player.inventory = inventoryCopy;
+          player.inventory=inventoryCopy;
           InventoryAddItem(&player.inventory, itemInfo->itemType, 1);
         }
       }
@@ -1283,17 +1290,17 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
 
   // debug textures
 #if 0
-	UI::SetAnchor(uiAnchor::Center, 0);
-	UI::ShiftOrigin(-400, 0);
-	UI::DrawElement(&Assets.uiAtlas, { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
-	UI::DrawElement(&Assets.textureAtlas, { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
-	UI::DrawElement(FontGetTextureAtlas(Assets.regularFont), { 0,0,0 }, { 400,400,400 }, { 1,1 }, { 0,0 });
+  UI::SetAnchor(uiAnchor::Center, 0);
+  UI::ShiftOrigin(-400, 0);
+  UI::DrawElement(&Assets.uiAtlas, {0,0,0}, {400,400,400}, {1,1}, {0,0});
+  UI::DrawElement(&Assets.textureAtlas, {0,0,0}, {400,400,400}, {1,1}, {0,0});
+  UI::DrawElement(FontGetTextureAtlas(Assets.regularFont), {0,0,0}, {400,400,400}, {1,1}, {0,0});
 #endif
 
   // debug shadows
 #if 0
-	UI::SetAnchor(uiAnchor::Top, 200);
-	UI::DrawElement(&Assets.depthMapFBO.textures[0], { 0,0,0, }, { 400, 400, 1 }, { 1,1 }, { 0,0 });
+  UI::SetAnchor(uiAnchor::Top, 200);
+  UI::DrawElement(&Assets.depthMapFBO.textures[0], {0,0,0,}, {400, 400, 1}, {1,1}, {0,0});
 #endif
 
   // debug info
@@ -1317,7 +1324,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
     sprintf(buf, "%d dropped items", gameState->droppedItems.count);
     UI::Text(buf);
 
-    glm::ivec2 chunkPos = PosToChunkPos(player.camera.pos);
+    glm::ivec2 chunkPos=PosToChunkPos(player.camera.pos);
     sprintf(buf, "current chunk x%d z%d", chunkPos.x, chunkPos.y);
     UI::Text(buf);
 
@@ -1345,7 +1352,7 @@ void RenderGame(GameState* gameState, GameMemory* memory, Input* input) {
     UI::Text(buf);
     sprintf(buf, "%d draw calls, %d triangles rendered",
             g_RendererStats.drawCallsCount +
-                g_RendererStats.drawCallsInstancedCount,
+            g_RendererStats.drawCallsInstancedCount,
             g_RendererStats.trianglesRendered);
     UI::Text(buf);
   }

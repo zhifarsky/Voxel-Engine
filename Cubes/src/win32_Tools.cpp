@@ -16,17 +16,17 @@
 #define DEBUG_BREAK ;
 #endif
 
-void FatalError(const char* msg, int exitCode) {
+void FatalError(const char *msg, int exitCode) {
   dbgprint("\n\n[FATAL ERROR]: %s\n\n", msg);
   DEBUG_BREAK
-  exit(exitCode);
+    exit(exitCode);
 }
 
-void WarningMessage(const char* msg) {
+void WarningMessage(const char *msg) {
   MessageBoxA(0, msg, "Error", MB_OK);
 }
 
-void dbgprint(const wchar_t* str, ...) {
+void dbgprint(const wchar_t *str, ...) {
 #if _DEBUG
   va_list argp;
   va_start(argp, str);
@@ -37,7 +37,7 @@ void dbgprint(const wchar_t* str, ...) {
 #endif
 }
 
-void dbgprint(const char* str, ...) {
+void dbgprint(const char *str, ...) {
 #if _DEBUG
   va_list argp;
   va_start(argp, str);
@@ -50,12 +50,12 @@ void dbgprint(const char* str, ...) {
 
 // печатает последнюю ошибку, связанную с системой (полученную при помощи
 // GetLastError())
-void syserrprint(const char* msg) {
+void syserrprint(const char *msg) {
   LPSTR dbg_out;
-  auto err = GetLastError();
-  WORD maxLen = 0xFF;
+  auto err=GetLastError();
+  WORD maxLen=0xFF;
   FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                     FORMAT_MESSAGE_IGNORE_INSERTS,
+                 FORMAT_MESSAGE_IGNORE_INSERTS,
                  NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                  (LPSTR)&dbg_out, 0, NULL);
   OutputDebugStringA(msg);
@@ -67,15 +67,15 @@ u64 GetMinCommitSize() {
   return 64 * 1024ULL;
 }
 
-void* MemReserve(u64 size) {
+void *MemReserve(u64 size) {
   return VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
 }
 
-void* MemCommit(void* base, u64 size) {
+void *MemCommit(void *base, u64 size) {
   return VirtualAlloc(base, size, MEM_COMMIT, PAGE_READWRITE);
 }
 
-bool MemFree(void* base) {
+bool MemFree(void *base) {
   return VirtualFree(base, 0, MEM_RELEASE);
 }
 
@@ -85,12 +85,12 @@ int GetThreadsCount() {
   return max(1, sysInfo.dwNumberOfProcessors);
 }
 
-bool IsFileExists(const char* filepath) {
-  BOOL res = PathFileExistsA(filepath);
+bool IsFileExists(const char *filepath) {
+  BOOL res=PathFileExistsA(filepath);
   return res;
 }
 
-bool CreateNewDirectory(const char* path) {
+bool CreateNewDirectory(const char *path) {
   return CreateDirectoryA(path, NULL);
 }
 

@@ -25,20 +25,20 @@
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720
 
-static GLFWwindow* window;
-static WindowMode g_windowMode = WindowMode::Windowed;
-double g_MouseScrollYOffset = 0;
-bool g_VSyncOn = false;
+static GLFWwindow *window;
+static WindowMode g_windowMode=WindowMode::Windowed;
+double g_MouseScrollYOffset=0;
+bool g_VSyncOn=false;
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-  g_MouseScrollYOffset = yoffset;
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+  g_MouseScrollYOffset=yoffset;
 }
 
-void GetFramebufferSize(int* width, int* height) {
+void GetFramebufferSize(int *width, int *height) {
   int w, h;
   glfwGetFramebufferSize(window, &w, &h);
-  *width = std::max(1, w);
-  *height = std::max(1, h);
+  *width=std::max(1, w);
+  *height=std::max(1, h);
 }
 
 bool GetVsync() {
@@ -46,11 +46,11 @@ bool GetVsync() {
 }
 
 void SetVsync(bool vsyncOn) {
-  g_VSyncOn = vsyncOn;
+  g_VSyncOn=vsyncOn;
   glfwSwapInterval(vsyncOn);
 }
 
-void GetCursorPos(double* xpos, double* ypos) {
+void GetCursorPos(double *xpos, double *ypos) {
   glfwGetCursorPos(window, xpos, ypos);
 }
 
@@ -64,22 +64,22 @@ WindowMode WindowGetCurrentMode() {
 }
 
 void WindowSwitchMode(WindowMode windowMode) {
-  GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  GLFWmonitor *monitor=glfwGetPrimaryMonitor();
+  const GLFWvidmode *mode=glfwGetVideoMode(monitor);
 
-  static int lastWidth = DEFAULT_WIDTH, lastHeight = DEFAULT_HEIGHT;
-  static int lastPosX = 100, lastPosY = 100;
+  static int lastWidth=DEFAULT_WIDTH, lastHeight=DEFAULT_HEIGHT;
+  static int lastPosX=100, lastPosY=100;
 
   switch (windowMode) {
     case WindowMode::Windowed:
-      g_windowMode = WindowMode::Windowed;
+      g_windowMode=WindowMode::Windowed;
       glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
       glfwSetWindowMonitor(window, NULL, 0, 0, lastWidth, lastHeight,
                            mode->refreshRate);
       glfwSetWindowPos(window, lastPosX, lastPosY);
       break;
     case WindowMode::WindowedFullScreen:
-      g_windowMode = WindowMode::WindowedFullScreen;
+      g_windowMode=WindowMode::WindowedFullScreen;
       glfwGetWindowSize(window, &lastWidth, &lastHeight);
       glfwGetWindowPos(window, &lastPosX, &lastPosY);
       // glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
@@ -106,7 +106,7 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window = glfwCreateWindow(DEFAULT_WIDTH, DEFAULT_HEIGHT, "CUBES", NULL, NULL);
+  window=glfwCreateWindow(DEFAULT_WIDTH, DEFAULT_HEIGHT, "CUBES", NULL, NULL);
   // auto monitor = glfwGetPrimaryMonitor();
   // auto mode = glfwGetVideoMode(monitor);
   // window = glfwCreateWindow(mode->width, mode->height, "CUBES", monitor,
@@ -120,8 +120,8 @@ int main() {
   // set window icon
   {
     GLFWimage image;
-    image.pixels =
-        stbi_load(TEX_FOLDER "icon.png", &image.width, &image.height, NULL, 4);
+    image.pixels=
+      stbi_load(TEX_FOLDER "icon.png", &image.width, &image.height, NULL, 4);
     glfwSetWindowIcon(window, 1, &image);
     stbi_image_free(image.pixels);
   }
@@ -151,15 +151,15 @@ int main() {
   // game inputs
   //
 
-  Input input[2] = {0};
-  Input* newInput = &input[0];
-  Input* oldInput = &input[1];
+  Input input[2]={0};
+  Input *newInput=&input[0];
+  Input *oldInput=&input[1];
 
   //
   // game memory
   //
 
-  GameMemory memory = {0};
+  GameMemory memory={0};
   memory.permStorage.alloc(Megabytes(128), Gigabytes(1));
   memory.tempStorage.alloc(Megabytes(128), Gigabytes(1));
   memory.chunkStorage.alloc(Gigabytes(2), Gigabytes(4));
@@ -192,7 +192,7 @@ int main() {
                          g_MouseScrollYOffset > 0);
       ProcessButtonInput(&oldInput->scrollDown, &newInput->scrollDown,
                          g_MouseScrollYOffset < 0);
-      g_MouseScrollYOffset = 0;
+      g_MouseScrollYOffset=0;
 
       ProcessButtonInput(&oldInput->forward, &newInput->forward,
                          IsKeyReleased(window, GLFW_KEY_W));
@@ -210,12 +210,12 @@ int main() {
       ProcessButtonInput(&oldInput->attack, &newInput->attack,
                          IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_LEFT));
       ProcessButtonInput(
-          &oldInput->placeBlock, &newInput->placeBlock,
-          IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));
+        &oldInput->placeBlock, &newInput->placeBlock,
+        IsMouseButtonReleased(window, GLFW_MOUSE_BUTTON_RIGHT));
 
       ProcessButtonInput(&oldInput->openInventory, &newInput->openInventory,
                          IsKeyReleased(window, GLFW_KEY_TAB));
-      for (size_t i = 0; i < ArrayCount(oldInput->inventorySlots); i++) {
+      for (size_t i=0; i < ArrayCount(oldInput->inventorySlots); i++) {
         ProcessButtonInput(&oldInput->inventorySlots[i],
                            &newInput->inventorySlots[i],
                            IsKeyReleased(window, GLFW_KEY_1 + i));
@@ -239,9 +239,9 @@ int main() {
     GameUpdateAndRender(&memory, glfwGetTime(), newInput, &fbInfo);
 
     // swap old and new inputs
-    Input* tempInput = oldInput;
-    oldInput = newInput;
-    newInput = tempInput;
+    Input *tempInput=oldInput;
+    oldInput=newInput;
+    newInput=tempInput;
 
     // clear temporal memory
     memory.tempStorage.clear();

@@ -5,23 +5,23 @@
 #define roundToMultiple(number, multiple) \
   ((number + multiple - 1) / multiple) * multiple
 
-void FatalError(const char* msg, int exitCode = 1);
+void FatalError(const char *msg, int exitCode=1);
 
-void dbgprint(const wchar_t* str, ...);
+void dbgprint(const wchar_t *str, ...);
 
-void dbgprint(const char* str, ...);
+void dbgprint(const char *str, ...);
 
 // печатает последнюю ошибку, связанную с системой (полученную при помощи
 // GetLastError())
-void syserrprint(const char* msg);
+void syserrprint(const char *msg);
 
 struct Timer {
   std::chrono::steady_clock::time_point startTime, stopTime;
   void start();
   void stop();
-  void printMilliseconds(const char* msg = NULL);
-  void printMicroseconds(const char* msg = NULL);
-  void printS(const char* msg = NULL);
+  void printMilliseconds(const char *msg=NULL);
+  void printMicroseconds(const char *msg=NULL);
+  void printS(const char *msg=NULL);
 };
 
 // #define DIR_WATCHER_BUF_SIZE 1024
@@ -53,11 +53,11 @@ bool rectRectCollision(float aBottomLeftX,
                        float bTopRightY);
 
 u64 GetMinCommitSize();
-void* MemReserve(u64 size);
-void* MemCommit(void* base, u64 size);
-bool MemFree(void* base);
+void *MemReserve(u64 size);
+void *MemCommit(void *base, u64 size);
+bool MemFree(void *base);
 
 int GetThreadsCount();
 
-bool IsFileExists(const char* filepath);
-bool CreateNewDirectory(const char* path);
+bool IsFileExists(const char *filepath);
+bool CreateNewDirectory(const char *path);

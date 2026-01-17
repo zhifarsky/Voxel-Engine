@@ -1,35 +1,35 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "Renderer.h"
-#include <Windows.h>
 #include <glad/glad.h>
+#include <Windows.h>
 #include <stb_image.h>
-#include "Files.h"
+#include "Renderer.h"
 #include "Tools.h"
+#include "Files.h"
 
 #define MAX_AA_SAMPLES 8
 
 RendererStats g_RendererStats;
 
-const char* VertexShaderToken = "#type vertex";
-const char* FragmentShaderToken = "#type fragment";
+const char *VertexShaderToken="#type vertex";
+const char *FragmentShaderToken="#type fragment";
 
 using namespace Renderer;
 
-const GLenum PixelFormatTable[] = {GL_RGB, GL_RGBA, GL_RED, GL_DEPTH_COMPONENT};
+const GLenum PixelFormatTable[]={GL_RGB, GL_RGBA, GL_RED, GL_DEPTH_COMPONENT};
 
-const GLenum TextureWrappingTable[] = {GL_REPEAT, GL_MIRRORED_REPEAT,
+const GLenum TextureWrappingTable[]={GL_REPEAT, GL_MIRRORED_REPEAT,
                                        GL_CLAMP_TO_EDGE, GL_CLAMP_TO_BORDER};
 
-const GLenum TextureFilteringTable[] = {
+const GLenum TextureFilteringTable[]={
     GL_NEAREST,
     GL_LINEAR,
 };
 
 glm::mat4 GetTransform(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale) {
   glm::mat4 model(1);
-  model = glm::translate(model, pos);
-  model = rotateXYZ(model, rot.x, rot.y, rot.z);
-  model = glm::scale(model, scale);
+  model=glm::translate(model, pos);
+  model=rotateXYZ(model, rot.x, rot.y, rot.z);
+  model=glm::scale(model, scale);
   return model;
 }
 
@@ -40,52 +40,52 @@ Frustum FrustumCreate(glm::vec3 pos,
                       float fovY,
                       float zNear,
                       float zFar) {
-  fovY = glm::radians(fovY);
+  fovY=glm::radians(fovY);
 
-  front = glm::normalize(front);
-  glm::vec3 right = glm::normalize(glm::cross(front, {0, 1, 0}));
-  up = glm::normalize(glm::cross(right, front));
+  front=glm::normalize(front);
+  glm::vec3 right=glm::normalize(glm::cross(front, {0, 1, 0}));
+  up=glm::normalize(glm::cross(right, front));
 
-  float halfVSide = tanf(fovY * .5f) * zFar;
-  float halfHSide = halfVSide * aspect;
+  float halfVSide=tanf(fovY * .5f) * zFar;
+  float halfHSide=halfVSide * aspect;
 
   Frustum f;
 
-  glm::vec3 farCenter = front * zFar;    // центр дальней плоскости
-  glm::vec3 nearCenter = front * zNear;  // центр ближней плоскости
+  glm::vec3 farCenter=front * zFar;    // центр дальней плоскости
+  glm::vec3 nearCenter=front * zNear;  // центр ближней плоскости
 
-  f.nearFace.normal = front;
-  f.nearFace.d = -glm::dot(f.nearFace.normal, pos + nearCenter);
+  f.nearFace.normal=front;
+  f.nearFace.d=-glm::dot(f.nearFace.normal, pos + nearCenter);
 
-  f.farFace.normal = -front;
-  f.farFace.d = -glm::dot(f.farFace.normal, pos + farCenter);
+  f.farFace.normal=-front;
+  f.farFace.d=-glm::dot(f.farFace.normal, pos + farCenter);
 
-  glm::vec3 farRight =
-      farCenter + right * halfHSide;  // вектор к правому краю дальней плоскости
-  f.rightFace.normal = glm::normalize(glm::cross(up, farRight));
-  f.rightFace.d = -glm::dot(f.rightFace.normal, pos);
+  glm::vec3 farRight=
+    farCenter + right * halfHSide;  // вектор к правому краю дальней плоскости
+  f.rightFace.normal=glm::normalize(glm::cross(up, farRight));
+  f.rightFace.d=-glm::dot(f.rightFace.normal, pos);
 
-  glm::vec3 farLeft = farCenter - right * halfHSide;
-  f.leftFace.normal = glm::normalize(glm::cross(farLeft, up));
-  f.leftFace.d = -glm::dot(f.leftFace.normal, pos);
+  glm::vec3 farLeft=farCenter - right * halfHSide;
+  f.leftFace.normal=glm::normalize(glm::cross(farLeft, up));
+  f.leftFace.d=-glm::dot(f.leftFace.normal, pos);
 
-  glm::vec3 farTop = farCenter + up * halfVSide;
-  f.topFace.normal = glm::normalize(glm::cross(farTop, right));
-  f.topFace.d = -glm::dot(f.topFace.normal, pos);
+  glm::vec3 farTop=farCenter + up * halfVSide;
+  f.topFace.normal=glm::normalize(glm::cross(farTop, right));
+  f.topFace.d=-glm::dot(f.topFace.normal, pos);
 
-  glm::vec3 farBottom = farCenter - up * halfVSide;
-  f.bottomFace.normal = glm::normalize(glm::cross(right, farBottom));
-  f.bottomFace.d = -glm::dot(f.bottomFace.normal, pos);
+  glm::vec3 farBottom=farCenter - up * halfVSide;
+  f.bottomFace.normal=glm::normalize(glm::cross(right, farBottom));
+  f.bottomFace.d=-glm::dot(f.bottomFace.normal, pos);
 
   return f;
 }
 
-float FrustumSphereIntersection(Frustum* frustum,
+float FrustumSphereIntersection(Frustum *frustum,
                                 glm::vec3 sphereCenter,
                                 float radius) {
-  for (size_t i = 0; i < 6; i++) {
+  for (size_t i=0; i < 6; i++) {
     if ((glm::dot(sphereCenter, frustum->planes[i].normal) +
-         frustum->planes[i].d + radius) <= 0) {
+        frustum->planes[i].d + radius) <= 0) {
       return false;
     }
   }
@@ -93,616 +93,616 @@ float FrustumSphereIntersection(Frustum* frustum,
   return true;
 }
 
-UV GetUVFromAtlas(Texture* atlas, s32 tileIndex, glm::ivec2 tileSize) {
-  s32 tilesInRow = atlas->width / tileSize.x;
-  s32 tilesInCol = atlas->height / tileSize.y;
+UV GetUVFromAtlas(Texture *atlas, s32 tileIndex, glm::ivec2 tileSize) {
+  s32 tilesInRow=atlas->width / tileSize.x;
+  s32 tilesInCol=atlas->height / tileSize.y;
 
-  glm::vec2 uvScale = {1.0f / tilesInRow, 1.0f / tilesInCol};
-  glm::vec2 uvOffset = {uvScale.x * (tileIndex % tilesInRow),
+  glm::vec2 uvScale={1.0f / tilesInRow, 1.0f / tilesInCol};
+  glm::vec2 uvOffset={uvScale.x * (tileIndex % tilesInRow),
                         uvScale.y * (tileIndex / tilesInRow)};
 
-  return {.offset = uvOffset, .scale = uvScale};
+  return {.offset=uvOffset, .scale=uvScale};
 }
 
 namespace Renderer {
-bool Init(LoadProc loadProc) {
-  int res = gladLoadGLLoader((GLADloadproc)loadProc);
+  bool Init(LoadProc loadProc) {
+    int res=gladLoadGLLoader((GLADloadproc)loadProc);
 
-  glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glEnable(GL_MULTISAMPLE);
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glLineWidth(2);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glLineWidth(2);
 
-  return res;
-}
-
-void Clear(float r, float g, float b, float a) {
-  glClearColor(r, g, b, a);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-void SetViewportDimensions(int width, int height, int x, int y) {
-  glViewport(x, y, width, height);
-}
-
-bool checkShaderCompileErrors(Shader shader) {
-  GLint isCompiled = 0;
-  glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
-  if (isCompiled == GL_FALSE) {
-    GLint maxLength = 0;
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-    char* buf = (char*)malloc(maxLength * sizeof(GLchar));
-    glGetShaderInfoLog(shader, maxLength, &maxLength, buf);
-    dbgprint("[SHADER ERROR] %s\n", buf);
-    // DEBUG_BREAK;
-    free(buf);
-    return false;
-  }
-  return true;
-}
-bool checkShaderLinkErrors(Shader shader) {
-  GLint isLInked = 0;
-  glGetProgramiv(shader, GL_LINK_STATUS, &isLInked);
-  if (isLInked == GL_FALSE) {
-    GLint maxLength = 0;
-    glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-    char* buf = (char*)malloc(maxLength * sizeof(GLchar));
-    glGetProgramInfoLog(shader, maxLength, &maxLength, buf);
-    dbgprint("[SHADER ERROR] %s\n", buf);
-    // DEBUG_BREAK;
-    free(buf);
-    return false;
-  }
-  return true;
-}
-
-Shader CreateShader(const char* vertexSource, const char* fragmentSource) {
-  GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vShader, 1, &vertexSource, NULL);
-  glCompileShader(vShader);
-  if (!checkShaderCompileErrors(vShader)) {
-    glDeleteShader(vShader);
-    return 0;  // TODO: возвращать дебаг-шейдер
+    return res;
   }
 
-  GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fShader, 1, &fragmentSource, NULL);
-  glCompileShader(fShader);
-  if (!checkShaderCompileErrors(fShader)) {
+  void Clear(float r, float g, float b, float a) {
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  }
+
+  void SetViewportDimensions(int width, int height, int x, int y) {
+    glViewport(x, y, width, height);
+  }
+
+  bool checkShaderCompileErrors(Shader shader) {
+    GLint isCompiled=0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
+    if (isCompiled == GL_FALSE) {
+      GLint maxLength=0;
+      glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+      char *buf=(char *)malloc(maxLength * sizeof(GLchar));
+      glGetShaderInfoLog(shader, maxLength, &maxLength, buf);
+      dbgprint("[SHADER ERROR] %s\n", buf);
+      // DEBUG_BREAK;
+      free(buf);
+      return false;
+    }
+    return true;
+  }
+  bool checkShaderLinkErrors(Shader shader) {
+    GLint isLInked=0;
+    glGetProgramiv(shader, GL_LINK_STATUS, &isLInked);
+    if (isLInked == GL_FALSE) {
+      GLint maxLength=0;
+      glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+      char *buf=(char *)malloc(maxLength * sizeof(GLchar));
+      glGetProgramInfoLog(shader, maxLength, &maxLength, buf);
+      dbgprint("[SHADER ERROR] %s\n", buf);
+      // DEBUG_BREAK;
+      free(buf);
+      return false;
+    }
+    return true;
+  }
+
+  Shader CreateShader(const char *vertexSource, const char *fragmentSource) {
+    GLuint vShader=glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShader, 1, &vertexSource, NULL);
+    glCompileShader(vShader);
+    if (!checkShaderCompileErrors(vShader)) {
+      glDeleteShader(vShader);
+      return 0;  // TODO: возвращать дебаг-шейдер
+    }
+
+    GLuint fShader=glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShader, 1, &fragmentSource, NULL);
+    glCompileShader(fShader);
+    if (!checkShaderCompileErrors(fShader)) {
+      glDeleteShader(vShader);
+      glDeleteShader(fShader);
+      return 0;  // TODO: возвращать дебаг-шейдер
+    }
+
+    GLuint shaderProgram=glCreateProgram();
+    glAttachShader(shaderProgram, vShader);
+    glAttachShader(shaderProgram, fShader);
+    glLinkProgram(shaderProgram);
+    if (!checkShaderLinkErrors(shaderProgram)) {
+      glDeleteShader(vShader);
+      glDeleteShader(fShader);
+      glDeleteProgram(shaderProgram);
+      return 0;  // TODO: возвращать дебаг-шейдер
+    }
+
     glDeleteShader(vShader);
     glDeleteShader(fShader);
-    return 0;  // TODO: возвращать дебаг-шейдер
+
+    return shaderProgram;
   }
 
-  GLuint shaderProgram = glCreateProgram();
-  glAttachShader(shaderProgram, vShader);
-  glAttachShader(shaderProgram, fShader);
-  glLinkProgram(shaderProgram);
-  if (!checkShaderLinkErrors(shaderProgram)) {
-    glDeleteShader(vShader);
-    glDeleteShader(fShader);
-    glDeleteProgram(shaderProgram);
-    return 0;  // TODO: возвращать дебаг-шейдер
+  Shader Renderer::CreateShaderFromFile(Arena *tempStorage,
+                                        const char *fileName,
+                                        Shader oldShader) {
+    u32 vFileSize=0, fFileSize=0;
+    char *source=
+      (char *)readEntireFile(tempStorage, fileName, &vFileSize, FileType::text);
+    if (!source) {
+      FatalError("Error on loading shaders from disk");
+    }
+
+    char *vertexSource=strstr(source, VertexShaderToken);
+    char *fragmentSource=strstr(source, FragmentShaderToken);
+
+    if (!vertexSource || !fragmentSource) {
+      dbgprint("Unknown shader format");
+      return 0;
+    }
+
+    char *split=std::max(vertexSource, fragmentSource) - 2;
+    *split='\0';
+
+    vertexSource+=strlen(VertexShaderToken);
+    fragmentSource+=strlen(FragmentShaderToken);
+
+    Shader shader=Renderer::CreateShader(vertexSource, fragmentSource);
+
+    if (oldShader != 0) {
+      if (shader) {
+        DeleteShader(oldShader);
+        return shader;
+      } else
+        return oldShader;
+    }
+
+    return shader;
   }
 
-  glDeleteShader(vShader);
-  glDeleteShader(fShader);
-
-  return shaderProgram;
-}
-
-Shader Renderer::CreateShaderFromFile(Arena* tempStorage,
-                                      const char* fileName,
-                                      Shader oldShader) {
-  u32 vFileSize = 0, fFileSize = 0;
-  char* source =
-      (char*)readEntireFile(tempStorage, fileName, &vFileSize, FileType::text);
-  if (!source) {
-    FatalError("Error on loading shaders from disk");
+  void DeleteShader(Shader shader) {
+    glDeleteProgram(shader);
   }
 
-  char* vertexSource = strstr(source, VertexShaderToken);
-  char* fragmentSource = strstr(source, FragmentShaderToken);
-
-  if (!vertexSource || !fragmentSource) {
-    dbgprint("Unknown shader format");
-    return 0;
+  void BindShader(Shader shader) {
+    glUseProgram(shader);
   }
 
-  char* split = std::max(vertexSource, fragmentSource) - 2;
-  *split = '\0';
-
-  vertexSource += strlen(VertexShaderToken);
-  fragmentSource += strlen(FragmentShaderToken);
-
-  Shader shader = Renderer::CreateShader(vertexSource, fragmentSource);
-
-  if (oldShader != 0) {
-    if (shader) {
-      DeleteShader(oldShader);
-      return shader;
-    } else
-      return oldShader;
+  void UnbindShader() {
+    glUseProgram(0);
   }
 
-  return shader;
-}
+  // TODO: сделать setUniform макросами?
 
-void DeleteShader(Shader shader) {
-  glDeleteProgram(shader);
-}
+  void setUniformMatrix4(Shader shader,
+                         const char *name,
+                         float *values,
+                         bool transpose) {
+    glUniformMatrix4fv(GetUniformLocation(shader, name), 1, transpose, values);
+  }
 
-void BindShader(Shader shader) {
-  glUseProgram(shader);
-}
+  void setUniformInt(Shader shader, const char *name, int x) {
+    glUniform1i(GetUniformLocation(shader, name), x);
+  }
 
-void UnbindShader() {
-  glUseProgram(0);
-}
+  void setUniformInt2(Shader shader, const char *name, int x, int y) {
+    glUniform2i(GetUniformLocation(shader, name), x, y);
+  }
 
-// TODO: сделать setUniform макросами?
+  void setUniformFloat(Shader shader, const char *name, float x) {
+    glUniform1f(GetUniformLocation(shader, name), x);
+  }
 
-void setUniformMatrix4(Shader shader,
-                       const char* name,
-                       float* values,
-                       bool transpose) {
-  glUniformMatrix4fv(GetUniformLocation(shader, name), 1, transpose, values);
-}
+  void setUniformFloat2(Shader shader, const char *name, float x, float y) {
+    glUniform2f(GetUniformLocation(shader, name), x, y);
+  }
 
-void setUniformInt(Shader shader, const char* name, int x) {
-  glUniform1i(GetUniformLocation(shader, name), x);
-}
+  void setUniformFloat3(Shader shader,
+                        const char *name,
+                        float x,
+                        float y,
+                        float z) {
+    glUniform3f(GetUniformLocation(shader, name), x, y, z);
+  }
 
-void setUniformInt2(Shader shader, const char* name, int x, int y) {
-  glUniform2i(GetUniformLocation(shader, name), x, y);
-}
+  void setUniformFloat3(Shader shader, const char *name, const glm::vec3 &v) {
+    glUniform3f(GetUniformLocation(shader, name), v.x, v.y, v.z);
+  }
 
-void setUniformFloat(Shader shader, const char* name, float x) {
-  glUniform1f(GetUniformLocation(shader, name), x);
-}
+  void setUniformFloat4(Shader shader, const char *name, glm::vec4 v) {
+    glUniform4f(GetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
+  }
 
-void setUniformFloat2(Shader shader, const char* name, float x, float y) {
-  glUniform2f(GetUniformLocation(shader, name), x, y);
-}
+  int GetMaxAASamples() {
+    GLint maxSamples=0;
+    glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    return std::min(MAX_AA_SAMPLES, maxSamples);
+  }
 
-void setUniformFloat3(Shader shader,
-                      const char* name,
-                      float x,
-                      float y,
-                      float z) {
-  glUniform3f(GetUniformLocation(shader, name), x, y, z);
-}
+  void CreateMSAAFrameBuffer(FrameBuffer *fb,
+                             u32 width,
+                             u32 height,
+                             int samplesCount) {
+    int maxSamples=GetMaxAASamples();
+    samplesCount=std::max(1, std::min(samplesCount, maxSamples));
 
-void setUniformFloat3(Shader shader, const char* name, const glm::vec3& v) {
-  glUniform3f(GetUniformLocation(shader, name), v.x, v.y, v.z);
-}
+    *fb={0};
+    Texture *texture=&fb->textures[0];
+    texture->width=width;
+    texture->height=height;
 
-void setUniformFloat4(Shader shader, const char* name, glm::vec4 v) {
-  glUniform4f(GetUniformLocation(shader, name), v.x, v.y, v.z, v.w);
-}
+    glGenFramebuffers(1, &fb->ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 
-int GetMaxAASamples() {
-  GLint maxSamples = 0;
-  glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-  return std::min(MAX_AA_SAMPLES, maxSamples);
-}
+    // текстура для RGB буфера
+    glGenTextures(1, &fb->textures[0].ID);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture->ID);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samplesCount, GL_RGB,
+                            width, height, GL_TRUE);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 
-void CreateMSAAFrameBuffer(FrameBuffer* fb,
-                           u32 width,
-                           u32 height,
-                           int samplesCount) {
-  int maxSamples = GetMaxAASamples();
-  samplesCount = std::max(1, std::min(samplesCount, maxSamples));
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D_MULTISAMPLE, texture->ID, 0);
 
-  *fb = {0};
-  Texture* texture = &fb->textures[0];
-  texture->width = width;
-  texture->height = height;
+    // RBO для Detph и Stencil буферов
+    glGenRenderbuffers(1, &fb->RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, fb->RBO);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samplesCount,
+                                     GL_DEPTH24_STENCIL8, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-  glGenFramebuffers(1, &fb->ID);
-  glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                              GL_RENDERBUFFER, fb->RBO);
 
-  // текстура для RGB буфера
-  glGenTextures(1, &fb->textures[0].ID);
-  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture->ID);
-  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samplesCount, GL_RGB,
-                          width, height, GL_TRUE);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+      FatalError("Framebuffer is not complete!");
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                         GL_TEXTURE_2D_MULTISAMPLE, texture->ID, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
 
-  // RBO для Detph и Stencil буферов
-  glGenRenderbuffers(1, &fb->RBO);
-  glBindRenderbuffer(GL_RENDERBUFFER, fb->RBO);
-  glRenderbufferStorageMultisample(GL_RENDERBUFFER, samplesCount,
-                                   GL_DEPTH24_STENCIL8, width, height);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+  void CreateColorFrameBuffer(FrameBuffer *fb, u32 width, u32 height) {
+    *fb={0};
+    Texture *texture=&fb->textures[0];
 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                            GL_RENDERBUFFER, fb->RBO);
+    glGenFramebuffers(1, &fb->ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
 
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    FatalError("Framebuffer is not complete!");
+    // текстура для RGB буфера
+    glGenTextures(1, &texture->ID);
+    glBindTexture(GL_TEXTURE_2D, texture->ID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                           texture->ID, 0);
 
-void CreateColorFrameBuffer(FrameBuffer* fb, u32 width, u32 height) {
-  *fb = {0};
-  Texture* texture = &fb->textures[0];
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+      FatalError("Framebuffer is not complete!");
 
-  glGenFramebuffers(1, &fb->ID);
-  glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
 
-  // текстура для RGB буфера
-  glGenTextures(1, &texture->ID);
-  glBindTexture(GL_TEXTURE_2D, texture->ID);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-               GL_UNSIGNED_BYTE, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  void CreateDepthMapFrameBuffer(FrameBuffer *fb, u32 size) {
+    *fb={0};
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                         texture->ID, 0);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    FatalError("Framebuffer is not complete!");
-
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void CreateDepthMapFrameBuffer(FrameBuffer* fb, u32 size) {
-  *fb = {0};
-
-  Texture* depthMap = &fb->textures[0];
-  *depthMap = Renderer::CreateTexture(
+    Texture *depthMap=&fb->textures[0];
+    *depthMap=Renderer::CreateTexture(
       size, size, NULL, PixelFormat::DepthMap, PixelFormat::DepthMap,
       TextureWrapping::ClampToBorder, TextureFiltering::Nearest);
 
-  glGenFramebuffers(1, &fb->ID);
-  glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-                         depthMap->ID, 0);
-  glDrawBuffer(GL_NONE);
-  glReadBuffer(GL_NONE);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void ReleaseFrameBuffer(FrameBuffer* fb) {
-  for (size_t i = 0; i < FRAMEBUFFER_MAX_TEXTURES; i++) {
-    if (fb->textures[i].ID)
-      glDeleteTextures(1, &fb->textures[i].ID);
+    glGenFramebuffers(1, &fb->ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+                           depthMap->ID, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  if (fb->RBO)
-    glDeleteRenderbuffers(1, &fb->RBO);
+  void ReleaseFrameBuffer(FrameBuffer *fb) {
+    for (size_t i=0; i < FRAMEBUFFER_MAX_TEXTURES; i++) {
+      if (fb->textures[i].ID)
+        glDeleteTextures(1, &fb->textures[i].ID);
+    }
 
-  if (fb->ID)
-    glDeleteFramebuffers(1, &fb->ID);
+    if (fb->RBO)
+      glDeleteRenderbuffers(1, &fb->RBO);
 
-  *fb = {0};
-}
+    if (fb->ID)
+      glDeleteFramebuffers(1, &fb->ID);
 
-void BindFrameBuffer(FrameBuffer* fb) {
-  glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
-}
-
-void UnbindFrameBuffer() {
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-Texture CreateTexture(int width,
-                      int height,
-                      void* data,
-                      PixelFormat inputFormat,
-                      PixelFormat outputFormat,
-                      TextureWrapping wrapping,
-                      TextureFiltering filtering) {
-  Texture texture;
-  texture.width = width;
-  texture.height = height;
-  texture.pixelformat = outputFormat;
-
-  glGenTextures(1, &texture.ID);
-  glBindTexture(GL_TEXTURE_2D, texture.ID);
-
-  GLenum type = GL_UNSIGNED_BYTE;
-
-  // if shadow map
-  if (outputFormat == PixelFormat::DepthMap) {
-    type = GL_FLOAT;
-    float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    *fb={0};
   }
 
-  glTexImage2D(GL_TEXTURE_2D, 0, PixelFormatTable[(int)inputFormat],
-               texture.width, texture.height, 0,
-               PixelFormatTable[(int)outputFormat], type, data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-
-  // texture filtering
-  GLenum glFiltering = TextureFilteringTable[(int)filtering];
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glFiltering);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glFiltering);
-
-  // texture wrapping
-  GLenum glWrapping = TextureWrappingTable[(int)wrapping];
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapping);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapping);
-
-  return texture;
-}
-
-Texture CreateTextureFromFile(const char* path,
-                              PixelFormat pixelFormat,
-                              TextureWrapping wrapping,
-                              TextureFiltering filtering) {
-  int forceChannels;
-  switch (pixelFormat) {
-    case PixelFormat::RGBA:
-      forceChannels = 4;
-      break;
-    default:
-      FatalError("Unknown texture type");
+  void BindFrameBuffer(FrameBuffer *fb) {
+    glBindFramebuffer(GL_FRAMEBUFFER, fb->ID);
   }
 
-  s32 width, height, channels;
-  u8* image = stbi_load(path, &width, &height, &channels, forceChannels);
-  if (!image) {
-    FatalError("Error on loading texture from disk");
+  void UnbindFrameBuffer() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  Texture tex = Renderer::CreateTexture(width, height, image, pixelFormat,
+  Texture CreateTexture(int width,
+                        int height,
+                        void *data,
+                        PixelFormat inputFormat,
+                        PixelFormat outputFormat,
+                        TextureWrapping wrapping,
+                        TextureFiltering filtering) {
+    Texture texture;
+    texture.width=width;
+    texture.height=height;
+    texture.pixelformat=outputFormat;
+
+    glGenTextures(1, &texture.ID);
+    glBindTexture(GL_TEXTURE_2D, texture.ID);
+
+    GLenum type=GL_UNSIGNED_BYTE;
+
+    // if shadow map
+    if (outputFormat == PixelFormat::DepthMap) {
+      type=GL_FLOAT;
+      float borderColor[]={1.0f, 1.0f, 1.0f, 1.0f};
+      glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, PixelFormatTable[(int)inputFormat],
+                 texture.width, texture.height, 0,
+                 PixelFormatTable[(int)outputFormat], type, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    // texture filtering
+    GLenum glFiltering=TextureFilteringTable[(int)filtering];
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glFiltering);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glFiltering);
+
+    // texture wrapping
+    GLenum glWrapping=TextureWrappingTable[(int)wrapping];
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapping);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapping);
+
+    return texture;
+  }
+
+  Texture CreateTextureFromFile(const char *path,
+                                PixelFormat pixelFormat,
+                                TextureWrapping wrapping,
+                                TextureFiltering filtering) {
+    int forceChannels;
+    switch (pixelFormat) {
+      case PixelFormat::RGBA:
+        forceChannels=4;
+        break;
+      default:
+        FatalError("Unknown texture type");
+    }
+
+    s32 width, height, channels;
+    u8 *image=stbi_load(path, &width, &height, &channels, forceChannels);
+    if (!image) {
+      FatalError("Error on loading texture from disk");
+    }
+
+    Texture tex=Renderer::CreateTexture(width, height, image, pixelFormat,
                                         pixelFormat, wrapping, filtering);
-  stbi_image_free(image);
-  return tex;
-}
-
-void DeleteTexture(Texture* texture) {
-  if (texture) {
-    glDeleteTextures(1, &texture->ID);
+    stbi_image_free(image);
+    return tex;
   }
-}
 
-void BindTexture(Texture* texture, int textureSlot) {
-  if (texture) {
+  void DeleteTexture(Texture *texture) {
+    if (texture) {
+      glDeleteTextures(1, &texture->ID);
+    }
+  }
+
+  void BindTexture(Texture *texture, int textureSlot) {
+    if (texture) {
+      glActiveTexture(GL_TEXTURE0 + textureSlot);
+      glBindTexture(GL_TEXTURE_2D, texture->ID);
+      glActiveTexture(GL_TEXTURE0);
+    }
+  }
+
+  void UnbindTexture(int textureSlot) {
     glActiveTexture(GL_TEXTURE0 + textureSlot);
-    glBindTexture(GL_TEXTURE_2D, texture->ID);
+    glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE0);
   }
-}
 
-void UnbindTexture(int textureSlot) {
-  glActiveTexture(GL_TEXTURE0 + textureSlot);
-  glBindTexture(GL_TEXTURE_2D, 0);
-  glActiveTexture(GL_TEXTURE0);
-}
+  Geometry CreateGeometry(Vertex *vertices,
+                          u32 verticesCount,
+                          Triangle *triangles,
+                          u32 triangleCount) {
+    Geometry geo;
+    // geo.vertexCapacity = geo.vertexCount = verticesCount;
+    // geo.triangleCapacity = geo.triangleCount = triangleCount;
+    // geo.vertices = vertices;
+    // geo.triangles = triangles;
 
-Geometry CreateGeometry(Vertex* vertices,
-                        u32 verticesCount,
-                        Triangle* triangles,
-                        u32 triangleCount) {
-  Geometry geo;
-  // geo.vertexCapacity = geo.vertexCount = verticesCount;
-  // geo.triangleCapacity = geo.triangleCount = triangleCount;
-  // geo.vertices = vertices;
-  // geo.triangles = triangles;
+    geo.triangleCount=triangleCount;
+    geo.vertexCount=verticesCount;
 
-  geo.triangleCount = triangleCount;
-  geo.vertexCount = verticesCount;
+    glGenVertexArrays(1, &geo.VAO);
+    glGenBuffers(1, &geo.VBO);
+    glGenBuffers(1, &geo.EBO);
 
-  glGenVertexArrays(1, &geo.VAO);
-  glGenBuffers(1, &geo.VBO);
-  glGenBuffers(1, &geo.EBO);
+    glBindVertexArray(geo.VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, geo.VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geo.EBO);
 
-  glBindVertexArray(geo.VAO);
-  glBindBuffer(GL_ARRAY_BUFFER, geo.VBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geo.EBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * verticesCount, vertices,
+                 GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Triangle) * triangleCount,
+                 triangles, GL_STATIC_DRAW);
 
-  glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * verticesCount, vertices,
-               GL_STATIC_DRAW);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Triangle) * triangleCount,
-               triangles, GL_STATIC_DRAW);
+    GLint stride=sizeof(Vertex);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride,
+                          (void *)offsetof(Vertex, pos));  // pos
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
+                          (void *)offsetof(Vertex, uv));  // tex coord
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride,
+                          (void *)offsetof(Vertex, normal));  // normal
 
-  GLint stride = sizeof(Vertex);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride,
-                        (void*)offsetof(Vertex, pos));  // pos
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
-                        (void*)offsetof(Vertex, uv));  // tex coord
-  glEnableVertexAttribArray(3);
-  glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride,
-                        (void*)offsetof(Vertex, normal));  // normal
+    glBindVertexArray(0);
 
-  glBindVertexArray(0);
-
-  return geo;
-}
-
-/* работает только с .obj форматом
-работает только с триангулированными мешами
-TODO: загрузка нормалей */
-Geometry Renderer::CreateGeometryFromFile(Arena* tempStorage,
-                                          const char* fileName) {
-  struct Face {
-    int vertex[4];
-    int uv[4];
-    int normal[4];
-    int vertexCount;
-  };
-
-  FILE* file = fopen(fileName, "rt");
-  if (!file)
-    FatalError("Error on opening file");
-
-  int vCount = 0, uvCount = 0, faceCount = 0, normalCount = 0;
-
-  char line[256];
-  while (fgets(line, 256, file)) {
-    if (line[0] == 'v') {
-      if (line[1] == ' ')
-        vCount++;
-      else if (line[1] == 't')
-        uvCount++;
-      else if (line[1] == 'n')
-        normalCount++;
-    } else if (line[0] == 'f') {
-      faceCount++;
-    }
+    return geo;
   }
 
-  glm::vec3* positions = ArenaPushArray(tempStorage, vCount, glm::vec3);
-  glm::vec2* uvs = ArenaPushArray(tempStorage, vCount, glm::vec2);
-  glm::vec3* normals = ArenaPushArray(tempStorage, normalCount, glm::vec3);
-  Face* faces = ArenaPushArray(tempStorage, faceCount, Face);
+  /* работает только с .obj форматом
+  работает только с триангулированными мешами
+  TODO: загрузка нормалей */
+  Geometry Renderer::CreateGeometryFromFile(Arena *tempStorage,
+                                            const char *fileName) {
+    struct Face {
+      int vertex[4];
+      int uv[4];
+      int normal[4];
+      int vertexCount;
+    };
 
-  rewind(file);
+    FILE *file=fopen(fileName, "rt");
+    if (!file)
+      FatalError("Error on opening file");
 
-  int vIndex = 0, vtIndex = 0, fIndex = 0, nIndex = 0;
+    int vCount=0, uvCount=0, faceCount=0, normalCount=0;
 
-  while (fgets(line, 256, file)) {
-    // strncmp(line, "v ", 2);
-    if (line[0] == 'v') {
-      if (line[1] == ' ') {
-        sscanf(line, "v %f %f %f", &positions[vIndex].x, &positions[vIndex].y,
-               &positions[vIndex].z);
+    char line[256];
+    while (fgets(line, 256, file)) {
+      if (line[0] == 'v') {
+        if (line[1] == ' ')
+          vCount++;
+        else if (line[1] == 't')
+          uvCount++;
+        else if (line[1] == 'n')
+          normalCount++;
+      } else if (line[0] == 'f') {
+        faceCount++;
+      }
+    }
+
+    glm::vec3 *positions=ArenaPushArray(tempStorage, vCount, glm::vec3);
+    glm::vec2 *uvs=ArenaPushArray(tempStorage, vCount, glm::vec2);
+    glm::vec3 *normals=ArenaPushArray(tempStorage, normalCount, glm::vec3);
+    Face *faces=ArenaPushArray(tempStorage, faceCount, Face);
+
+    rewind(file);
+
+    int vIndex=0, vtIndex=0, fIndex=0, nIndex=0;
+
+    while (fgets(line, 256, file)) {
+      // strncmp(line, "v ", 2);
+      if (line[0] == 'v') {
+        if (line[1] == ' ') {
+          sscanf(line, "v %f %f %f", &positions[vIndex].x, &positions[vIndex].y,
+                 &positions[vIndex].z);
+          vIndex++;
+        } else if (line[1] == 't') {
+          sscanf(line, "vt %f %f", &uvs[vtIndex].x, &uvs[vtIndex].y);
+          vtIndex++;
+        } else if (line[1] == 'n') {
+          sscanf(line, "vn %f %f %f", &normals[nIndex].x, &normals[nIndex].y,
+                 &normals[nIndex].z);
+          nIndex++;
+        }
+      }
+      // TODO: вариант парсинга, если есть нормали
+      else if (line[0] == 'f') {
+        int v, vt, n;
+        int elements=sscanf(line, "f %d/%d/%d", &v, &vt, &n);
+        if (elements == 2) {
+          sscanf(line, "f %d/%d %d/%d %d/%d", &faces[fIndex].vertex[0],
+                 &faces[fIndex].uv[0], &faces[fIndex].vertex[1],
+                 &faces[fIndex].uv[1], &faces[fIndex].vertex[2],
+                 &faces[fIndex].uv[2]);
+        } else if (elements == 3) {
+          sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &faces[fIndex].vertex[0],
+                 &faces[fIndex].uv[0], &faces[fIndex].normal[0],
+                 &faces[fIndex].vertex[1], &faces[fIndex].uv[1],
+                 &faces[fIndex].normal[1], &faces[fIndex].vertex[2],
+                 &faces[fIndex].uv[2], &faces[fIndex].normal[2]);
+        }
+        fIndex++;
+      }
+    }
+
+    // TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования
+    // index-буфера)
+    vIndex=0;
+    Vertex *vertices=ArenaPushArray(tempStorage, faceCount * 3, Vertex);
+    Triangle *tris=ArenaPushArray(tempStorage, faceCount, Triangle);
+    for (int i=0; i < faceCount; i++) {
+      for (int j=0; j < 3; j++) {
+        vertices[vIndex].pos=positions[faces[i].vertex[j] - 1];
+        vertices[vIndex].uv=uvs[faces[i].uv[j] - 1];
+        vertices[vIndex].normal=normals[faces[i].normal[j] - 1];
+        tris[i].indices[j]=vIndex;
         vIndex++;
-      } else if (line[1] == 't') {
-        sscanf(line, "vt %f %f", &uvs[vtIndex].x, &uvs[vtIndex].y);
-        vtIndex++;
-      } else if (line[1] == 'n') {
-        sscanf(line, "vn %f %f %f", &normals[nIndex].x, &normals[nIndex].y,
-               &normals[nIndex].z);
-        nIndex++;
       }
     }
-    // TODO: вариант парсинга, если есть нормали
-    else if (line[0] == 'f') {
-      int v, vt, n;
-      int elements = sscanf(line, "f %d/%d/%d", &v, &vt, &n);
-      if (elements == 2) {
-        sscanf(line, "f %d/%d %d/%d %d/%d", &faces[fIndex].vertex[0],
-               &faces[fIndex].uv[0], &faces[fIndex].vertex[1],
-               &faces[fIndex].uv[1], &faces[fIndex].vertex[2],
-               &faces[fIndex].uv[2]);
-      } else if (elements == 3) {
-        sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &faces[fIndex].vertex[0],
-               &faces[fIndex].uv[0], &faces[fIndex].normal[0],
-               &faces[fIndex].vertex[1], &faces[fIndex].uv[1],
-               &faces[fIndex].normal[1], &faces[fIndex].vertex[2],
-               &faces[fIndex].uv[2], &faces[fIndex].normal[2]);
-      }
-      fIndex++;
-    }
+
+    fclose(file);
+
+    return CreateGeometry(vertices, faceCount * 3, tris, faceCount);
+    ;
   }
 
-  // TODO: оптимизировать (создает по 3 вершины на полигон, вместо использования
-  // index-буфера)
-  vIndex = 0;
-  Vertex* vertices = ArenaPushArray(tempStorage, faceCount * 3, Vertex);
-  Triangle* tris = ArenaPushArray(tempStorage, faceCount, Triangle);
-  for (int i = 0; i < faceCount; i++) {
-    for (int j = 0; j < 3; j++) {
-      vertices[vIndex].pos = positions[faces[i].vertex[j] - 1];
-      vertices[vIndex].uv = uvs[faces[i].uv[j] - 1];
-      vertices[vIndex].normal = normals[faces[i].normal[j] - 1];
-      tris[i].indices[j] = vIndex;
-      vIndex++;
-    }
+  // удаляет только ресурсы с GPU
+  void DeleteGeometry(Geometry *geo) {
+    glDeleteBuffers(1, &geo->VBO);
+    glDeleteBuffers(1, &geo->EBO);
+    glDeleteVertexArrays(1, &geo->VAO);
   }
 
-  fclose(file);
+  // void bindGeometry(Geometry* geo) {
+  //	glBindVertexArray(geo->VAO);
+  // }
 
-  return CreateGeometry(vertices, faceCount * 3, tris, faceCount);
-  ;
-}
+  // void unbindGeometry() {
+  //	glBindVertexArray(0);
+  // }
 
-// удаляет только ресурсы с GPU
-void DeleteGeometry(Geometry* geo) {
-  glDeleteBuffers(1, &geo->VBO);
-  glDeleteBuffers(1, &geo->EBO);
-  glDeleteVertexArrays(1, &geo->VAO);
-}
+  void DrawGeometry(Geometry *geo) {
+    g_RendererStats.drawCallsCount++;
+    g_RendererStats.trianglesRendered+=geo->triangleCount;
 
-// void bindGeometry(Geometry* geo) {
-//	glBindVertexArray(geo->VAO);
-// }
+    glBindVertexArray(geo->VAO);
+    glDrawElements(GL_TRIANGLES, geo->triangleCount * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+  }
 
-// void unbindGeometry() {
-//	glBindVertexArray(0);
-// }
+  void DrawGeometry(u32 VAO, u32 triangleCount) {
+    g_RendererStats.drawCallsCount++;
+    g_RendererStats.trianglesRendered+=triangleCount;
 
-void DrawGeometry(Geometry* geo) {
-  g_RendererStats.drawCallsCount++;
-  g_RendererStats.trianglesRendered += geo->triangleCount;
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, triangleCount * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+  }
 
-  glBindVertexArray(geo->VAO);
-  glDrawElements(GL_TRIANGLES, geo->triangleCount * 3, GL_UNSIGNED_INT, 0);
-  glBindVertexArray(0);
-}
+  void DrawGeometryInstanced(u32 VAO, u32 elementsCount, u32 instancesCount) {
+    g_RendererStats.drawCallsInstancedCount++;
+    g_RendererStats.trianglesRendered+=elementsCount / 3 * instancesCount;
 
-void DrawGeometry(u32 VAO, u32 triangleCount) {
-  g_RendererStats.drawCallsCount++;
-  g_RendererStats.trianglesRendered += triangleCount;
+    glBindVertexArray(VAO);
+    glDrawElementsInstanced(GL_TRIANGLES, elementsCount, GL_UNSIGNED_INT, 0,
+                            instancesCount);
+    glBindVertexArray(0);
+  }
 
-  glBindVertexArray(VAO);
-  glDrawElements(GL_TRIANGLES, triangleCount * 3, GL_UNSIGNED_INT, 0);
-  glBindVertexArray(0);
-}
-
-void DrawGeometryInstanced(u32 VAO, u32 elementsCount, u32 instancesCount) {
-  g_RendererStats.drawCallsInstancedCount++;
-  g_RendererStats.trianglesRendered += elementsCount / 3 * instancesCount;
-
-  glBindVertexArray(VAO);
-  glDrawElementsInstanced(GL_TRIANGLES, elementsCount, GL_UNSIGNED_INT, 0,
-                          instancesCount);
-  glBindVertexArray(0);
-}
-
-void SwitchDepthTest(bool enabled) {
-  if (enabled)
-    glEnable(GL_DEPTH_TEST);
-  else
-    glDisable(GL_DEPTH_TEST);
-}
+  void SwitchDepthTest(bool enabled) {
+    if (enabled)
+      glEnable(GL_DEPTH_TEST);
+    else
+      glDisable(GL_DEPTH_TEST);
+  }
 }  // namespace Renderer
 
 Vertex::Vertex() {}
 Vertex::Vertex(float x, float y, float z) {
-  pos.x = x;
-  pos.y = y;
-  pos.z = z;
-  uv = {0, 0};
+  pos.x=x;
+  pos.y=y;
+  pos.z=z;
+  uv={0, 0};
 }
 Vertex::Vertex(float x, float y, float z, float u, float v) {
-  pos.x = x;
-  pos.y = y;
-  pos.z = z;
-  uv.x = u;
-  uv.y = v;
+  pos.x=x;
+  pos.y=y;
+  pos.z=z;
+  uv.x=u;
+  uv.y=v;
 }
 Vertex::Vertex(float x, float y, float z, float u, float v, glm::vec3 normal) {
-  pos.x = x;
-  pos.y = y;
-  pos.z = z;
-  uv.x = u;
-  uv.y = v;
-  this->normal = normal;
+  pos.x=x;
+  pos.y=y;
+  pos.z=z;
+  uv.x=u;
+  uv.y=v;
+  this->normal=normal;
 }
 
 Triangle::Triangle() {}
 Triangle::Triangle(int a, int b, int c) {
-  indices[0] = a;
-  indices[1] = b;
-  indices[2] = c;
+  indices[0]=a;
+  indices[1]=b;
+  indices[2]=c;
 }
 
 BlockFaceInstance::BlockFaceInstance(int pos,
@@ -710,11 +710,11 @@ BlockFaceInstance::BlockFaceInstance(int pos,
                                      TextureID textureID,
                                      u8 sizeA,
                                      u8 sizeB) {
-  this->pos = pos;
-  this->face = face;
-  this->textureID = textureID;
-  this->sizeA = sizeA;
-  this->sizeB = sizeB;
+  this->pos=pos;
+  this->face=face;
+  this->textureID=textureID;
+  this->sizeA=sizeA;
+  this->sizeB=sizeB;
 }
 
 BlockFaceInstance::BlockFaceInstance(int pos,
@@ -723,32 +723,32 @@ BlockFaceInstance::BlockFaceInstance(int pos,
                                      u8 sizeY,
                                      u8 sizeZ,
                                      u8 sizeX) {
-  this->pos = pos;
-  this->face = face;
-  this->textureID = textureID;
+  this->pos=pos;
+  this->face=face;
+  this->textureID=textureID;
 
   switch (face) {
     case faceXNeg:
     case faceXPos:
-      sizeA = sizeY;
-      sizeB = sizeZ;
+      sizeA=sizeY;
+      sizeB=sizeZ;
       break;
       break;
     case faceYNeg:
     case faceYPos:
-      sizeA = sizeX;
-      sizeB = sizeZ;
+      sizeA=sizeX;
+      sizeB=sizeZ;
       break;
       break;
     case faceZNeg:
     case faceZPos:
-      sizeA = sizeX;
-      sizeB = sizeY;
+      sizeA=sizeX;
+      sizeB=sizeY;
       break;
       break;
     default:
-      sizeA = 0;
-      sizeB = 0;
+      sizeA=0;
+      sizeB=0;
       break;
   }
 }

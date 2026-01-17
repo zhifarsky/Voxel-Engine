@@ -4,13 +4,13 @@
 #define SettingsPath "settings"
 
 struct Settings {
-	float FOV;
-	int renderDistance;
-	int antiAliasingQuality;
-	int shadowQuality;
-	bool vsync;
+  float FOV;
+  int renderDistance;
+  int antiAliasingQuality;
+  int shadowQuality;
+  bool vsync;
 };
 
-void SettingsCreateDefault(Settings* settings);
-void SettingsSave(Settings* settings);
-void SettingsLoad(Settings* settings);
+void SettingsCreateDefault(Settings *settings);
+void SettingsSave(Settings *settings);
+void SettingsLoad(Settings *settings);

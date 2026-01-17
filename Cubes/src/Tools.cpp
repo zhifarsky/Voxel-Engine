@@ -2,34 +2,34 @@
 #include <iostream>
 
 void Timer::start() {
-  startTime = std::chrono::high_resolution_clock::now();
+  startTime=std::chrono::high_resolution_clock::now();
 }
 
 void Timer::stop() {
-  stopTime = std::chrono::high_resolution_clock::now();
+  stopTime=std::chrono::high_resolution_clock::now();
 }
 
-void Timer::printMilliseconds(const char* msg) {
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      stopTime - startTime);
+void Timer::printMilliseconds(const char *msg) {
+  auto duration=std::chrono::duration_cast<std::chrono::milliseconds>(
+    stopTime - startTime);
   if (!msg)
-    msg = "Timer:";
+    msg="Timer:";
   dbgprint("%s %dmilliseconds\n", msg, duration);
 }
 
-void Timer::printMicroseconds(const char* msg) {
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-      stopTime - startTime);
+void Timer::printMicroseconds(const char *msg) {
+  auto duration=std::chrono::duration_cast<std::chrono::microseconds>(
+    stopTime - startTime);
   if (!msg)
-    msg = "Timer:";
+    msg="Timer:";
   dbgprint("%s %dmicroseconds\n", msg, duration);
 }
 
-void Timer::printS(const char* msg) {
-  auto duration =
-      std::chrono::duration_cast<std::chrono::seconds>(stopTime - startTime);
+void Timer::printS(const char *msg) {
+  auto duration=
+    std::chrono::duration_cast<std::chrono::seconds>(stopTime - startTime);
   if (!msg)
-    msg = "Timer:";
+    msg="Timer:";
   dbgprint("%s %dms\n", msg, duration);
 }
 
@@ -105,7 +105,7 @@ bool pointRectCollision(float px,
                         float topRightX,
                         float topRightY) {
   return px > bottomLeftX && px < topRightX && py > bottomLeftY &&
-         py < topRightY;
+    py < topRightY;
 }
 
 bool rectRectCollision(float aBottomLeftX,
