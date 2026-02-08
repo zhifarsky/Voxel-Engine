@@ -152,5 +152,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="TODO.md" />
+    <None Include=".clang-format" />
   </ItemGroup>
 </Project>
